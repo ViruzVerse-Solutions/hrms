@@ -120,7 +120,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
 
-    // 4. Fetch Audit Logs (Admin only)
+    // 4. Fetch Attendance Records
+    fetch('/api/attendance', {
+      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.attendanceRecords) {
+          setAttendanceRecords(data.data.attendanceRecords);
+        }
+      })
+      .catch(() => {});
+
+    // 5. Fetch Recruitment (Requisitions & Candidates)
+    fetch('/api/recruitment', {
+      headers: { 'x-user-role': currentRole },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.requisitions) {
+          setRequisitions(data.data.requisitions);
+        }
+        if (data?.data?.candidates) {
+          setCandidates(data.data.candidates);
+        }
+      })
+      .catch(() => {});
+
+    // 6. Fetch Performance Reviews
+    fetch('/api/performance', {
+      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.performanceReviews) {
+          setPerformanceReviews(data.data.performanceReviews);
+        }
+      })
+      .catch(() => {});
+
+    // 7. Fetch Grievances
+    fetch('/api/grievances', {
+      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.grievances) {
+          setGrievances(data.data.grievances);
+        }
+      })
+      .catch(() => {});
+
+    // 8. Fetch Audit Logs (Admin only)
     if (currentRole === 'hr_admin' || currentRole === 'super_admin') {
       fetch('/api/audit-logs', {
         headers: { 'x-user-role': currentRole },
@@ -272,6 +323,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       prev.map((cand) => (cand.id === id ? { ...cand, currentStage: stage } : cand))
     );
     logAuditAction('MOVED_CANDIDATE_PIPELINE', 'recruitment', id, `Candidate moved to stage ${stage}`);
+    fetch('/api/recruitment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+      body: JSON.stringify({ action: 'update_candidate_stage', candidateId: id, stage }),
+    }).catch(() => {});
   };
 
   const addRequisition = (req: Omit<ManpowerRequisition, 'id' | 'createdAt' | 'status'>) => {
@@ -283,6 +339,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     setRequisitions((prev) => [newReq, ...prev]);
     logAuditAction('CREATED_REQUISITION', 'recruitment', newReq.id, `Created requisition for ${req.positionTitle}`);
+    fetch('/api/recruitment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+      body: JSON.stringify(req),
+    }).catch(() => {});
   };
 
   const submitGrievance = (grv: Omit<GrievanceTicket, 'id' | 'ticketNumber' | 'createdAt' | 'status' | 'slaDeadline'>) => {
@@ -300,6 +361,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     setGrievances((prev) => [newTicket, ...prev]);
     logAuditAction('SUBMITTED_GRIEVANCE', 'engagement_welfare', newTicket.id, `Grievance ticket ${newTicket.ticketNumber} filed`);
+    fetch('/api/grievances', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+      body: JSON.stringify(grv),
+    }).catch(() => {});
   };
 
   const markNotificationRead = (id: string) => {

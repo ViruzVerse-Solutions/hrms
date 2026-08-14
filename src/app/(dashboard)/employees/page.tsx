@@ -28,6 +28,19 @@ export default function EmployeesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('all');
 
+  const [departments, setDepartments] = useState<Array<{ id: string; name: string; code: string }>>([]);
+
+  React.useEffect(() => {
+    fetch('/api/master')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.departments) {
+          setDepartments(data.data.departments);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
       emp.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -35,7 +48,10 @@ export default function EmployeesPage() {
       emp.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
       emp.designationTitle.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesDept = selectedDept === 'all' || emp.departmentId === selectedDept;
+    const matchesDept =
+      selectedDept === 'all' ||
+      emp.departmentId === selectedDept ||
+      departments.find((d) => d.code === selectedDept)?.id === emp.departmentId;
     return matchesSearch && matchesDept;
   });
 
@@ -85,9 +101,11 @@ export default function EmployeesPage() {
             className="h-11 px-4 rounded-xl text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
           >
             <option value="all">All Departments</option>
-            <option value="dept_eng">Software Engineering & AI</option>
-            <option value="dept_hr">Human Resources</option>
-            <option value="dept_fin">Finance & Accounts</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
           </select>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { apiSuccess, apiError, apiNotFound } from '@/lib/api-response';
 import { getApiUserContext, requireModuleAccess } from '@/lib/auth/rbac-guard-api';
 import { canViewSensitiveSalary } from '@/lib/rbac';
 import { prisma } from '@/lib/db/prisma';
+import { getPersonaAvatar } from '@/lib/constants';
 
 export async function GET(
   req: NextRequest,
@@ -65,7 +66,7 @@ export async function GET(
       gender: employee.gender,
       dob: employee.dob ? new Date(employee.dob).toISOString().split('T')[0] : '1990-01-01',
       dateOfJoining: employee.dateOfJoining ? new Date(employee.dateOfJoining).toISOString().split('T')[0] : '2023-01-15',
-      avatarUrl: employee.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      avatarUrl: employee.avatarUrl || getPersonaAvatar(employee.employeeCode, `${employee.firstName} ${employee.lastName}`),
       departmentId: employee.departmentId,
       departmentName: employee.department?.name || 'Operations',
       designationId: employee.designationId,

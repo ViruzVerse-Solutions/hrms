@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/api-response';
 import { getApiUserContext } from '@/lib/auth/rbac-guard-api';
-import { CORE_PERSONAS } from '@/lib/constants';
+import { CORE_PERSONAS, getPersonaAvatar } from '@/lib/constants';
 import { prisma } from '@/lib/db/prisma';
 
 export async function GET(req: NextRequest) {
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
         id: user.id,
         name: user.name,
         email: user.email,
-        avatar: user.avatarUrl || user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+        avatar: user.avatarUrl || user.avatar || getPersonaAvatar(user.email, user.name),
         activeRole: userCtx.role,
         roles: user.roles,
         employeeId: user.employeeId || user.employee?.id,

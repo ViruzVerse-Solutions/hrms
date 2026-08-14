@@ -1,0 +1,117 @@
+import { NextRequest } from 'next/server';
+import { apiSuccess, apiError } from '@/lib/api-response';
+import { getApiUserContext, requireModuleAccess } from '@/lib/auth/rbac-guard-api';
+import { prisma } from '@/lib/db/prisma';
+
+export async function GET(req: NextRequest) {
+  try {
+    const userCtx = getApiUserContext(req);
+    const accessError = requireModuleAccess(userCtx, 'recruitment');
+    if (accessError) return accessError;
+
+    let requisitions: any[] = [];
+    let candidates: any[] = [];
+
+    if (prisma) {
+      requisitions = await prisma.jobRequisition.findMany({
+        include: {
+          department: true,
+          designation: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      candidates = await prisma.candidate.findMany({
+        include: {
+          jobRequisition: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
+    const formattedRequisitions = requisitions.map((r: any) => ({
+      id: r.id,
+      positionTitle: r.title,
+      departmentId: r.departmentId,
+      departmentName: r.department?.name || 'Department',
+      openingsCount: r.headcount,
+      urgency: r.status === 'active' ? 'high' : 'medium',
+      minExperience: `${r.experienceMin}-${r.experienceMax} Years`,
+      status: r.status,
+      targetDate: r.updatedAt ? r.updatedAt.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      justification: `Approved headcount requirement for ${r.title}`,
+      requestedById: userCtx.employeeId || 'emp_001',
+      requestedByName: 'HR Administrator',
+    }));
+
+    const formattedCandidates = candidates.map((c: any) => ({
+      id: c.id,
+      candidateCode: c.candidateCode,
+      name: c.name,
+      email: c.email,
+      phone: c.phone,
+      positionApplied: c.jobRequisition?.title || 'Open Position',
+      currentStage: c.stage,
+      experienceYears: Number(c.experienceYears),
+      currentCtc: c.currentCtc ? Number(c.currentCtc) : 0,
+      expectedCtc: c.expectedCtc ? Number(c.expectedCtc) : 0,
+      rating: c.rating ? Number(c.rating) : 4.0,
+      matchScore: c.matchScore || 85,
+      appliedDate: c.createdAt ? c.createdAt.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      interviewDate: c.interviewDate ? c.interviewDate.toISOString().split('T')[0] : undefined,
+      interviewerName: c.interviewerName || undefined,
+    }));
+
+    return apiSuccess({
+      requisitions: formattedRequisitions,
+      candidates: formattedCandidates,
+    });
+  } catch (error: any) {
+    return apiError(error?.message || 'Failed to fetch recruitment data', 500);
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const userCtx = getApiUserContext(req);
+    const accessError = requireModuleAccess(userCtx, 'recruitment');
+    if (accessError) return accessError;
+
+    const body = await req.json();
+
+    if (body.action === 'update_candidate_stage') {
+      const { candidateId, stage } = body;
+      if (prisma) {
+        await prisma.candidate.update({
+          where: { id: candidateId },
+          data: { stage },
+        });
+      }
+      return apiSuccess({ candidateId, stage }, 'Candidate stage updated successfully');
+    }
+
+    // Default: Create new Job Requisition
+    let newReq: any = null;
+    if (prisma) {
+      const defaultDept = await prisma.department.findFirst();
+      const defaultDesig = await prisma.designation.findFirst();
+
+      newReq = await prisma.jobRequisition.create({
+        data: {
+          organizationId: (await prisma.organization.findFirst())?.id || 'org_vv',
+          departmentId: body.departmentId || defaultDept?.id,
+          designationId: defaultDesig?.id,
+          title: body.positionTitle || 'New Position',
+          headcount: body.openingsCount || 1,
+          status: 'active',
+          budgetMin: 800000,
+          budgetMax: 1500000,
+        },
+      });
+    }
+
+    return apiSuccess({ requisition: newReq }, 'Job requisition created successfully', 201);
+  } catch (error: any) {
+    return apiError(error?.message || 'Failed to process recruitment action', 500);
+  }
+}

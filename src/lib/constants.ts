@@ -25,7 +25,7 @@ export const CORE_PERSONAS: User[] = [
     id: 'usr_super_admin',
     name: 'Alexander Sterling',
     email: 'alexander.sterling@viruzverse.com',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    avatar: 'https://ui-avatars.com/api/?name=Alexander+Sterling&background=4f46e5&color=ffffff',
     roles: ['super_admin'],
     activeRole: 'super_admin',
     status: 'active',
@@ -36,7 +36,7 @@ export const CORE_PERSONAS: User[] = [
     id: 'usr_hr_admin',
     name: 'Eleanor Vance',
     email: 'eleanor.vance@viruzverse.com',
-    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+    avatar: 'https://ui-avatars.com/api/?name=Eleanor+Vance&background=4f46e5&color=ffffff',
     roles: ['hr_admin'],
     activeRole: 'hr_admin',
     employeeId: 'emp_001',
@@ -49,7 +49,7 @@ export const CORE_PERSONAS: User[] = [
     id: 'usr_hr_exec',
     name: 'Priya Sharma',
     email: 'priya.sharma@viruzverse.com',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80',
+    avatar: 'https://ui-avatars.com/api/?name=Priya+Sharma&background=4f46e5&color=ffffff',
     roles: ['hr_executive'],
     activeRole: 'hr_executive',
     employeeId: 'emp_002',
@@ -62,7 +62,7 @@ export const CORE_PERSONAS: User[] = [
     id: 'usr_payroll',
     name: 'Marcus Chen',
     email: 'marcus.chen@viruzverse.com',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    avatar: 'https://ui-avatars.com/api/?name=Marcus+Chen&background=4f46e5&color=ffffff',
     roles: ['payroll_officer'],
     activeRole: 'payroll_officer',
     employeeId: 'emp_003',
@@ -75,7 +75,7 @@ export const CORE_PERSONAS: User[] = [
     id: 'usr_manager',
     name: 'Dr. Vikramaditya Rathore',
     email: 'vikram.rathore@viruzverse.com',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    avatar: 'https://ui-avatars.com/api/?name=Vikramaditya+Rathore&background=4f46e5&color=ffffff',
     roles: ['reporting_manager'],
     activeRole: 'reporting_manager',
     employeeId: 'emp_004',
@@ -88,7 +88,7 @@ export const CORE_PERSONAS: User[] = [
     id: 'usr_employee',
     name: 'Ananya Deshmukh',
     email: 'ananya.deshmukh@viruzverse.com',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80',
+    avatar: 'https://ui-avatars.com/api/?name=Ananya+Deshmukh&background=4f46e5&color=ffffff',
     roles: ['employee'],
     activeRole: 'employee',
     employeeId: 'emp_005',
@@ -100,24 +100,6 @@ export const CORE_PERSONAS: User[] = [
 ];
 
 export function getPersonaAvatar(codeOrEmail?: string, fallbackName?: string): string {
-  const str = ((codeOrEmail || '') + ' ' + (fallbackName || '')).toLowerCase();
-  if (str.includes('1001') || str.includes('eleanor') || str.includes('vance')) {
-    return 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80';
-  }
-  if (str.includes('1002') || str.includes('priya') || str.includes('sharma')) {
-    return 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80';
-  }
-  if (str.includes('1003') || str.includes('marcus') || str.includes('chen')) {
-    return 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
-  }
-  if (str.includes('1004') || str.includes('vikram') || str.includes('rathore')) {
-    return 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80';
-  }
-  if (str.includes('1005') || str.includes('ananya') || str.includes('deshmukh')) {
-    return 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80';
-  }
-  if (str.includes('sterling') || str.includes('alexander') || str.includes('super_admin')) {
-    return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
-  }
-  return 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+  const name = (fallbackName || codeOrEmail || 'User').trim();
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=4f46e5&color=ffffff`;
 }

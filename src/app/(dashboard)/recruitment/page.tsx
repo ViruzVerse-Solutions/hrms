@@ -61,11 +61,11 @@ function RecruitmentContent() {
     justification: '',
   });
 
-  const stages: Array<{ key: Candidate['currentStage']; label: string; color: string }> = [
-    { key: 'applied', label: 'Applied', color: 'border-slate-300 dark:border-slate-700' },
-    { key: 'screened', label: 'Screened', color: 'border-blue-400 dark:border-blue-700' },
-    { key: 'interview', label: 'Interview', color: 'border-purple-400 dark:border-purple-700' },
-    { key: 'offered', label: 'Offered', color: 'border-emerald-400 dark:border-emerald-700' },
+  const stages: Array<{ keys: string[]; label: string; color: string }> = [
+    { keys: ['applied'], label: 'Applied', color: 'border-slate-300 dark:border-slate-700' },
+    { keys: ['screened', 'shortlisted'], label: 'Screened / Shortlisted', color: 'border-blue-400 dark:border-blue-700' },
+    { keys: ['interview', 'technical_eval', 'hr_round'], label: 'Interview Round', color: 'border-purple-400 dark:border-purple-700' },
+    { keys: ['offered', 'hired', 'selected'], label: 'Offered / Selected', color: 'border-emerald-400 dark:border-emerald-700' },
   ];
 
   const handleCreateRequisition = (e: React.FormEvent) => {
@@ -78,16 +78,20 @@ function RecruitmentContent() {
     setReqModalOpen(false);
   };
 
-  const advanceStage = (candidateId: string, current: Candidate['currentStage']) => {
-    const nextMap: Record<Candidate['currentStage'], Candidate['currentStage']> = {
+  const advanceStage = (candidateId: string, current: string) => {
+    const nextMap: Record<string, Candidate['currentStage']> = {
       applied: 'screened',
+      shortlisted: 'interview',
       screened: 'interview',
       interview: 'offered',
+      technical_eval: 'interview',
+      hr_round: 'offered',
       offered: 'selected',
+      hired: 'selected',
       selected: 'selected',
       rejected: 'rejected',
     };
-    updateCandidateStage(candidateId, nextMap[current]);
+    updateCandidateStage(candidateId, (nextMap[current] || 'offered') as Candidate['currentStage']);
   };
 
   return (
@@ -213,10 +217,10 @@ function RecruitmentContent() {
       {activeTab === 'pipeline' && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
           {stages.map((stage) => {
-            const stageCandidates = candidates.filter((c) => c.currentStage === stage.key);
+            const stageCandidates = candidates.filter((c) => stage.keys.includes(c.currentStage));
 
             return (
-              <div key={stage.key} className="space-y-3">
+              <div key={stage.label} className="space-y-3">
                 {/* Column Header */}
                 <div className={`p-3 rounded-2xl bg-white dark:bg-slate-900 border ${stage.color} flex items-center justify-between shadow-sm`}>
                   <div className="flex items-center gap-2">

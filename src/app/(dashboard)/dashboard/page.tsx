@@ -32,6 +32,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { getPersonaAvatar } from '@/lib/constants';
 
 export default function DashboardPage() {
   const {
@@ -321,45 +322,31 @@ export default function DashboardPage() {
                 <CardTitle className="text-base font-bold">Workforce by Department</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span>Production & Ops</span>
-                    <span>38 staff (35%)</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-indigo-600 rounded-full" style={{ width: '35%' }} />
-                  </div>
-                </div>
+                {(() => {
+                  const deptCounts: Record<string, number> = {};
+                  employees.forEach((emp) => {
+                    const name = emp.departmentName || 'General';
+                    deptCounts[name] = (deptCounts[name] || 0) + 1;
+                  });
+                  const total = employees.length || 1;
+                  const colors = ['bg-indigo-600', 'bg-purple-600', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500'];
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span>Quality Assurance & QC</span>
-                    <span>16 staff (15%)</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-purple-600 rounded-full" style={{ width: '15%' }} />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span>Supply Chain & Logistics</span>
-                    <span>18 staff (17%)</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-blue-500 rounded-full" style={{ width: '17%' }} />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span>Engineering & Utilities</span>
-                    <span>14 staff (13%)</span>
-                  </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
-                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: '13%' }} />
-                  </div>
-                </div>
+                  return Object.entries(deptCounts).map(([deptName, count], idx) => {
+                    const pct = Math.round((count / total) * 100);
+                    const color = colors[idx % colors.length];
+                    return (
+                      <div key={deptName} className="space-y-2">
+                        <div className="flex justify-between text-xs font-semibold">
+                          <span>{deptName}</span>
+                          <span>{count} staff ({pct}%)</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                          <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </CardContent>
             </Card>
           </div>
@@ -549,7 +536,7 @@ export default function DashboardPage() {
                     <div key={emp.id} className="py-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <img
-                          src={emp.avatarUrl || 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150'}
+                          src={emp.avatarUrl || getPersonaAvatar(emp.employeeCode, `${emp.firstName} ${emp.lastName}`)}
                           alt={emp.firstName}
                           className="h-9 w-9 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700"
                         />
