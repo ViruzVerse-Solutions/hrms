@@ -20,8 +20,17 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function SettingsPage() {
+  return (
+    <RBACGuard module="system_settings">
+      <SettingsContent />
+    </RBACGuard>
+  );
+}
+
+function SettingsContent() {
   const { auditLogs, currentRole } = useAuth();
   const [activeTab, setActiveTab] = useState<'master' | 'audit' | 'rbac'>('master');
 

@@ -20,8 +20,17 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { GrievanceTicket } from '@/types';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function EngagementPage() {
+  return (
+    <RBACGuard module="engagement_welfare">
+      <EngagementContent />
+    </RBACGuard>
+  );
+}
+
+function EngagementContent() {
   const {
     grievances,
     submitGrievance,

@@ -12,15 +12,23 @@ import {
   FileCheck,
   Download,
   AlertTriangle,
-  Sparkles,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function ResignationPage() {
+  return (
+    <RBACGuard module="resignation_exit">
+      <ResignationContent />
+    </RBACGuard>
+  );
+}
+
+function ResignationContent() {
   const exitCase = MOCK_RESIGNATIONS[0];
   const [relievingModalOpen, setRelievingModalOpen] = useState(false);
 
@@ -204,8 +212,8 @@ export default function ResignationPage() {
           </DialogHeader>
           <div className="p-6 bg-slate-50 dark:bg-slate-800/80 rounded-2xl space-y-4 text-xs font-serif leading-relaxed text-slate-800 dark:text-slate-200">
             <div className="text-center pb-3 border-b">
-              <h2 className="text-base font-bold font-sans">VIRUZVERSE SOLUTIONS PRIVATE LIMITED</h2>
-              <p className="text-[11px] font-sans text-slate-500">Bengaluru Tech Park, Karnataka, India</p>
+              <h2 className="text-base font-bold font-sans">APEX OPERATIONS & MANUFACTURING PVT. LTD.</h2>
+              <p className="text-[11px] font-sans text-slate-500">North Industrial Zone, Plant Campus 1, India</p>
             </div>
 
             <div className="text-right font-sans text-slate-500 text-[11px]">
@@ -217,11 +225,11 @@ export default function ResignationPage() {
             </h3>
 
             <p>
-              This is to certify that <strong>Sneha Kulkarni</strong> was employed with ViruzVerse Solutions as a <strong>Lead QA Automation Engineer</strong> from 15th January 2023 to 20th August 2026.
+              This is to certify that <strong>Sneha Kulkarni</strong> was employed with Apex Operations as a <strong>Quality Control Specialist</strong> from 15th January 2023 to 20th August 2026.
             </p>
 
             <p>
-              During her tenure, she has demonstrated exceptional technical expertise, diligence, and professional integrity. All company assets and clearances have been satisfactorily completed.
+              During her tenure, she has demonstrated exceptional diligence, procedural adherence, and operational integrity. All plant tooling, clearances, and handover checklists have been satisfactorily completed.
             </p>
 
             <p>

@@ -1,26 +1,110 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* 
+ * 60-30-10 Light Theme Design System
+ * 60% Canvas & Negative Space: #f8fafc (Slate 50)
+ * 30% Structural Surfaces: #ffffff (White cards/sidebar), #0f172a / #334155 (Text), #e2e8f0 (Borders)
+ * 10% Vibrant Focus Accent: #4f46e5 (Indigo buttons, active navigation, indicators)
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* 60% Canvas */
+  --background: #f8fafc;
+  --secondary: #f1f5f9;
+  
+  /* 30% Structural Surfaces & Typography */
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+
+  /* 10% Interactive Accent */
+  --primary: #4f46e5;
+  --primary-foreground: #ffffff;
+  --accent: #eef2ff;
+  --accent-foreground: #4338ca;
+  --ring: #4f46e5;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --radius: 0.75rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans, "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  --font-mono: var(--font-mono, "JetBrains Mono", monospace);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--border);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
+  letter-spacing: -0.011em;
 }
+
+/* Crystal-clear typography hierarchy */
+h1, h2, h3, h4, h5, h6 {
+  color: #0f172a !important;
+  font-weight: 700;
+}
+
+p {
+  color: #475569;
+}
+
+/* Base table styling */
+table thead th {
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  font-weight: 600 !important;
+}
+
+table tbody td {
+  color: #1e293b !important;
+  background-color: transparent;
+}
+
+/* Card surfaces */
+.card-surface {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* Tabular numbers for clean tabular data alignment */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+

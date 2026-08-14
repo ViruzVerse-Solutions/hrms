@@ -15,17 +15,9 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/utils';
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  LineChart,
-  Line,
-} from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
+import { useAuth } from '@/context/AuthContext';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 const PAYROLL_TREND_DATA = [
   { month: 'Mar', gross: 7200000, net: 6180000 },
@@ -46,6 +38,16 @@ const HEADCOUNT_GROWTH_DATA = [
 ];
 
 export default function ReportsPage() {
+  return (
+    <RBACGuard module="reports_dashboard">
+      <ReportsContent />
+    </RBACGuard>
+  );
+}
+
+function ReportsContent() {
+  const { isSalaryVisible } = useAuth();
+  const canSeePayroll = isSalaryVisible(false);
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}

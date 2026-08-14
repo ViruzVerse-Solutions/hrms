@@ -15,8 +15,17 @@ import { formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function MovementPage() {
+  return (
+    <RBACGuard module="transfer_promotion">
+      <MovementContent />
+    </RBACGuard>
+  );
+}
+
+function MovementContent() {
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}

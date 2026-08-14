@@ -11,9 +11,9 @@ import {
   Building,
   CreditCard,
   Printer,
-  Sparkles,
   Lock,
   ArrowRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -21,23 +21,38 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Payslip } from '@/types';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function PayrollPage() {
+  return (
+    <RBACGuard module="payroll_benefits">
+      <PayrollContent />
+    </RBACGuard>
+  );
+}
+
+function PayrollContent() {
   const {
     payrollRuns,
     payslips,
     approvePayrollRun,
     isSalaryVisible,
     currentUser,
+    currentEmployee,
     can,
     currentRole,
   } = useAuth();
 
-  const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(payslips[0] || null);
+  // Employee self-service: only see own payslip!
+  const visiblePayslips = currentRole === 'employee' && currentEmployee
+    ? payslips.filter((ps) => ps.employeeId === currentEmployee.id)
+    : payslips;
+
+  const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(visiblePayslips[0] || null);
   const [payslipModalOpen, setPayslipModalOpen] = useState(false);
 
   const canManagePayroll = can('create', 'payroll_benefits') || can('approve', 'payroll_benefits');
-  const canSeeSalaries = isSalaryVisible(false);
+  const isSelfServiceOnly = currentRole === 'employee';
 
   const handlePrint = () => {
     window.print();
@@ -74,72 +89,76 @@ export default function PayrollPage() {
         )}
       </div>
 
-      {/* Payroll Runs Dashboard */}
-      <div className="space-y-4">
-        <h2 className="text-base font-bold text-slate-900 dark:text-white">Monthly Payroll Processing Runs</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {payrollRuns.map((run) => (
-            <Card key={run.id} className="border-slate-200 dark:border-slate-800">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-lg text-slate-900 dark:text-white">
-                      {run.monthName} {run.year} Payroll Cycle
-                    </h3>
-                    <span className="text-xs text-slate-400 font-mono">Run ID: {run.id}</span>
+      {/* Payroll Runs Dashboard - Only visible to Payroll Officer, HR Admin, Super Admin */}
+      {!isSelfServiceOnly && (
+        <div className="space-y-4">
+          <h2 className="text-base font-bold text-slate-900 dark:text-white">Monthly Payroll Processing Runs</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {payrollRuns.map((run) => (
+              <Card key={run.id} className="border-slate-200 dark:border-slate-800">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-bold text-lg text-slate-900 dark:text-white">
+                        {run.monthName} {run.year} Payroll Cycle
+                      </h3>
+                      <span className="text-xs text-slate-400 font-mono">Run ID: {run.id}</span>
+                    </div>
+                    <Badge
+                      variant={run.status === 'disbursed' ? 'success' : run.status === 'approved' ? 'info' : 'warning'}
+                      className="text-xs capitalize"
+                    >
+                      {run.status.replace('_', ' ')}
+                    </Badge>
                   </div>
-                  <Badge
-                    variant={run.status === 'disbursed' ? 'success' : run.status === 'approved' ? 'info' : 'warning'}
-                    className="text-xs capitalize"
-                  >
-                    {run.status.replace('_', ' ')}
-                  </Badge>
-                </div>
 
-                <div className="grid grid-cols-3 gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-xs">
-                  <div>
-                    <span className="text-slate-400 text-[10px] uppercase font-semibold">Staff Count</span>
-                    <div className="font-bold text-sm mt-0.5">{run.totalEmployees} Active</div>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[10px] uppercase font-semibold">Gross Wages</span>
-                    <div className="font-bold text-sm mt-0.5 font-mono">{formatCurrency(run.totalGrossPay)}</div>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[10px] uppercase font-semibold">Net Payout</span>
-                    <div className="font-bold text-sm mt-0.5 text-emerald-600 font-mono">
-                      {formatCurrency(run.totalNetPay)}
+                  <div className="grid grid-cols-3 gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 text-xs">
+                    <div>
+                      <span className="text-slate-400 text-[10px] uppercase font-semibold">Staff Count</span>
+                      <div className="font-bold text-sm mt-0.5">{run.totalEmployees} Active</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] uppercase font-semibold">Gross Wages</span>
+                      <div className="font-bold text-sm mt-0.5 font-mono">{formatCurrency(run.totalGrossPay)}</div>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] uppercase font-semibold">Net Payout</span>
+                      <div className="font-bold text-sm mt-0.5 text-emerald-600 font-mono">
+                        {formatCurrency(run.totalNetPay)}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center justify-between pt-2 border-t text-xs">
-                  <span className="text-slate-400">
-                    {run.approvedBy ? `Approved by ${run.approvedBy}` : 'Pending final approval review'}
-                  </span>
+                  <div className="flex items-center justify-between pt-2 border-t text-xs">
+                    <span className="text-slate-400">
+                      {run.approvedBy ? `Approved by ${run.approvedBy}` : 'Pending final approval review'}
+                    </span>
 
-                  {run.status === 'under_review' && (currentRole === 'hr_admin' || currentRole === 'super_admin') && (
-                    <Button
-                      size="sm"
-                      onClick={() => approvePayrollRun(run.id)}
-                      className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-500 shadow-sm"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span>Approve & Release Payslips</span>
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    {run.status === 'under_review' && (currentRole === 'hr_admin' || currentRole === 'super_admin') && (
+                      <Button
+                        size="sm"
+                        onClick={() => approvePayrollRun(run.id)}
+                        className="text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-500 shadow-sm text-white"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        <span>Approve & Release Payslips</span>
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Payslips Archive & Viewer */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-base font-bold">Published Employee Payslips</CardTitle>
+            <CardTitle className="text-base font-bold">
+              {isSelfServiceOnly ? 'My Published Payslips & Salary Statements' : 'Published Employee Payslips'}
+            </CardTitle>
             <p className="text-xs text-slate-400 mt-0.5">Click any record to inspect or print tamper-proof payslip</p>
           </div>
         </CardHeader>
@@ -159,7 +178,7 @@ export default function PayrollPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {payslips.map((ps) => (
+                {visiblePayslips.map((ps) => (
                   <tr key={ps.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                     <td className="p-3 font-bold text-slate-900 dark:text-white">
                       {ps.employeeName}
@@ -212,7 +231,7 @@ export default function PayrollPage() {
               <div className="flex items-center justify-between pb-4 border-b">
                 <div>
                   <div className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400">
-                    ViruzVerse Solutions Inc.
+                    Apex Operations & Manufacturing Ltd.
                   </div>
                   <div className="text-xs text-slate-500">
                     Salary Statement & Payslip for {selectedPayslip.period}

@@ -16,8 +16,17 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function PerformancePage() {
+  return (
+    <RBACGuard module="performance_mgmt">
+      <PerformanceContent />
+    </RBACGuard>
+  );
+}
+
+function PerformanceContent() {
   const { performanceReviews, currentRole } = useAuth();
   const [activeTab, setActiveTab] = useState<'appraisals' | 'nine_box' | 'pip'>('appraisals');
 
