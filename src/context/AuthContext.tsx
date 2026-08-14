@@ -135,17 +135,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentRole, currentUser.employeeId]);
 
-  // Sync user profile when currentRole changes
-  useEffect(() => {
+  // Sync user profile synchronously when role is changed
+  const handleSetRole = (newRole: UserRole) => {
+    setCurrentRole(newRole);
     const matchingUser =
-      CORE_PERSONAS.find((u) => u.activeRole === currentRole) ||
-      CORE_PERSONAS.find((u) => u.roles.includes(currentRole)) ||
+      CORE_PERSONAS.find((u) => u.activeRole === newRole) ||
+      CORE_PERSONAS.find((u) => u.roles.includes(newRole)) ||
       CORE_PERSONAS[0];
     setCurrentUser({
       ...matchingUser,
-      activeRole: currentRole,
+      activeRole: newRole,
     });
-  }, [currentRole]);
+  };
 
   const currentEmployee = employees.find((e) => e.userId === currentUser.id || e.id === currentUser.employeeId);
 
@@ -313,7 +314,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       value={{
         currentUser,
         currentRole,
-        setCurrentRole,
+        setCurrentRole: handleSetRole,
         currentEmployee,
         hasAccess,
         can,

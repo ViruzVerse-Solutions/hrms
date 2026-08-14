@@ -67,42 +67,42 @@ export type EmploymentStatus = 'probation' | 'active' | 'notice_period' | 'resig
 
 export interface Employee {
   id: string;
-  userId: string;
+  userId?: string;
   employeeCode: string;
   firstName: string;
   lastName: string;
   email: string;
   phone: string;
   avatarUrl?: string;
-  gender: 'male' | 'female' | 'other';
-  dob: string;
-  dateOfJoining: string;
-  departmentId: string;
-  departmentName: string;
-  designationId: string;
-  designationTitle: string;
+  gender?: 'male' | 'female' | 'other' | string;
+  dob?: string;
+  dateOfJoining?: string;
+  departmentId?: string;
+  departmentName?: string;
+  designationId?: string;
+  designationTitle?: string;
   reportingManagerId?: string;
   reportingManagerName?: string;
-  branchId: string;
-  branchName: string;
+  branchId?: string;
+  branchName?: string;
   employmentStatus: EmploymentStatus;
-  currentLifecycleStage: LifecycleStageKey;
-  ctc: number; // Confidential
-  bankDetails: {
-    accountNumber: string;
-    bankName: string;
-    ifscCode: string;
-    pan: string;
+  currentLifecycleStage?: LifecycleStageKey;
+  ctc?: number; // Confidential
+  bankDetails?: {
+    accountNumber?: string;
+    bankName?: string;
+    ifscCode?: string;
+    pan?: string;
   };
-  statutory: {
+  statutory?: {
     pfNumber?: string;
     esiNumber?: string;
     uan?: string;
   };
-  emergencyContact: {
-    name: string;
-    relationship: string;
-    phone: string;
+  emergencyContact?: {
+    name?: string;
+    relationship?: string;
+    phone?: string;
   };
 }
 

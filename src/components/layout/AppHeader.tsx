@@ -92,7 +92,7 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
             >
               <ShieldCheck className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
               <span className="hidden sm:inline">Role:</span>
-              <span className="truncate max-w-[90px] sm:max-w-[130px]">{ROLE_LABELS[currentRole].title}</span>
+              <span className="truncate max-w-[90px] sm:max-w-[130px]">{ROLE_LABELS[currentRole]?.title || currentRole}</span>
               <ChevronDown className="h-3.5 w-3.5 opacity-50 shrink-0" />
             </Button>
           </DropdownMenuTrigger>
@@ -108,6 +108,7 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
               return (
                 <DropdownMenuItem
                   key={role}
+                  onSelect={() => setCurrentRole(role)}
                   onClick={() => setCurrentRole(role)}
                   className={`flex flex-col items-start gap-0.5 p-2 rounded-xl cursor-pointer transition-colors ${
                     isSelected ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'hover:bg-slate-50 text-slate-700'
@@ -187,29 +188,29 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 pl-1.5 pr-2 sm:pr-3 py-1 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200">
               <img
-                src={getPersonaAvatar(currentUser.employeeId, currentUser.name)}
-                alt={currentUser.name}
+                src={getPersonaAvatar(currentUser?.employeeId, currentUser?.name)}
+                alt={currentUser?.name || 'User'}
                 className="h-8 w-8 rounded-full object-cover ring-2 ring-indigo-500/20"
               />
               <div className="text-left hidden lg:block">
                 <div className="text-xs font-semibold text-slate-900 leading-tight">
-                  {currentUser.name}
+                  {currentUser?.name || 'User'}
                 </div>
                 <div className="text-[10px] text-slate-500 capitalize">
-                  {ROLE_LABELS[currentRole].title}
+                  {ROLE_LABELS[currentRole]?.title || currentRole}
                 </div>
               </div>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 p-2 bg-white border border-slate-200 shadow-xl rounded-2xl">
             <DropdownMenuLabel className="px-2 py-1.5">
-              <div className="font-bold text-xs text-slate-900">{currentUser.name}</div>
-              <div className="text-[11px] text-slate-500 truncate">{currentUser.email}</div>
+              <div className="font-bold text-xs text-slate-900">{currentUser?.name || 'User'}</div>
+              <div className="text-[11px] text-slate-500 truncate">{currentUser?.email || ''}</div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link
-                href={currentEmployee?.id ? `/employees/${currentEmployee.id}` : currentUser.employeeId ? `/employees/${currentUser.employeeId}` : '/employees'}
+                href={currentEmployee?.id ? `/employees/${currentEmployee.id}` : currentUser?.employeeId ? `/employees/${currentUser.employeeId}` : '/employees'}
                 className="text-xs cursor-pointer flex items-center gap-2 text-slate-700 hover:text-slate-900 rounded-lg p-2"
               >
                 <UserCheck className="h-3.5 w-3.5 text-slate-500" />
