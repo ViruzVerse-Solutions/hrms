@@ -19,8 +19,17 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function AttendancePage() {
+  return (
+    <RBACGuard module="attendance_leave">
+      <AttendanceContent />
+    </RBACGuard>
+  );
+}
+
+function AttendanceContent() {
   const {
     attendanceRecords,
     currentRole,
@@ -28,10 +37,14 @@ export default function AttendancePage() {
     updateAttendanceCheckin,
   } = useAuth();
 
-  const [filterDate, setFilterDate] = useState('2026-08-13');
+  const [filterDate, setFilterDate] = useState('2026-08-14');
   const [sourceFilter, setSourceFilter] = useState('all');
 
-  const filteredRecords = attendanceRecords.filter((rec) => {
+  const baseRecords = currentRole === 'employee' && currentEmployee
+    ? attendanceRecords.filter((r) => r.employeeId === currentEmployee.id)
+    : attendanceRecords;
+
+  const filteredRecords = baseRecords.filter((rec) => {
     const matchesDate = !filterDate || rec.date === filterDate;
     const matchesSource = sourceFilter === 'all' || rec.source === sourceFilter;
     return matchesDate && matchesSource;

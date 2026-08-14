@@ -19,14 +19,24 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { LeaveType } from '@/types';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function LeavesPage() {
+  return (
+    <RBACGuard module="attendance_leave">
+      <LeavesContent />
+    </RBACGuard>
+  );
+}
+
+function LeavesContent() {
   const {
     leaveRequests,
     addLeaveRequest,
     updateLeaveStatus,
     currentUser,
     currentEmployee,
+    currentRole,
     can,
   } = useAuth();
 
@@ -37,6 +47,10 @@ export default function LeavesPage() {
     toDate: '2026-08-21',
     reason: '',
   });
+
+  const visibleLeaves = currentRole === 'employee' && currentEmployee
+    ? leaveRequests.filter((l) => l.employeeId === currentEmployee.id)
+    : leaveRequests;
 
   const handleApply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,13 +79,13 @@ export default function LeavesPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+          <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
             <span>Leave Management & Approvals</span>
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs font-semibold">
               Automated Balance Deduction
             </Badge>
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-600 mt-1">
             Apply for time off, review leave balances, and manage multi-tier approval chains
           </p>
         </div>
@@ -147,47 +161,47 @@ export default function LeavesPage() {
 
       {/* Leave Balances Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
-        <Card className="border-indigo-500/20 bg-indigo-50/30 dark:bg-indigo-950/20">
+        <Card className="border-slate-200 bg-white">
           <CardContent className="p-6">
             <div className="flex justify-between text-xs font-semibold text-slate-500">
               <span>Casual Leave (CL)</span>
               <Calendar className="h-4 w-4 text-indigo-600" />
             </div>
             <div className="text-3xl font-extrabold text-indigo-600 mt-2 font-mono">7 / 12</div>
-            <div className="text-xs text-slate-400 mt-1">3 used • 2 pending</div>
+            <div className="text-xs text-slate-500 mt-1">3 used • 2 pending approval</div>
           </CardContent>
         </Card>
 
-        <Card className="border-emerald-500/20 bg-emerald-50/30 dark:bg-emerald-950/20">
+        <Card className="border-slate-200 bg-white">
           <CardContent className="p-6">
             <div className="flex justify-between text-xs font-semibold text-slate-500">
               <span>Sick Leave (SL)</span>
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
             </div>
             <div className="text-3xl font-extrabold text-emerald-600 mt-2 font-mono">8 / 10</div>
-            <div className="text-xs text-slate-400 mt-1">2 used this year</div>
+            <div className="text-xs text-slate-500 mt-1">2 used this calendar year</div>
           </CardContent>
         </Card>
 
-        <Card className="border-purple-500/20 bg-purple-50/30 dark:bg-purple-950/20">
+        <Card className="border-slate-200 bg-white">
           <CardContent className="p-6">
             <div className="flex justify-between text-xs font-semibold text-slate-500">
               <span>Earned Leave (EL)</span>
               <CalendarDays className="h-4 w-4 text-purple-600" />
             </div>
             <div className="text-3xl font-extrabold text-purple-600 mt-2 font-mono">11 / 15</div>
-            <div className="text-xs text-slate-400 mt-1">Encashable balance</div>
+            <div className="text-xs text-slate-500 mt-1">Encashable balance on exit</div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-slate-200 bg-white">
           <CardContent className="p-6">
             <div className="flex justify-between text-xs font-semibold text-slate-500">
               <span>Holiday Calendar 2026</span>
               <FileCheck className="h-4 w-4 text-amber-500" />
             </div>
-            <div className="text-2xl font-extrabold text-slate-900 dark:text-white mt-2">14 Days</div>
-            <div className="text-xs text-amber-600 mt-1 font-medium">Next: 15 Aug (Ind. Day)</div>
+            <div className="text-3xl font-extrabold text-slate-900 mt-2 font-mono">14 Days</div>
+            <div className="text-xs text-amber-600 mt-1 font-medium">Next: 15 Aug (Independence Day)</div>
           </CardContent>
         </Card>
       </div>
@@ -200,7 +214,7 @@ export default function LeavesPage() {
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 font-semibold border-b">
+              <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
                 <tr>
                   <th className="p-3">Employee</th>
                   <th className="p-3">Leave Type</th>
@@ -212,23 +226,22 @@ export default function LeavesPage() {
                   <th className="p-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                {leaveRequests.map((req) => {
-                  const statusBadge = getStatusColorBadge(req.status);
+              <tbody className="divide-y divide-slate-100">
+                {visibleLeaves.map((req) => {
                   const canApprove = can('approve', 'attendance_leave');
 
                   return (
-                    <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                      <td className="p-3 font-bold text-slate-900 dark:text-white">
+                    <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="p-3 font-bold text-slate-900">
                         {req.employeeName}
                       </td>
                       <td className="p-3 capitalize font-semibold text-indigo-600">
                         {req.leaveType}
                       </td>
-                      <td className="p-3 text-slate-500">{formatDate(req.fromDate)}</td>
-                      <td className="p-3 text-slate-500">{formatDate(req.toDate)}</td>
-                      <td className="p-3 font-mono font-bold">{req.daysCount} days</td>
-                      <td className="p-3 text-slate-600 dark:text-slate-300 max-w-xs truncate">
+                      <td className="p-3 text-slate-600 font-medium">{formatDate(req.fromDate)}</td>
+                      <td className="p-3 text-slate-600 font-medium">{formatDate(req.toDate)}</td>
+                      <td className="p-3 font-mono font-bold text-slate-900">{req.daysCount} days</td>
+                      <td className="p-3 text-slate-600 max-w-xs truncate">
                         {req.reason}
                       </td>
                       <td className="p-3">

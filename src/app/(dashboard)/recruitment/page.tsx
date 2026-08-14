@@ -14,8 +14,9 @@ import {
   Clock,
   Briefcase,
   ChevronRight,
-  Sparkles,
   ArrowRight,
+  ShieldCheck,
+  UserCheck,
 } from 'lucide-react';
 import { Candidate, ManpowerRequisition } from '@/types';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -24,8 +25,17 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function RecruitmentPage() {
+  return (
+    <RBACGuard module="recruitment">
+      <RecruitmentContent />
+    </RBACGuard>
+  );
+}
+
+function RecruitmentContent() {
   const {
     candidates,
     requisitions,
@@ -42,8 +52,8 @@ export default function RecruitmentPage() {
   const [reqModalOpen, setReqModalOpen] = useState(false);
   const [reqForm, setReqForm] = useState({
     positionTitle: '',
-    departmentId: 'dept_eng',
-    departmentName: 'Software Engineering & AI',
+    departmentId: 'dept_qc',
+    departmentName: 'Quality Assurance & Analytical Lab',
     openingsCount: 1,
     urgency: 'high' as const,
     minExperience: '5+ Years',

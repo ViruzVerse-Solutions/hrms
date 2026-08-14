@@ -16,8 +16,17 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/AuthContext';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function DisciplinaryPage() {
+  return (
+    <RBACGuard module="disciplinary_actions">
+      <DisciplinaryContent />
+    </RBACGuard>
+  );
+}
+
+function DisciplinaryContent() {
   const { currentRole } = useAuth();
   const hasConfidentialAccess = ['super_admin', 'hr_admin'].includes(currentRole);
 
