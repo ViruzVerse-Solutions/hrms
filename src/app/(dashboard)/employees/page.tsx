@@ -43,10 +43,10 @@ export default function EmployeesPage() {
 
   const filteredEmployees = employees.filter((emp) => {
     const matchesSearch =
-      emp.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      emp.designationTitle.toLowerCase().includes(searchTerm.toLowerCase());
+      (emp.firstName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (emp.lastName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (emp.employeeCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (emp.designationTitle || '').toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesDept =
       selectedDept === 'all' ||
@@ -165,7 +165,7 @@ export default function EmployeesPage() {
                   <div className="flex flex-col">
                     <span className="text-[10px] uppercase font-semibold text-slate-400">Current Phase</span>
                     <span className="font-bold text-indigo-600 dark:text-indigo-400 capitalize">
-                      {emp.currentLifecycleStage.replace('_', ' ')}
+                      {emp.currentLifecycleStage ? String(emp.currentLifecycleStage).replace(/_/g, ' ') : 'Onboarding'}
                     </span>
                   </div>
 
@@ -173,7 +173,7 @@ export default function EmployeesPage() {
                     <span className="text-[10px] uppercase font-semibold text-slate-400">CTC (Annual)</span>
                     {showSalary ? (
                       <span className="font-bold text-emerald-600 font-mono">
-                        {formatCurrency(emp.ctc)}
+                        {formatCurrency(emp.ctc || 0)}
                       </span>
                     ) : (
                       <span className="text-slate-400 font-mono flex items-center gap-1">
