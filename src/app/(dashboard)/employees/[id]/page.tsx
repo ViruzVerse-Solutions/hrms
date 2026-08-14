@@ -30,7 +30,7 @@ export default function EmployeeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const { employees, isSalaryVisible, currentUser, currentRole } = useAuth();
+  const { employees, isSalaryVisible, currentUser, currentRole, can } = useAuth();
   
   const initialEmployee =
     employees.find(
@@ -431,65 +431,81 @@ export default function EmployeeDetailPage({
 
         {/* 4. Document Vault Tab */}
         <TabsContent value="documents" className="space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-bold">Digital Personnel Vault & Letters</CardTitle>
-              <Button size="sm" variant="outline" className="text-xs">
-                Upload New Document
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900 dark:text-white">Official Appointment Letter</div>
-                    <div className="text-slate-400">
-                      Signed on {employee.dateOfJoining ? formatDate(employee.dateOfJoining) : '—'} • Verified
+          {canSeeSalary || currentRole === 'hr_admin' || currentRole === 'hr_executive' || currentRole === 'super_admin' || isOwnProfile ? (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-base font-bold">Digital Personnel Vault & Letters</CardTitle>
+                {(can('create', 'employee_records') || isOwnProfile) && (
+                  <Button size="sm" variant="outline" className="text-xs">
+                    Upload New Document
+                  </Button>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-white">Official Appointment Letter</div>
+                      <div className="text-slate-400">
+                        Signed on {employee.dateOfJoining ? formatDate(employee.dateOfJoining) : '—'} • Verified
+                      </div>
                     </div>
                   </div>
+                  <Button size="sm" variant="ghost" className="gap-1 text-xs">
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Download</span>
+                  </Button>
                 </div>
-                <Button size="sm" variant="ghost" className="gap-1 text-xs">
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Download</span>
-                </Button>
-              </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                    <Shield className="h-4 w-4" />
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                      <Shield className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-white">Government ID Proof (PAN & Aadhaar)</div>
+                      <div className="text-slate-400">Verified by HR Operations</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-bold text-slate-900 dark:text-white">Government ID Proof (PAN & Aadhaar)</div>
-                    <div className="text-slate-400">Verified by HR Operations</div>
-                  </div>
+                  <Button size="sm" variant="ghost" className="gap-1 text-xs">
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Download</span>
+                  </Button>
                 </div>
-                <Button size="sm" variant="ghost" className="gap-1 text-xs">
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Download</span>
-                </Button>
-              </div>
 
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex items-center justify-between text-xs">
-                <div className="flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
-                    <Award className="h-4 w-4" />
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center">
+                      <Award className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-white">Degree & Experience Certificates</div>
+                      <div className="text-slate-400">Background Verification Cleared</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-bold text-slate-900 dark:text-white">Degree & Experience Certificates</div>
-                    <div className="text-slate-400">Background Verification Cleared</div>
-                  </div>
+                  <Button size="sm" variant="ghost" className="gap-1 text-xs">
+                    <Download className="h-3.5 w-3.5" />
+                    <span>Download</span>
+                  </Button>
                 </div>
-                <Button size="sm" variant="ghost" className="gap-1 text-xs">
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Download</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-amber-500/30 bg-amber-50/30 dark:bg-amber-950/20">
+              <CardContent className="p-8 text-center space-y-3">
+                <div className="h-12 w-12 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
+                  <Lock className="h-6 w-6" />
+                </div>
+                <h3 className="font-bold text-base text-slate-900 dark:text-white">Confidential Personnel Files</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Government IDs, degree certificates, and letters are restricted under employee confidentiality policy. Only HR Admins, HR Executives, Super Admins, or the employee themselves may access this vault.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>

@@ -282,25 +282,29 @@ export interface PerformanceCycle {
 
 export interface PerformanceReview {
   id: string;
-  cycleId: string;
+  cycleId?: string;
+  cycleName?: string;
   employeeId: string;
   employeeName: string;
-  department: string;
-  designation: string;
-  kras: Array<{
+  department?: string;
+  designation?: string;
+  kras?: Array<{
     title: string;
     weightage: number;
     target: string;
     selfScore: number;
     managerScore: number;
   }>;
-  selfRating: number;
-  managerRating: number;
-  finalRating: number;
-  managerComments: string;
+  selfRating?: number;
+  managerRating?: number;
+  finalRating?: number;
+  kraScore?: number;
+  nineBoxGrid?: string;
+  managerComments?: string;
   hrCalibrationNotes?: string;
   recommendation?: 'promotion' | 'increment' | 'pip' | 'retain';
-  status: 'pending_self' | 'pending_manager' | 'in_calibration' | 'finalized';
+  status: 'pending_self' | 'pending_manager' | 'in_calibration' | 'finalized' | 'completed' | string;
+  completedAt?: string | null;
 }
 
 export interface GrievanceTicket {
