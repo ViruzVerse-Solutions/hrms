@@ -18,7 +18,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Apex Operations HRM — Enterprise Workforce Management',
+  title: 'Viruzverse Solutions HRM — Enterprise Workforce Management',
   description: 'Full-cycle Human Resource Management System with Role-Based Access Control',
 };
 

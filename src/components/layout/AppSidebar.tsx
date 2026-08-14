@@ -87,7 +87,7 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
           </div>
           <div>
             <div className="font-bold text-sm tracking-tight text-slate-900">
-              Apex Operations
+              Viruzverse Solutions
             </div>
             <div className="text-[11px] text-slate-500 font-medium">Enterprise HRM Platform</div>
           </div>

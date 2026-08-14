@@ -212,8 +212,8 @@ function ResignationContent() {
           </DialogHeader>
           <div className="p-6 bg-slate-50 dark:bg-slate-800/80 rounded-2xl space-y-4 text-xs font-serif leading-relaxed text-slate-800 dark:text-slate-200">
             <div className="text-center pb-3 border-b">
-              <h2 className="text-base font-bold font-sans">APEX OPERATIONS & MANUFACTURING PVT. LTD.</h2>
-              <p className="text-[11px] font-sans text-slate-500">North Industrial Zone, Plant Campus 1, India</p>
+              <h2 className="text-base font-bold font-sans">VIRUZVERSE SOLUTIONS PRIVATE LIMITED</h2>
+              <p className="text-[11px] font-sans text-slate-500">Tech Operations Center, India</p>
             </div>
 
             <div className="text-right font-sans text-slate-500 text-[11px]">
@@ -225,7 +225,7 @@ function ResignationContent() {
             </h3>
 
             <p>
-              This is to certify that <strong>Sneha Kulkarni</strong> was employed with Apex Operations as a <strong>Quality Control Specialist</strong> from 15th January 2023 to 20th August 2026.
+              This is to certify that <strong>Sneha Kulkarni</strong> was employed with Viruzverse Solutions as a <strong>Quality Control Specialist</strong> from 15th January 2023 to 20th August 2026.
             </p>
 
             <p>
