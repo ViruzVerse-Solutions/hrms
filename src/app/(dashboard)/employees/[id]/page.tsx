@@ -1,7 +1,8 @@
 'use client';
 
-import React, { use } from 'react';
+import React, { use, useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { Employee } from '@/types';
 import { notFound } from 'next/navigation';
 import {
   Users,
@@ -28,6 +29,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import Link from 'next/link';
+import { getPersonaAvatar } from '@/lib/constants';
 
 export default function EmployeeDetailPage({
   params,
@@ -35,13 +37,50 @@ export default function EmployeeDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const { employees, isSalaryVisible, currentUser } = useAuth();
-  const employee = employees.find((e) => e.id === resolvedParams.id);
+  const { employees, isSalaryVisible, currentUser, currentRole } = useAuth();
+  
+  const [employee, setEmployee] = useState<Employee | null>(
+    employees.find(
+      (e) =>
+        e.id === resolvedParams.id ||
+        e.employeeCode === resolvedParams.id ||
+        e.employeeCode.toLowerCase() === resolvedParams.id.toLowerCase()
+    ) || null
+  );
+  const [loading, setLoading] = useState(!employee);
+
+  useEffect(() => {
+    // If not found in context, fetch from backend API
+    if (!employee) {
+      setLoading(true);
+      fetch(`/api/employees/${resolvedParams.id}`, {
+        headers: { 'x-user-role': currentRole },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.data?.employee) {
+            setEmployee(data.data.employee);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
+  }, [resolvedParams.id, currentRole]);
+
+  if (loading) {
+    return (
+      <div className="p-12 text-center space-y-3">
+        <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
+        <p className="text-xs text-slate-500">Loading 360° employee profile from database...</p>
+      </div>
+    );
+  }
 
   if (!employee) {
     return (
       <div className="p-8 text-center space-y-4">
         <h2 className="text-xl font-bold text-slate-800">Employee record not found</h2>
+        <p className="text-xs text-slate-500">Could not locate employee ID '{resolvedParams.id}'</p>
         <Button asChild variant="outline">
           <Link href="/employees">Return to Directory</Link>
         </Button>
@@ -51,7 +90,7 @@ export default function EmployeeDetailPage({
 
   const isOwnProfile = currentUser.employeeId === employee.id || currentUser.id === employee.userId;
   const canSeeSalary = isSalaryVisible(isOwnProfile);
-  const salaryBreakup = calculateSalaryBreakup(employee.ctc);
+  const salaryBreakup = calculateSalaryBreakup(employee.ctc || 0);
   const statusBadge = getStatusColorBadge(employee.employmentStatus);
 
   return (
@@ -71,7 +110,7 @@ export default function EmployeeDetailPage({
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-5">
             <img
-              src={employee.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+              src={getPersonaAvatar(employee.employeeCode, `${employee.firstName} ${employee.lastName}`)}
               alt={employee.firstName}
               className="h-20 w-20 rounded-3xl object-cover ring-4 ring-indigo-500/20 shadow-md"
             />
@@ -319,51 +358,69 @@ export default function EmployeeDetailPage({
 
         {/* 3. Statutory & Bank Tab */}
         <TabsContent value="statutory" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base font-bold">Bank Account Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-xs">
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-slate-500">Bank Name</span>
-                  <span className="font-semibold">{employee.bankDetails.bankName}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-slate-500">Account Number</span>
-                  <span className="font-mono font-semibold">{employee.bankDetails.accountNumber}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-slate-500">IFSC Code</span>
-                  <span className="font-mono font-semibold">{employee.bankDetails.ifscCode}</span>
-                </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-slate-500">PAN Number</span>
-                  <span className="font-mono font-semibold">{employee.bankDetails.pan}</span>
-                </div>
-              </CardContent>
-            </Card>
+          {canSeeSalary && employee.bankDetails ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base font-bold">Bank Account Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-xs">
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-slate-500">Bank Name</span>
+                    <span className="font-semibold">{employee.bankDetails?.bankName || '—'}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-slate-500">Account Number</span>
+                    <span className="font-mono font-semibold">{employee.bankDetails?.accountNumber || '—'}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-slate-500">IFSC Code</span>
+                    <span className="font-mono font-semibold">{employee.bankDetails?.ifscCode || '—'}</span>
+                  </div>
+                  <div className="flex justify-between py-2">
+                    <span className="text-slate-500">PAN Number</span>
+                    <span className="font-mono font-semibold">{employee.bankDetails?.pan || '—'}</span>
+                  </div>
+                </CardContent>
+              </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base font-bold">Statutory Registrations</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-xs">
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-slate-500">Universal Account Number (UAN)</span>
-                  <span className="font-mono font-semibold">{employee.statutory.uan || '—'}</span>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base font-bold">Statutory Registrations</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-xs">
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-slate-500">Universal Account Number (UAN)</span>
+                    <span className="font-mono font-semibold">{employee.statutory?.uan || '—'}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-slate-500">Provident Fund (PF) Member ID</span>
+                    <span className="font-mono font-semibold">{employee.statutory?.pfNumber || '—'}</span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="text-slate-500">ESI IP Number</span>
+                    <span className="font-mono font-semibold">{employee.statutory?.esiNumber || 'Exempt'}</span>
+                  </div>
+                  <div className="flex justify-between py-2">
+                    <span className="text-slate-500">Professional Tax Registration</span>
+                    <span className="font-semibold text-emerald-600">Compliant</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <Card className="border-amber-500/30 bg-amber-50/30">
+              <CardContent className="p-8 text-center space-y-3">
+                <div className="h-12 w-12 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
+                  <Lock className="h-6 w-6" />
                 </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-slate-500">Provident Fund (PF) Member ID</span>
-                  <span className="font-mono font-semibold">{employee.statutory.pfNumber || '—'}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span className="text-slate-500">ESI IP Number</span>
-                  <span className="font-mono font-semibold">{employee.statutory.esiNumber || 'Exempt'}</span>
-                </div>
+                <h3 className="font-bold text-base text-slate-900">Confidential Bank Details</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Bank accounts and sensitive statutory records are restricted under enterprise confidentiality. Only authorized HR Admins, Payroll Officers, or the individual employee may access this information.
+                </p>
               </CardContent>
             </Card>
-          </div>
+          )}
         </TabsContent>
 
         {/* 4. Document Vault Tab */}

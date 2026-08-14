@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { MOCK_DEPARTMENTS, MOCK_DESIGNATIONS, MOCK_BRANCHES } from '@/lib/mock-data';
+import { Department, Designation, Branch } from '@/types';
 import {
   Settings,
   Building,
@@ -33,6 +33,22 @@ export default function SettingsPage() {
 function SettingsContent() {
   const { auditLogs, currentRole } = useAuth();
   const [activeTab, setActiveTab] = useState<'master' | 'audit' | 'rbac'>('master');
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [designations, setDesignations] = useState<Designation[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+
+  useEffect(() => {
+    fetch('/api/master')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data) {
+          if (data.data.departments) setDepartments(data.data.departments);
+          if (data.data.designations) setDesignations(data.data.designations);
+          if (data.data.branches) setBranches(data.data.branches);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
@@ -66,15 +82,15 @@ function SettingsContent() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-bold flex items-center gap-1.5">
                   <Building className="h-4 w-4 text-indigo-600" />
-                  <span>Departments ({MOCK_DEPARTMENTS.length})</span>
+                  <span>Departments ({departments.length})</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2.5 text-xs">
-                {MOCK_DEPARTMENTS.map((dept) => (
-                  <div key={dept.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border flex justify-between items-center">
+                {departments.map((dept) => (
+                  <div key={dept.id} className="p-2.5 rounded-xl bg-slate-50 border flex justify-between items-center">
                     <div>
-                      <div className="font-semibold text-slate-900 dark:text-white">{dept.name}</div>
-                      <div className="text-[11px] text-slate-400">Head: {dept.headName || '—'}</div>
+                      <div className="font-semibold text-slate-900">{dept.name}</div>
+                      <div className="text-[11px] text-slate-500">Employees: {dept.employeeCount || '—'}</div>
                     </div>
                     <Badge variant="outline" className="text-[10px] font-mono">{dept.code}</Badge>
                   </div>
@@ -87,15 +103,15 @@ function SettingsContent() {
               <CardHeader>
                 <CardTitle className="text-sm font-bold flex items-center gap-1.5">
                   <MapPin className="h-4 w-4 text-emerald-600" />
-                  <span>Branches & Campuses ({MOCK_BRANCHES.length})</span>
+                  <span>Branches & Campuses ({branches.length})</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2.5 text-xs">
-                {MOCK_BRANCHES.map((br) => (
-                  <div key={br.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border flex justify-between items-center">
+                {branches.map((br) => (
+                  <div key={br.id} className="p-2.5 rounded-xl bg-slate-50 border flex justify-between items-center">
                     <div>
-                      <div className="font-semibold text-slate-900 dark:text-white">{br.name}</div>
-                      <div className="text-[11px] text-slate-400">{br.city}, {br.country}</div>
+                      <div className="font-semibold text-slate-900">{br.name}</div>
+                      <div className="text-[11px] text-slate-500">{br.city}, {br.country}</div>
                     </div>
                     {br.isHeadquarters && (
                       <Badge variant="purple" className="text-[10px]">HQ</Badge>
@@ -110,17 +126,17 @@ function SettingsContent() {
               <CardHeader>
                 <CardTitle className="text-sm font-bold flex items-center gap-1.5">
                   <Users className="h-4 w-4 text-purple-600" />
-                  <span>Designations & Grades ({MOCK_DESIGNATIONS.length})</span>
+                  <span>Designations & Grades ({designations.length})</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2.5 text-xs max-h-72 overflow-y-auto">
-                {MOCK_DESIGNATIONS.map((des) => (
-                  <div key={des.id} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border flex justify-between items-center">
+                {designations.map((des: any) => (
+                  <div key={des.id} className="p-2.5 rounded-xl bg-slate-50 border flex justify-between items-center">
                     <div>
-                      <div className="font-semibold text-slate-900 dark:text-white">{des.title}</div>
-                      <div className="text-[11px] text-slate-400">Level {des.level}</div>
+                      <div className="font-semibold text-slate-900">{des.title}</div>
+                      <div className="text-[11px] text-slate-500">Code: {des.code || '—'}</div>
                     </div>
-                    <Badge variant="outline" className="text-[10px] font-mono">{des.grade}</Badge>
+                    <Badge variant="outline" className="text-[10px] font-mono">{des.gradeLevel || des.grade || 'Staff'}</Badge>
                   </div>
                 ))}
               </CardContent>

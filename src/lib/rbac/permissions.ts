@@ -1,25 +1,41 @@
 import { UserRole, ModuleKey, PermissionLevel } from '@/types';
 
 /**
- * Role x Module Permission Matrix from Section 4 of the HRM Specification
+ * Role x Module Permission Matrix strictly matching enterprise specifications:
  * F = Full Access (Create/Read/Update/Delete/Approve)
  * E = Edit/Process own work area
  * A = Approve only (for their own team)
  * V = View only
  * S = Self-service only (own record)
- * NONE = No access (—)
+ * NONE = No access (Hidden from Sidebar)
  */
 export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLevel>> = {
+  reports_dashboard: {
+    super_admin: 'F',
+    hr_admin: 'F',
+    hr_executive: 'V',
+    payroll_officer: 'F',
+    reporting_manager: 'V',
+    employee: 'S',
+  },
+  employee_records: {
+    super_admin: 'F',
+    hr_admin: 'F',
+    hr_executive: 'E',
+    payroll_officer: 'V',
+    reporting_manager: 'V',
+    employee: 'S',
+  },
   recruitment: {
-    super_admin: 'V',
+    super_admin: 'F',
     hr_admin: 'F',
     hr_executive: 'F',
     payroll_officer: 'NONE',
-    reporting_manager: 'A',
+    reporting_manager: 'NONE',
     employee: 'NONE',
   },
   onboarding: {
-    super_admin: 'V',
+    super_admin: 'F',
     hr_admin: 'F',
     hr_executive: 'F',
     payroll_officer: 'V',
@@ -27,7 +43,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     employee: 'S',
   },
   attendance_leave: {
-    super_admin: 'V',
+    super_admin: 'F',
     hr_admin: 'F',
     hr_executive: 'E',
     payroll_officer: 'V',
@@ -35,31 +51,23 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     employee: 'S',
   },
   payroll_benefits: {
-    super_admin: 'V',
-    hr_admin: 'V',
+    super_admin: 'F',
+    hr_admin: 'F',
     hr_executive: 'NONE',
     payroll_officer: 'F',
     reporting_manager: 'NONE',
     employee: 'S',
   },
-  employee_records: {
-    super_admin: 'V',
-    hr_admin: 'F',
-    hr_executive: 'E',
-    payroll_officer: 'V',
-    reporting_manager: 'V', // for their team
-    employee: 'S',
-  },
   performance_mgmt: {
-    super_admin: 'V',
+    super_admin: 'F',
     hr_admin: 'F',
-    hr_executive: 'E',
+    hr_executive: 'NONE',
     payroll_officer: 'NONE',
-    reporting_manager: 'A', // for their team
+    reporting_manager: 'A',
     employee: 'S',
   },
   training_dev: {
-    super_admin: 'V',
+    super_admin: 'F',
     hr_admin: 'F',
     hr_executive: 'E',
     payroll_officer: 'NONE',
@@ -67,7 +75,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     employee: 'S',
   },
   engagement_welfare: {
-    super_admin: 'V',
+    super_admin: 'F',
     hr_admin: 'F',
     hr_executive: 'E',
     payroll_officer: 'NONE',
@@ -77,50 +85,42 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
   policy_compliance: {
     super_admin: 'F',
     hr_admin: 'F',
-    hr_executive: 'V',
+    hr_executive: 'NONE',
     payroll_officer: 'V',
-    reporting_manager: 'V',
+    reporting_manager: 'NONE',
     employee: 'V',
   },
   transfer_promotion: {
-    super_admin: 'V',
-    hr_admin: 'F',
-    hr_executive: 'E',
-    payroll_officer: 'NONE',
-    reporting_manager: 'A',
-    employee: 'S',
-  },
-  disciplinary_actions: {
-    super_admin: 'V',
-    hr_admin: 'F',
-    hr_executive: 'E',
-    payroll_officer: 'NONE',
-    reporting_manager: 'A',
-    employee: 'S',
-  },
-  resignation_exit: {
-    super_admin: 'V',
-    hr_admin: 'F',
-    hr_executive: 'E',
-    payroll_officer: 'E', // F&F
-    reporting_manager: 'A',
-    employee: 'S',
-  },
-  system_settings: {
     super_admin: 'F',
-    hr_admin: 'V',
+    hr_admin: 'F',
     hr_executive: 'NONE',
     payroll_officer: 'NONE',
     reporting_manager: 'NONE',
     employee: 'NONE',
   },
-  reports_dashboard: {
+  disciplinary_actions: {
     super_admin: 'F',
     hr_admin: 'F',
-    hr_executive: 'V',
-    payroll_officer: 'F', // payroll reports
-    reporting_manager: 'V',
+    hr_executive: 'NONE',
+    payroll_officer: 'NONE',
+    reporting_manager: 'NONE',
+    employee: 'NONE',
+  },
+  resignation_exit: {
+    super_admin: 'F',
+    hr_admin: 'F',
+    hr_executive: 'NONE',
+    payroll_officer: 'E',
+    reporting_manager: 'NONE',
     employee: 'S',
+  },
+  system_settings: {
+    super_admin: 'F',
+    hr_admin: 'F',
+    hr_executive: 'NONE',
+    payroll_officer: 'NONE',
+    reporting_manager: 'NONE',
+    employee: 'NONE',
   },
 };
 
@@ -180,11 +180,6 @@ export function canPerformAction(
   return false;
 }
 
-/**
- * Field-level confidentiality checks:
- * - Salary details: only HR Admin, Payroll Officer, Super Admin, and the employee themselves
- * - Grievance notes & disciplinary proceedings: confidential to HR Admin & Super Admin
- */
 export function canViewSensitiveSalary(role: UserRole, isOwnProfile = false): boolean {
   if (isOwnProfile) return true;
   return ['super_admin', 'hr_admin', 'payroll_officer'].includes(role);

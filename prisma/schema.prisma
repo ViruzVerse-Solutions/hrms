@@ -1,0 +1,576 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ==========================================
+// 1. ENUMS & SECURITY TYPES
+// ==========================================
+
+enum UserRole {
+  super_admin
+  hr_admin
+  hr_executive
+  payroll_officer
+  reporting_manager
+  employee
+}
+
+enum PermissionLevel {
+  F    // Full Access (CRUD + Approve)
+  E    // Edit / Process
+  A    // Approve only (Team-scoped)
+  V    // View only
+  S    // Self-service only (Own record)
+  NONE // No access
+}
+
+enum EmploymentStatus {
+  active
+  probation
+  notice_period
+  terminated
+  resigned
+  retired
+}
+
+enum Gender {
+  male
+  female
+  other
+  prefer_not_to_say
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  half_day
+  on_leave
+  holiday
+  weekly_off
+}
+
+enum AttendanceSource {
+  biometric
+  web_checkin
+  manual_override
+  geofenced_mobile
+}
+
+enum LeaveStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+enum LeaveTypeEnum {
+  casual
+  sick
+  earned
+  maternity
+  paternity
+  unpaid
+  compensatory_off
+}
+
+enum PayrollStatus {
+  draft
+  calculated
+  verified
+  approved
+  locked
+  disbursed
+}
+
+enum CandidateStage {
+  applied
+  shortlisted
+  technical_eval
+  hr_round
+  offered
+  hired
+  rejected
+}
+
+enum PriorityLevel {
+  low
+  medium
+  high
+  critical
+}
+
+enum GrievanceStatus {
+  open
+  investigating
+  escalated
+  resolved
+  closed
+}
+
+// ==========================================
+// 2. MULTI-TENANCY & ORG STRUCTURE
+// ==========================================
+
+model Organization {
+  id            String         @id @default(cuid())
+  name          String         // e.g., "Viruzverse Solutions Private Limited"
+  code          String         @unique // e.g., "VV"
+  taxId         String?        // PAN/GSTIN/CIN
+  domain        String?        // "viruzverse.com"
+  logoUrl       String?
+  branches      Branch[]
+  departments   Department[]
+  designations  Designation[]
+  users         User[]
+  employees     Employee[]
+  payrollRuns   PayrollRun[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Branch {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String       // e.g., "Tech Operations Center", "North Plant Campus"
+  code           String       @unique
+  city           String
+  state          String
+  country        String       @default("India")
+  address        String?
+  isHeadquarters Boolean      @default(false)
+  employees      Employee[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId])
+}
+
+model Department {
+  id              String           @id @default(cuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name            String           // e.g., "Quality Assurance & Analytical Lab"
+  code            String           @unique
+  description     String?
+  headEmployeeId  String?
+  designations    Designation[]
+  employees       Employee[]
+  jobRequisitions JobRequisition[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([organizationId])
+}
+
+model Designation {
+  id              String           @id @default(cuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  departmentId    String
+  department      Department       @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  title           String           // e.g., "Process & Batch Operations Engineer"
+  code            String           @unique
+  gradeLevel      String?          // e.g., "L4", "M2", "E1"
+  employees       Employee[]
+  jobRequisitions JobRequisition[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([organizationId, departmentId])
+}
+
+// ==========================================
+// 3. AUTHENTICATION, USERS & RBAC
+// ==========================================
+
+model User {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String        @unique
+  passwordHash   String
+  name           String
+  avatarUrl      String?
+  roles          UserRole[]    @default([employee])
+  activeRole     UserRole      @default(employee)
+  status         String        @default("active") // "active", "suspended", "invited"
+  employeeId     String?       @unique
+  employee       Employee?     @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  sessions       UserSession[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+  lastLoginAt    DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId, email])
+}
+
+model UserSession {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash    String    @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId, tokenHash])
+}
+
+model AuditLog {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userName       String
+  userRole       UserRole
+  action         String        // e.g., "PAYROLL_RUN_APPROVED", "EMPLOYEE_CREATED", "LEAVE_REJECTED"
+  module         String        // e.g., "payroll_benefits", "attendance_leave"
+  resourceId     String?
+  payloadBefore  Json?         // Previous state for legal audit trail
+  payloadAfter   Json?         // New updated state
+  ipAddress      String?
+  userAgent      String?
+  integrityHash  String        // SHA-256 (prevHash + payload) for tamper-proof verification
+  createdAt      DateTime      @default(now())
+
+  @@index([organizationId, module, createdAt])
+  @@index([userId])
+}
+
+// ==========================================
+// 4. EMPLOYEE 360 & LIFECYCLE
+// ==========================================
+
+model Employee {
+  id                    String              @id @default(cuid())
+  organizationId        String
+  organization          Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeCode          String              @unique // e.g., "VV-1001"
+  firstName             String
+  lastName              String
+  email                 String              @unique
+  phone                 String
+  avatarUrl             String?
+  gender                Gender
+  dob                   DateTime
+  dateOfJoining         DateTime
+  dateOfLeaving         DateTime?
+  departmentId          String
+  department            Department          @relation(fields: [departmentId], references: [id])
+  designationId         String
+  designation           Designation         @relation(fields: [designationId], references: [id])
+  branchId              String
+  branch                Branch              @relation(fields: [branchId], references: [id])
+  reportingManagerId    String?
+  reportingManager      Employee?           @relation("ManagerToSubordinates", fields: [reportingManagerId], references: [id])
+  subordinates          Employee[]          @relation("ManagerToSubordinates")
+  employmentStatus      EmploymentStatus    @default(probation)
+  currentLifecycleStage String              @default("onboarding") // 17-stage lifecycle state
+  
+  // Field-level secured compensation (Visible to SA, HA, PO only)
+  ctc                   Decimal             @db.Decimal(12, 2)
+  
+  user                  User?
+  bankDetails           BankDetails?
+  statutoryInfo         StatutoryInfo?
+  emergencyContacts     EmergencyContact[]
+  attendanceRecords     AttendanceRecord[]
+  leaveRequests         LeaveRequest[]
+  leaveAllocations      LeaveAllocation[]
+  payslips              Payslip[]
+  performanceReviews    PerformanceReview[]
+  grievanceTickets      GrievanceTicket[]
+  exitCase              ResignationExitCase?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([organizationId, departmentId, designationId])
+  @@index([reportingManagerId])
+}
+
+model BankDetails {
+  id            String    @id @default(cuid())
+  employeeId    String    @unique
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  accountNumber String    // Encrypted / Tokenized at rest
+  accountName   String
+  bankName      String
+  ifscCode      String
+  branchName    String?
+  pan           String    // Encrypted PAN
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model StatutoryInfo {
+  id          String    @id @default(cuid())
+  employeeId  String    @unique
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  pfNumber    String?
+  uan         String?
+  esiNumber   String?
+  ptState     String?   // Professional Tax jurisdiction
+  lwfNumber   String?   // Labour Welfare Fund
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model EmergencyContact {
+  id             String    @id @default(cuid())
+  employeeId     String
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  name           String
+  relationship   String
+  phone          String
+  alternatePhone String?
+  address        String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([employeeId])
+}
+
+// ==========================================
+// 5. ATTENDANCE & LEAVES
+// ==========================================
+
+model AttendanceRecord {
+  id            String           @id @default(cuid())
+  employeeId    String
+  employee      Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date          DateTime         @db.Date
+  inTime        DateTime?
+  outTime       DateTime?
+  totalHours    Decimal?         @db.Decimal(4, 2)
+  overtimeHours Decimal?         @default(0) @db.Decimal(4, 2)
+  status        AttendanceStatus @default(present)
+  source        AttendanceSource @default(web_checkin)
+  isRegularized Boolean          @default(false)
+  regularizedBy String?
+  notes         String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([date, status])
+}
+
+model LeaveAllocation {
+  id            String        @id @default(cuid())
+  employeeId    String
+  employee      Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType     LeaveTypeEnum
+  year          Int           @default(2026)
+  allocatedDays Decimal       @db.Decimal(4, 1)
+  usedDays      Decimal       @default(0) @db.Decimal(4, 1)
+  pendingDays   Decimal       @default(0) @db.Decimal(4, 1)
+  balanceDays   Decimal       @db.Decimal(4, 1)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@unique([employeeId, leaveType, year])
+}
+
+model LeaveRequest {
+  id              String        @id @default(cuid())
+  employeeId      String
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType       LeaveTypeEnum
+  fromDate        DateTime      @db.Date
+  toDate          DateTime      @db.Date
+  daysCount       Decimal       @db.Decimal(4, 1)
+  reason          String
+  status          LeaveStatus   @default(pending)
+  approverId      String?
+  approverComment String?
+  processedAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([employeeId, status])
+  @@index([approverId, status])
+}
+
+// ==========================================
+// 6. PAYROLL & COMPENSATION ENGINE
+// ==========================================
+
+model PayrollRun {
+  id              String        @id @default(cuid())
+  organizationId  String
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  monthYear       String        // e.g., "August 2026"
+  periodStart     DateTime      @db.Date
+  periodEnd       DateTime      @db.Date
+  totalEmployees  Int
+  totalGross      Decimal       @db.Decimal(14, 2)
+  totalDeductions Decimal       @db.Decimal(14, 2)
+  totalNet        Decimal       @db.Decimal(14, 2)
+  status          PayrollStatus @default(draft)
+  calculatedBy    String
+  approvedBy      String?
+  payslips        Payslip[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([organizationId, monthYear])
+}
+
+model Payslip {
+  id               String     @id @default(cuid())
+  payrollRunId     String
+  payrollRun       PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  employeeId       String
+  employee         Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  period           String
+  basicSalary      Decimal    @db.Decimal(10, 2)
+  hra              Decimal    @db.Decimal(10, 2)
+  specialAllowance Decimal    @db.Decimal(10, 2)
+  conveyance       Decimal    @db.Decimal(10, 2)
+  medical          Decimal    @db.Decimal(10, 2)
+  grossEarnings    Decimal    @db.Decimal(10, 2)
+  pfDeduction      Decimal    @db.Decimal(10, 2)
+  esiDeduction     Decimal    @db.Decimal(10, 2)
+  professionalTax   Decimal    @db.Decimal(10, 2)
+  incomeTaxTds     Decimal    @db.Decimal(10, 2)
+  totalDeductions  Decimal    @db.Decimal(10, 2)
+  netPay           Decimal    @db.Decimal(10, 2)
+  paymentMode      String     @default("Bank Transfer")
+  paymentStatus    String     @default("Processed")
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@unique([payrollRunId, employeeId])
+  @@index([employeeId])
+}
+
+// ==========================================
+// 7. ATS RECRUITMENT & PIPELINE
+// ==========================================
+
+model JobRequisition {
+  id             String        @id @default(cuid())
+  organizationId String
+  departmentId   String
+  department     Department    @relation(fields: [departmentId], references: [id])
+  designationId  String
+  designation    Designation   @relation(fields: [designationId], references: [id])
+  title          String
+  headcount      Int           @default(1)
+  status         String        @default("active") // "active", "closed", "on_hold"
+  experienceMin  Int           @default(2)
+  experienceMax  Int           @default(5)
+  budgetMin      Decimal       @db.Decimal(10, 2)
+  budgetMax      Decimal       @db.Decimal(10, 2)
+  candidates     Candidate[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([departmentId, status])
+}
+
+model Candidate {
+  id               String         @id @default(cuid())
+  jobRequisitionId String
+  jobRequisition   JobRequisition @relation(fields: [jobRequisitionId], references: [id], onDelete: Cascade)
+  candidateCode    String         @unique // e.g., "CAN-2026-081"
+  name             String
+  email            String
+  phone            String
+  stage            CandidateStage @default(applied)
+  experienceYears  Decimal        @db.Decimal(3, 1)
+  currentCtc       Decimal?       @db.Decimal(10, 2)
+  expectedCtc      Decimal?       @db.Decimal(10, 2)
+  rating           Decimal?       @db.Decimal(2, 1)
+  matchScore       Int            @default(85)
+  interviewDate    DateTime?
+  interviewerName  String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@index([jobRequisitionId, stage])
+}
+
+// ==========================================
+// 8. PERFORMANCE, GRIEVANCES & EXITS
+// ==========================================
+
+model PerformanceReview {
+  id            String    @id @default(cuid())
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  cycleName     String    // "FY2025-26 Annual Appraisal"
+  selfRating    Decimal   @db.Decimal(2, 1)
+  managerRating Decimal   @db.Decimal(2, 1)
+  finalRating   Decimal   @db.Decimal(2, 1)
+  kraScore      Decimal   @db.Decimal(4, 1)
+  nineBoxGrid   String    // e.g., "High Potential - Star"
+  status        String    @default("completed")
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([employeeId, cycleName])
+}
+
+model GrievanceTicket {
+  id          String          @id @default(cuid())
+  employeeId  String?
+  employee    Employee?       @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  category    String          // "work_environment", "harassment_posh", "payroll_discrepancy"
+  subject     String
+  description String
+  isAnonymous Boolean         @default(false)
+  priority    PriorityLevel   @default(medium)
+  status      GrievanceStatus @default(open)
+  assignedTo  String?
+  resolution  String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([status, priority])
+}
+
+model ResignationExitCase {
+  id                     String    @id @default(cuid())
+  employeeId             String    @unique
+  employee               Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  resignationDate        DateTime  @db.Date
+  lastWorkingDay         DateTime  @db.Date
+  reason                 String
+  noticePeriodDays       Int       @default(60)
+  itClearanceStatus      String    @default("pending") // "cleared", "pending"
+  deptClearanceStatus    String    @default("pending")
+  financeClearanceStatus  String    @default("pending")
+  fnfAmount              Decimal   @db.Decimal(10, 2)
+  fnfStatus              String    @default("pending")
+  certificateIssued      Boolean   @default(false)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   @default("info") // "info", "alert", "warning", "success"
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}

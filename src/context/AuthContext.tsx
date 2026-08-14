@@ -17,20 +17,7 @@ import {
   AuditLogItem,
   SystemNotification,
 } from '@/types';
-import {
-  MOCK_USERS,
-  MOCK_EMPLOYEES,
-  MOCK_LEAVE_REQUESTS,
-  MOCK_ATTENDANCE,
-  MOCK_PAYROLL_RUNS,
-  MOCK_PAYSLIPS,
-  MOCK_CANDIDATES,
-  MOCK_REQUISITIONS,
-  MOCK_PERFORMANCE_REVIEWS,
-  MOCK_GRIEVANCES,
-  MOCK_AUDIT_LOGS,
-  MOCK_NOTIFICATIONS,
-} from '@/lib/mock-data';
+import { CORE_PERSONAS } from '@/lib/constants';
 import {
   hasModuleAccess,
   canPerformAction,
@@ -75,24 +62,85 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentRole, setCurrentRole] = useState<UserRole>('hr_admin');
-  const [currentUser, setCurrentUser] = useState<User>(MOCK_USERS[1]); // Default Eleanor Vance (HR Admin)
+  const [currentUser, setCurrentUser] = useState<User>(CORE_PERSONAS[1]); // Default Eleanor Vance (HR Admin)
   
   // Data stores
-  const [employees, setEmployees] = useState<Employee[]>(MOCK_EMPLOYEES);
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(MOCK_LEAVE_REQUESTS);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>(MOCK_ATTENDANCE);
-  const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>(MOCK_PAYROLL_RUNS);
-  const [payslips, setPayslips] = useState<Payslip[]>(MOCK_PAYSLIPS);
-  const [candidates, setCandidates] = useState<Candidate[]>(MOCK_CANDIDATES);
-  const [requisitions, setRequisitions] = useState<ManpowerRequisition[]>(MOCK_REQUISITIONS);
-  const [performanceReviews, setPerformanceReviews] = useState<PerformanceReview[]>(MOCK_PERFORMANCE_REVIEWS);
-  const [grievances, setGrievances] = useState<GrievanceTicket[]>(MOCK_GRIEVANCES);
-  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>(MOCK_AUDIT_LOGS);
-  const [notifications, setNotifications] = useState<SystemNotification[]>(MOCK_NOTIFICATIONS);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([]);
+  const [payslips, setPayslips] = useState<Payslip[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [requisitions, setRequisitions] = useState<ManpowerRequisition[]>([]);
+  const [performanceReviews, setPerformanceReviews] = useState<PerformanceReview[]>([]);
+  const [grievances, setGrievances] = useState<GrievanceTicket[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [notifications, setNotifications] = useState<SystemNotification[]>([
+    { id: 'notif_1', title: 'System Ready', message: 'Viruzverse Solutions HRM platform connected to PostgreSQL database', type: 'success', module: 'reports_dashboard', createdAt: new Date().toISOString(), read: false, link: '/dashboard' },
+  ]);
+
+  // Initial database sync on mount & role switch
+  useEffect(() => {
+    // 1. Fetch Employees
+    fetch('/api/employees', {
+      headers: { 'x-user-role': currentRole },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.employees) {
+          setEmployees(data.data.employees);
+        }
+      })
+      .catch(() => {});
+
+    // 2. Fetch Leaves
+    fetch('/api/leaves', {
+      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.leaves) {
+          setLeaveRequests(data.data.leaves);
+        }
+      })
+      .catch(() => {});
+
+    // 3. Fetch Payroll Runs
+    fetch('/api/payroll/runs', {
+      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.payrollRuns) {
+          setPayrollRuns(data.data.payrollRuns);
+        }
+        if (data?.data?.payslips) {
+          setPayslips(data.data.payslips);
+        }
+      })
+      .catch(() => {});
+
+    // 4. Fetch Audit Logs (Admin only)
+    if (currentRole === 'hr_admin' || currentRole === 'super_admin') {
+      fetch('/api/audit-logs', {
+        headers: { 'x-user-role': currentRole },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.data?.auditLogs) {
+            setAuditLogs(data.data.auditLogs);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [currentRole, currentUser.employeeId]);
 
   // Sync user profile when currentRole changes
   useEffect(() => {
-    const matchingUser = MOCK_USERS.find((u) => u.roles.includes(currentRole)) || MOCK_USERS[0];
+    const matchingUser =
+      CORE_PERSONAS.find((u) => u.activeRole === currentRole) ||
+      CORE_PERSONAS.find((u) => u.roles.includes(currentRole)) ||
+      CORE_PERSONAS[0];
     setCurrentUser({
       ...matchingUser,
       activeRole: currentRole,
@@ -133,7 +181,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLeaveRequests((prev) => [newLeave, ...prev]);
     logAuditAction('APPLIED_LEAVE', 'attendance_leave', newLeave.id, `Applied for ${req.daysCount} days ${req.leaveType} leave`);
     
-    // Add notification
+    // Backend persistence
+    fetch('/api/leaves/apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+      body: JSON.stringify(req),
+    }).catch(() => {});
+
+    // Notification
     const newNotif: SystemNotification = {
       id: `notif_${Date.now()}`,
       title: 'New Leave Application',
@@ -152,6 +207,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       prev.map((lr) => (lr.id === id ? { ...lr, status, approverComment: comment } : lr))
     );
     logAuditAction(`LEAVE_${status.toUpperCase()}`, 'attendance_leave', id, `Leave marked as ${status}`);
+
+    // Backend persistence
+    fetch(`/api/leaves/${id}/action`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-role': currentRole,
+      },
+      body: JSON.stringify({ status, comment }),
+    }).catch(() => {});
   };
 
   const updateAttendanceCheckin = (status: 'present' | 'half_day') => {
@@ -173,6 +238,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     setAttendanceRecords((prev) => [newRecord, ...prev]);
     logAuditAction('WEB_CHECKIN', 'attendance_leave', newRecord.id, `Self check-in recorded for ${today}`);
+
+    // Backend persistence
+    fetch('/api/attendance/checkin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-role': currentRole,
+        'x-employee-id': currentEmployee.id,
+      },
+      body: JSON.stringify({ status }),
+    }).catch(() => {});
   };
 
   const approvePayrollRun = (id: string) => {

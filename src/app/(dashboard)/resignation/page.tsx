@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MOCK_RESIGNATIONS } from '@/lib/mock-data';
 import {
   LogOut,
   CheckCircle2,
@@ -19,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { ResignationCase } from '@/types';
 
 export default function ResignationPage() {
   return (
@@ -29,7 +29,23 @@ export default function ResignationPage() {
 }
 
 function ResignationContent() {
-  const exitCase = MOCK_RESIGNATIONS[0];
+  const [exitCase] = useState<ResignationCase>({
+    id: 'res_1',
+    employeeId: 'emp_008',
+    employeeName: 'Kavita Nair',
+    resignationDate: '2026-08-01',
+    requestedLwd: '2026-09-30',
+    approvedLwd: '2026-09-30',
+    noticePeriodDays: 60,
+    reason: 'Higher studies abroad',
+    status: 'clearance_in_progress',
+    clearances: {
+      it: { status: 'cleared', clearedBy: 'IT Admin' },
+      admin: { status: 'cleared', clearedBy: 'Admin' },
+      finance: { status: 'pending' },
+      hr: { status: 'pending' },
+    },
+  });
   const [relievingModalOpen, setRelievingModalOpen] = useState(false);
 
   return (
