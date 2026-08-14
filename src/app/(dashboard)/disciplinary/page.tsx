@@ -1,22 +1,20 @@
 'use client';
 
-import React from 'react';
-import { MOCK_DISCIPLINARY } from '@/lib/mock-data';
+import React, { useState } from 'react';
 import {
   AlertOctagon,
   Shield,
   FileWarning,
   CheckCircle2,
-  Lock,
-  Plus,
   Clock,
+  Plus,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@/context/AuthContext';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { DisciplinaryCase } from '@/types';
 
 export default function DisciplinaryPage() {
   return (
@@ -27,92 +25,124 @@ export default function DisciplinaryPage() {
 }
 
 function DisciplinaryContent() {
-  const { currentRole } = useAuth();
-  const hasConfidentialAccess = ['super_admin', 'hr_admin'].includes(currentRole);
-
-  if (!hasConfidentialAccess) {
-    return (
-      <div className="p-8 max-w-7xl mx-auto">
-        <Card className="border-amber-500/30 bg-amber-50/20 dark:bg-amber-950/20">
-          <CardContent className="p-12 text-center space-y-3">
-            <Lock className="h-10 w-10 text-amber-600 mx-auto" />
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Confidential Module</h2>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Disciplinary proceedings and inquiry records are strictly restricted to HR Administration and Super Admins for legal defensibility.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const [cases] = useState<DisciplinaryCase[]>([
+    { id: 'dc_1', caseNumber: 'DC-2026-004', employeeId: 'emp_006', employeeName: 'Rohit Verma', violationType: 'breach_of_policy', incidentDate: '2026-08-05', reportedBy: 'Shift Supervisor', severity: 'major', currentStage: 'inquiry_panel', createdAt: '2026-08-06' },
+    { id: 'dc_2', caseNumber: 'DC-2026-003', employeeId: 'emp_007', employeeName: 'Suresh Patil', violationType: 'absenteeism', incidentDate: '2026-07-28', reportedBy: 'Plant Manager', severity: 'minor', currentStage: 'closed', actionTaken: 'written_warning', createdAt: '2026-07-29' },
+  ]);
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <span>Disciplinary Actions & Corrective Action (CAPA)</span>
+          <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+            <span>Disciplinary Proceedings & Domestic Inquiry (DI)</span>
             <Badge variant="destructive" className="text-xs">
-              Confidential Register
+              Strictly Confidential
             </Badge>
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Fair process case management, show-cause notices, inquiry panels, and CAPA follow-up logs
+          <p className="text-xs text-slate-500 mt-1">
+            Standing orders, show cause notices, enquiry panels, and corrective action plans (CAPA)
           </p>
         </div>
 
-        <Button size="sm" className="gap-2 shadow-sm text-xs">
+        <Button className="gap-2 shadow-sm text-xs bg-rose-600 hover:bg-rose-700">
           <Plus className="h-4 w-4" />
-          <span>Issue Show-Cause Notice</span>
+          <span>Issue Show Cause Notice</span>
         </Button>
       </div>
 
-      {/* Case Register */}
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <Card className="border-amber-500/20 bg-amber-50/20">
+          <CardContent className="p-6 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500">Active Inquiry Panels</span>
+              <Clock className="h-4 w-4 text-amber-600" />
+            </div>
+            <div className="font-bold text-2xl text-slate-900">1 Case</div>
+            <p className="text-xs text-slate-500">Scheduled for domestic enquiry hearing</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-blue-500/20 bg-blue-50/20">
+          <CardContent className="p-6 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500">CAPA Implemented</span>
+              <Shield className="h-4 w-4 text-blue-600" />
+            </div>
+            <div className="font-bold text-2xl text-slate-900">3 Cases</div>
+            <p className="text-xs text-slate-500">Corrective and preventive actions closed</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-emerald-500/20 bg-emerald-50/20">
+          <CardContent className="p-6 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500">Zero Recurrence Rate</span>
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div className="font-bold text-2xl text-slate-900">98.4%</div>
+            <p className="text-xs text-slate-500">Post-counseling operational adherence</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Disciplinary Register */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-bold">Documented Infraction Register</CardTitle>
+          <CardTitle className="text-base font-bold flex items-center gap-2">
+            <FileWarning className="h-4 w-4 text-rose-600" />
+            <span>Standing Orders Disciplinary Log & CAPA Records</span>
+          </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {MOCK_DISCIPLINARY.map((caseItem) => (
-            <div
-              key={caseItem.id}
-              className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border space-y-3 text-xs"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">
-                    {caseItem.caseNumber}
-                  </span>
-                  <Badge variant="outline" className="text-[10px]">
-                    {caseItem.employeeName}
-                  </Badge>
-                  <Badge variant="warning" className="text-[10px] uppercase">
-                    {caseItem.severity}
-                  </Badge>
-                </div>
-                <Badge variant="outline" className="text-[10px] capitalize">
-                  {caseItem.currentStage.replace('_', ' ')}
-                </Badge>
-              </div>
-
-              <div className="space-y-1">
-                <div className="font-semibold text-slate-800 dark:text-slate-200">
-                  Infraction: {caseItem.violationType.toUpperCase()}
-                </div>
-                <div className="text-slate-500">
-                  Reported by: {caseItem.reportedBy} • Incident Date: {formatDate(caseItem.incidentDate)}
-                </div>
-              </div>
-
-              {caseItem.actionTaken && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300">
-                  <strong className="block font-semibold">CAPA Order / Decision:</strong>
-                  Formal Written Warning issued with 60-day attendance monitoring period.
-                </div>
-              )}
-            </div>
-          ))}
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs text-left">
+              <thead className="bg-slate-50 text-slate-500 uppercase font-semibold border-b">
+                <tr>
+                  <th className="py-3 px-4">Case Number</th>
+                  <th className="py-3 px-4">Employee</th>
+                  <th className="py-3 px-4">Violation Type</th>
+                  <th className="py-3 px-4">Incident Date</th>
+                  <th className="py-3 px-4">Severity</th>
+                  <th className="py-3 px-4">Current Stage</th>
+                  <th className="py-3 px-4 text-right">Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {cases.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50/50">
+                    <td className="py-3.5 px-4 font-mono font-bold text-indigo-600">
+                      {c.caseNumber}
+                    </td>
+                    <td className="py-3.5 px-4 font-semibold text-slate-900">
+                      {c.employeeName}
+                    </td>
+                    <td className="py-3.5 px-4 capitalize">
+                      {c.violationType.replace(/_/g, ' ')}
+                    </td>
+                    <td className="py-3.5 px-4 text-slate-500">{formatDate(c.incidentDate)}</td>
+                    <td className="py-3.5 px-4">
+                      <Badge variant={c.severity === 'severe' ? 'destructive' : c.severity === 'major' ? 'warning' : 'outline'}>
+                        {c.severity}
+                      </Badge>
+                    </td>
+                    <td className="py-3.5 px-4 capitalize font-medium">
+                      <Badge variant={c.currentStage === 'closed' ? 'success' : 'secondary'}>
+                        {c.currentStage.replace(/_/g, ' ')}
+                      </Badge>
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <Button variant="ghost" size="sm" className="h-8 text-xs">
+                        View Notice
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CardContent>
       </Card>
     </div>

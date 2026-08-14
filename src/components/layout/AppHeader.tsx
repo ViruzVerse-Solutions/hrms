@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { ROLE_LABELS } from '@/lib/rbac';
+import { getPersonaAvatar } from '@/lib/constants';
 
 interface AppHeaderProps {
   onToggleMobileMenu?: () => void;
@@ -38,6 +39,7 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
     currentRole,
     setCurrentRole,
     currentUser,
+    currentEmployee,
     notifications,
     markNotificationRead,
   } = useAuth();
@@ -185,7 +187,7 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 pl-1.5 pr-2 sm:pr-3 py-1 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200">
               <img
-                src={currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                src={getPersonaAvatar(currentUser.employeeId, currentUser.name)}
                 alt={currentUser.name}
                 className="h-8 w-8 rounded-full object-cover ring-2 ring-indigo-500/20"
               />
@@ -206,7 +208,10 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/employees/emp_005" className="text-xs cursor-pointer flex items-center gap-2 text-slate-700 hover:text-slate-900 rounded-lg p-2">
+              <Link
+                href={currentEmployee?.id ? `/employees/${currentEmployee.id}` : currentUser.employeeId ? `/employees/${currentUser.employeeId}` : '/employees'}
+                className="text-xs cursor-pointer flex items-center gap-2 text-slate-700 hover:text-slate-900 rounded-lg p-2"
+              >
                 <UserCheck className="h-3.5 w-3.5 text-slate-500" />
                 <span>My 360° Profile</span>
               </Link>

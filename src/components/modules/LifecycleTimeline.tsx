@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { LIFECYCLE_STAGES } from '@/lib/mock-data';
+import { LIFECYCLE_STAGES } from '@/lib/constants';
 import { LifecycleStageKey } from '@/types';
 import { CheckCircle2, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';

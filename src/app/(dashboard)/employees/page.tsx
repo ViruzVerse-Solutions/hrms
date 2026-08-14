@@ -21,6 +21,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { getPersonaAvatar } from '@/lib/constants';
 
 export default function EmployeesPage() {
   const { employees, isSalaryVisible, can, currentRole } = useAuth();
@@ -107,7 +108,7 @@ export default function EmployeesPage() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <img
-                      src={emp.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                      src={getPersonaAvatar(emp.employeeCode, `${emp.firstName} ${emp.lastName}`)}
                       alt={emp.firstName}
                       className="h-12 w-12 rounded-2xl object-cover ring-2 ring-indigo-500/20 shadow-sm"
                     />

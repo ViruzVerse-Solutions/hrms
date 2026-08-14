@@ -151,7 +151,7 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
       {/* Footer Lifecycle Indicator */}
       <div className="p-3 border-t border-slate-200 bg-slate-50/80">
         <Link
-          href="/employees"
+          href={hasAccess('employee_records') ? '/employees' : '/dashboard'}
           onClick={onCloseMobile}
           className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-indigo-300 transition-all shadow-2xs group"
         >
