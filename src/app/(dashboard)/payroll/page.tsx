@@ -230,8 +230,8 @@ function PayrollContent() {
               {/* Header with Print CTA */}
               <div className="flex items-center justify-between pb-4 border-b">
                 <div>
-                  <div className="text-xl font-extrabold text-indigo-600 dark:text-indigo-400">
-                    Apex Operations & Manufacturing Ltd.
+                  <div className="text-xl font-extrabold text-indigo-600">
+                    Viruzverse Solutions Private Limited
                   </div>
                   <div className="text-xs text-slate-500">
                     Salary Statement & Payslip for {selectedPayslip.period}

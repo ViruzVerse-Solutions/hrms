@@ -63,9 +63,9 @@ export default function DashboardPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-7 text-slate-900 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-1.5">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 text-xs font-semibold text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-indigo-50 text-xs font-semibold text-indigo-700 border border-indigo-200">
               <ShieldCheck className="h-3.5 w-3.5" />
-              <span>Apex Operations • RBAC Session</span>
+              <span>Viruzverse Solutions • RBAC Session</span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight">
               Welcome back, {currentUser.name}
