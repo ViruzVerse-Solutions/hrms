@@ -1,25 +1,49 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useAuth } from '@/context/AuthContext';
+import React, { useState, useEffect } from 'react';
 import {
-  CalendarDays,
-  Plus,
-  CheckCircle2,
-  XCircle,
-  Clock,
   Calendar,
+  CalendarDays,
+  CheckCircle2,
   AlertTriangle,
+  Plus,
   FileCheck,
+  ShieldCheck,
+  Building,
+  Check,
+  Lock,
+  X,
 } from 'lucide-react';
-import { formatDate, getStatusColorBadge } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { LeaveType } from '@/types';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { useAuth } from '@/context/AuthContext';
+import { LeaveType } from '@/types';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+
+interface CompanyHolidayItem {
+  id: string;
+  title: string;
+  date: string;
+  dayOfWeek: string;
+  category: string;
+  description?: string;
+  status: string;
+  createdByName?: string;
+  createdByRole?: string;
+  approvedByName?: string;
+  approvedByRole?: string;
+  year: number;
+}
 
 export default function LeavesPage() {
   return (
@@ -44,6 +68,7 @@ function LeavesContent() {
   } = useAuth();
 
   const todayStr = new Date().toISOString().split('T')[0];
+
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [dateError, setDateError] = useState('');
   const [form, setForm] = useState({
@@ -92,7 +117,10 @@ function LeavesContent() {
     setForm({ leaveType: 'casual', fromDate: todayStr, toDate: todayStr, reason: '' });
   };
 
-  const canConfigurePolicy = currentRole === 'hr_head' || currentRole === 'managing_director';
+  const canConfigurePolicy = currentRole === 'hr_head' || currentRole === 'managing_director' || currentRole === 'chairman';
+  const canConfigureHoliday = ['hr_head', 'compliance_statutory', 'managing_director', 'chairman'].includes(currentRole);
+  const canApproveHoliday = ['managing_director', 'chairman'].includes(currentRole);
+
   const [policyModalOpen, setPolicyModalOpen] = useState(false);
   const [policyForm, setPolicyForm] = useState({
     leaveType: 'casual' as LeaveType,
@@ -129,23 +157,109 @@ function LeavesContent() {
       .catch(() => {});
   };
 
+  // Holiday Calendar State
+  const [holidays, setHolidays] = useState<CompanyHolidayItem[]>([]);
+  const [loadingHolidays, setLoadingHolidays] = useState(true);
+  const [holidayModalOpen, setHolidayModalOpen] = useState(false);
+  const [holidayForm, setHolidayForm] = useState({
+    title: '',
+    date: todayStr,
+    category: 'mandatory',
+    description: '',
+  });
+
+  const fetchHolidays = async () => {
+    try {
+      setLoadingHolidays(true);
+      const res = await fetch('/api/holidays', {
+        headers: { 'x-user-role': currentRole },
+      });
+      const data = await res.json();
+      if (data?.data?.holidays) {
+        setHolidays(data.data.holidays);
+      }
+    } catch (err) {
+      console.error('Failed to fetch holidays:', err);
+    } finally {
+      setLoadingHolidays(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHolidays();
+  }, [currentRole]);
+
+  const handleAddHoliday = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!holidayForm.title || !holidayForm.date) return;
+
+    try {
+      const res = await fetch('/api/holidays', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': currentRole,
+        },
+        body: JSON.stringify(holidayForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setHolidayModalOpen(false);
+        setHolidayForm({ title: '', date: todayStr, category: 'mandatory', description: '' });
+        fetchHolidays();
+      }
+    } catch (err) {
+      console.error('Failed to configure holiday:', err);
+    }
+  };
+
+  const handleApproveHoliday = async (holidayId: string) => {
+    try {
+      const res = await fetch('/api/holidays', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': currentRole,
+        },
+        body: JSON.stringify({ holidayId, action: 'approve' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchHolidays();
+      }
+    } catch (err) {
+      console.error('Failed to approve holiday:', err);
+    }
+  };
+
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-            <span>Leave Management & Approvals</span>
+            <span>Leave Management & Holiday Calendar</span>
             <Badge variant="outline" className="text-xs font-semibold">
-              Automated Balance Deduction
+              Enterprise Governance
             </Badge>
           </h1>
           <p className="text-xs text-slate-600 mt-1">
-            Apply for time off, review leave balances, and manage multi-tier approval chains
+            Apply for time off, manage leave quota policies, and review/approve official company holidays
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {canConfigureHoliday && (
+            <Button
+              onClick={() => setHolidayModalOpen(true)}
+              variant="outline"
+              className="gap-1.5 text-xs border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
+            >
+              <FileCheck className="h-4 w-4 text-amber-600" />
+              <span>Configure Holiday Calendar</span>
+            </Button>
+          )}
+
           {canConfigurePolicy && (
             <Dialog open={policyModalOpen} onOpenChange={(open) => {
               setPolicyModalOpen(open);
@@ -178,25 +292,29 @@ function LeavesContent() {
                       <option value="casual">Casual Leave (CL)</option>
                       <option value="sick">Sick Leave (SL)</option>
                       <option value="earned">Earned / Privilege Leave (EL)</option>
-                      <option value="maternity">Maternity Leave</option>
                     </select>
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">Annual Allocated Days Quota</label>
-                    <Input
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">Annual Quota Allocation (Days)</label>
+                    <input
                       type="number"
-                      required
                       min={1}
-                      max={365}
+                      max={60}
                       value={policyForm.allocatedDays}
                       onChange={(e) => setPolicyForm({ ...policyForm, allocatedDays: Number(e.target.value) })}
+                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
                     />
                   </div>
 
-                  <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700">
-                    Save Policy Quota & Recalculate DB Balances
-                  </Button>
+                  <div className="flex justify-end gap-2 pt-2 border-t">
+                    <Button type="button" variant="outline" onClick={() => setPolicyModalOpen(false)}>
+                      Close
+                    </Button>
+                    <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                      Save Quota Policy
+                    </Button>
+                  </div>
                 </form>
               </DialogContent>
             </Dialog>
@@ -210,110 +328,104 @@ function LeavesContent() {
               setDateError('');
             }
           }}>
-          <DialogTrigger asChild>
-            <Button className="gap-2 shadow-md text-xs">
-              <Plus className="h-4 w-4" />
-              <span>Apply for Leave</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Submit Leave Application</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleApply} className="space-y-4 pt-2 text-xs">
-              {dateError && (
-                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
-                  {dateError}
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-slate-300">Leave Type</label>
-                <select
-                  value={form.leaveType}
-                  onChange={(e) => setForm({ ...form, leaveType: e.target.value as LeaveType })}
-                  className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                >
-                  {(() => {
-                    const getAvailBal = (t: string, defAlloc: number) => {
-                      const alloc = leaveAllocations.find((a) => a.leaveType === t);
-                      const usedReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
-                      const pendReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
-                      const allocated = alloc ? Number(alloc.totalAllocated || (alloc as any).allocatedDays || defAlloc) : defAlloc;
-                      const used = alloc ? Math.max(Number(alloc.used || (alloc as any).usedDays || 0), usedReq) : usedReq;
-                      const pending = alloc ? Math.max(Number(alloc.pending || (alloc as any).pendingDays || 0), pendReq) : pendReq;
-                      return Math.max(0, allocated - (used + pending));
-                    };
-
-                    return (
-                      <>
-                        <option value="casual">Casual Leave (CL) - Balance: {getAvailBal('casual', 12)} Days</option>
-                        <option value="sick">Sick Leave (SL) - Balance: {getAvailBal('sick', 10)} Days</option>
-                        <option value="earned">Earned / Privilege Leave (EL) - Balance: {getAvailBal('earned', 15)} Days</option>
-                        <option value="maternity">Maternity Leave - Balance: 180 Days</option>
-                        <option value="unpaid">Loss of Pay (LOP / Unpaid)</option>
-                      </>
-                    );
-                  })()}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">From Date</label>
-                  <Input
-                    type="date"
-                    required
-                    min={todayStr}
-                    value={form.fromDate}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setForm((prev) => ({
-                        ...prev,
-                        fromDate: val,
-                        toDate: prev.toDate < val ? val : prev.toDate,
-                      }));
-                      setDateError('');
-                    }}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">To Date</label>
-                  <Input
-                    type="date"
-                    required
-                    min={form.fromDate || todayStr}
-                    value={form.toDate}
-                    onChange={(e) => {
-                      setForm({ ...form, toDate: e.target.value });
-                      setDateError('');
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700 dark:text-slate-300">Reason / Details</label>
-                <textarea
-                  required
-                  rows={3}
-                  placeholder="Provide brief context for your reporting manager..."
-                  value={form.reason}
-                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                  className="w-full p-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                />
-              </div>
-
-              <Button type="submit" className="w-full">
-                Submit for Manager Approval
+            <DialogTrigger asChild>
+              <Button className="gap-2 shadow-md text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
+                <Plus className="h-4 w-4" />
+                <span>Apply for Leave</span>
               </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Submit Leave Application</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleApply} className="space-y-4 pt-2 text-xs">
+                {dateError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
+                    {dateError}
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">Leave Type</label>
+                  <select
+                    value={form.leaveType}
+                    onChange={(e) => setForm({ ...form, leaveType: e.target.value as LeaveType })}
+                    className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                  >
+                    {(() => {
+                      const getAvailBal = (t: string, defAlloc: number) => {
+                        const alloc = leaveAllocations.find((a) => a.leaveType === t);
+                        const usedReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+                        const pendReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+                        const allocated = alloc ? Number(alloc.totalAllocated || (alloc as any).allocatedDays || defAlloc) : defAlloc;
+                        const used = alloc ? Math.max(Number(alloc.used || (alloc as any).usedDays || 0), usedReq) : usedReq;
+                        const pending = alloc ? Math.max(Number(alloc.pending || (alloc as any).pendingDays || 0), pendReq) : pendReq;
+                        return Math.max(0, allocated - (used + pending));
+                      };
+
+                      return (
+                        <>
+                          <option value="casual">Casual Leave (CL) - Balance: {getAvailBal('casual', 12)} Days</option>
+                          <option value="sick">Sick Leave (SL) - Balance: {getAvailBal('sick', 10)} Days</option>
+                          <option value="earned">Earned / Privilege Leave (EL) - Balance: {getAvailBal('earned', 15)} Days</option>
+                          <option value="maternity">Maternity Leave - Balance: 180 Days</option>
+                          <option value="unpaid">Loss of Pay (LOP / Unpaid)</option>
+                        </>
+                      );
+                    })()}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">From Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={form.fromDate}
+                      onChange={(e) => setForm({ ...form, fromDate: e.target.value })}
+                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">To Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={form.toDate}
+                      onChange={(e) => setForm({ ...form, toDate: e.target.value })}
+                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">Reason</label>
+                  <textarea
+                    rows={3}
+                    required
+                    placeholder="Enter reason for leave..."
+                    value={form.reason}
+                    onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                    className="w-full p-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button type="button" variant="outline" onClick={() => setApplyModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    Submit Application
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      {/* Leave Balances Grid */}
+      {/* Leave Balances & Holiday Summary Grid */}
       {(() => {
         const calcLeaveStats = (type: string, defAlloc: number) => {
           const alloc = leaveAllocations.find((a) => a.leaveType === type);
@@ -367,100 +479,272 @@ function LeavesContent() {
               </CardContent>
             </Card>
 
-            <Card className="border-slate-200 bg-white">
+            <Card className="border-slate-200 bg-amber-50/30">
               <CardContent className="p-6">
                 <div className="flex justify-between text-xs font-semibold text-slate-500">
                   <span>Holiday Calendar 2026</span>
-                  <FileCheck className="h-4 w-4 text-amber-500" />
+                  <FileCheck className="h-4 w-4 text-amber-600" />
                 </div>
-                <div className="text-3xl font-extrabold text-slate-900 mt-2 font-mono">14 Days</div>
-                <div className="text-xs text-amber-600 mt-1 font-medium">Next: 15 Aug (Independence Day)</div>
+                <div className="text-3xl font-extrabold text-slate-900 mt-2 font-mono">{holidays.length || 7} Days</div>
+                <div className="text-xs text-amber-700 mt-1 font-medium flex items-center gap-1">
+                  <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+                  <span>Configured & Approved</span>
+                </div>
               </CardContent>
             </Card>
           </div>
         );
       })()}
 
-      {/* Leave Requests & Approvals Queue */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base font-bold">Leave Requests & Multi-Tier Approvals</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-                <tr>
-                  <th className="p-3">Employee</th>
-                  <th className="p-3">Leave Type</th>
-                  <th className="p-3">From</th>
-                  <th className="p-3">To</th>
-                  <th className="p-3">Days</th>
-                  <th className="p-3">Reason</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {visibleLeaves.map((req) => {
-                  const canApprove = can('approve', 'attendance_leave');
+      {/* Navigation Tabs for Leave Applications & Holiday Calendar */}
+      <Tabs defaultValue="applications" className="w-full">
+        <TabsList className="grid grid-cols-2 max-w-md">
+          <TabsTrigger value="applications">Leave Applications</TabsTrigger>
+          <TabsTrigger value="holidays">Company Holiday Calendar ({holidays.length})</TabsTrigger>
+        </TabsList>
 
-                  return (
-                    <tr key={req.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="p-3 font-bold text-slate-900">
-                        {req.employeeName}
-                      </td>
-                      <td className="p-3 capitalize font-semibold text-indigo-600">
-                        {req.leaveType}
-                      </td>
-                      <td className="p-3 text-slate-600 font-medium">{formatDate(req.fromDate)}</td>
-                      <td className="p-3 text-slate-600 font-medium">{formatDate(req.toDate)}</td>
-                      <td className="p-3 font-mono font-bold text-slate-900">{req.daysCount} days</td>
-                      <td className="p-3 text-slate-600 max-w-xs truncate">
-                        {req.reason}
-                      </td>
-                      <td className="p-3">
-                        <Badge
-                          variant={req.status === 'approved' ? 'success' : req.status === 'pending' ? 'warning' : 'destructive'}
-                          className="text-[10px] capitalize"
-                        >
-                          {req.status}
-                        </Badge>
-                      </td>
-                      <td className="p-3 text-right">
-                        {req.status === 'pending' && canApprove ? (
-                          <div className="flex items-center justify-end gap-1.5">
-                            <Button
-                              size="sm"
-                              variant="success"
-                              className="h-7 px-2.5 text-[11px]"
-                              onClick={() => updateLeaveStatus(req.id, 'approved', 'Approved by Manager')}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-7 px-2.5 text-[11px]"
-                              onClick={() => updateLeaveStatus(req.id, 'rejected', 'Staff coverage constraint')}
-                            >
-                              Reject
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">
-                            {req.approverComment || 'Processed'}
-                          </span>
-                        )}
-                      </td>
+        {/* 1. Leave Applications Queue */}
+        <TabsContent value="applications">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-bold">Leave Requests & Multi-Tier Approvals</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                    <tr>
+                      <th className="p-3">Employee</th>
+                      <th className="p-3">Leave Type</th>
+                      <th className="p-3">From</th>
+                      <th className="p-3">To</th>
+                      <th className="p-3">Days</th>
+                      <th className="p-3">Reason</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3 text-right">Actions</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {visibleLeaves.map((req) => {
+                      const canApprove = can('approve', 'attendance_leave');
+
+                      return (
+                        <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-3 font-bold text-slate-900">
+                            {req.employeeName}
+                          </td>
+                          <td className="p-3 capitalize font-semibold text-indigo-600">
+                            {req.leaveType}
+                          </td>
+                          <td className="p-3 text-slate-600 font-medium">{formatDate(req.fromDate)}</td>
+                          <td className="p-3 text-slate-600 font-medium">{formatDate(req.toDate)}</td>
+                          <td className="p-3 font-mono font-bold text-slate-900">{req.daysCount} days</td>
+                          <td className="p-3 text-slate-600 max-w-xs truncate">
+                            {req.reason}
+                          </td>
+                          <td className="p-3">
+                            <Badge
+                              variant={req.status === 'approved' ? 'success' : req.status === 'pending' ? 'warning' : 'destructive'}
+                              className="text-[10px] capitalize"
+                            >
+                              {req.status}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-right">
+                            {req.status === 'pending' && canApprove ? (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  size="sm"
+                                  variant="success"
+                                  className="h-7 px-2.5 text-[11px]"
+                                  onClick={() => updateLeaveStatus(req.id, 'approved', 'Approved by Manager')}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="h-7 px-2.5 text-[11px]"
+                                  onClick={() => updateLeaveStatus(req.id, 'rejected', 'Staff coverage constraint')}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 text-[11px]">
+                                {req.approverComment || 'Processed'}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 2. Official Holiday Calendar Tab */}
+        <TabsContent value="holidays">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <FileCheck className="h-5 w-5 text-amber-600" />
+                <span>Official Annual Company Holiday Calendar (2026)</span>
+              </CardTitle>
+
+              {canConfigureHoliday && (
+                <Button
+                  onClick={() => setHolidayModalOpen(true)}
+                  size="sm"
+                  className="gap-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add Holiday Entry</span>
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {loadingHolidays ? (
+                <div className="py-8 text-center text-xs text-slate-500">Loading company holiday calendar...</div>
+              ) : holidays.length === 0 ? (
+                <div className="py-8 text-center text-xs text-slate-500">No official company holidays configured in database.</div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {holidays.map((h) => (
+                    <div key={h.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-slate-900">{h.title}</span>
+                          <Badge variant="outline" className="text-[10px] font-mono capitalize">
+                            {h.category.replace(/_/g, ' ')}
+                          </Badge>
+                          <Badge variant={h.status === 'approved' ? 'success' : 'warning'} className="text-[10px] uppercase">
+                            {h.status}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-slate-500 flex items-center gap-4">
+                          <span>Date: <strong className="text-slate-800">{formatDate(h.date)} ({h.dayOfWeek})</strong></span>
+                          {h.description && <span>Note: {h.description}</span>}
+                        </div>
+                      </div>
+
+                      {/* Governance Authority Pill */}
+                      <div className="flex items-center gap-3">
+                        <div className="text-right text-[11px]">
+                          <div className="text-slate-600 font-semibold">
+                            Configured by: <span className="text-indigo-600">{h.createdByName || h.createdByRole}</span>
+                          </div>
+                          <div className="text-slate-400 text-[10px]">
+                            {h.approvedByName ? `Approved by: ${h.approvedByName}` : 'Pending Executive Approval'}
+                          </div>
+                        </div>
+
+                        {h.status === 'pending_approval' && canApproveHoliday && (
+                          <Button
+                            size="sm"
+                            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                            onClick={() => handleApproveHoliday(h.id)}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                            <span>Approve & Publish</span>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Configure Holiday Modal */}
+      {holidayModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-bold text-base text-slate-900">Configure Company Holiday</h3>
+              <button onClick={() => setHolidayModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleAddHoliday} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Holiday Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Founders' Day / Ugadi Festival"
+                  className="w-full px-3 py-2 border rounded-lg outline-none"
+                  value={holidayForm.title}
+                  onChange={(e) => setHolidayForm({ ...holidayForm, title: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Holiday Date</label>
+                  <input
+                    type="date"
+                    required
+                    className="w-full px-3 py-2 border rounded-lg outline-none"
+                    value={holidayForm.date}
+                    onChange={(e) => setHolidayForm({ ...holidayForm, date: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Category</label>
+                  <select
+                    className="w-full px-3 py-2 border rounded-lg outline-none"
+                    value={holidayForm.category}
+                    onChange={(e) => setHolidayForm({ ...holidayForm, category: e.target.value })}
+                  >
+                    <option value="mandatory">Mandatory Holiday</option>
+                    <option value="national">National Holiday</option>
+                    <option value="restricted_optional">Restricted / Optional</option>
+                    <option value="regional">Regional Plant Holiday</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Description / Notes</label>
+                <textarea
+                  rows={2}
+                  placeholder="Additional directives or plant shift regulations..."
+                  className="w-full px-3 py-2 border rounded-lg outline-none"
+                  value={holidayForm.description}
+                  onChange={(e) => setHolidayForm({ ...holidayForm, description: e.target.value })}
+                />
+              </div>
+
+              <div className="p-3 bg-amber-50 rounded-xl text-[11px] text-amber-800 space-y-1">
+                <div className="font-bold flex items-center gap-1">
+                  <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+                  <span>Governance & Approval Matrix</span>
+                </div>
+                <p>
+                  <strong>Configured by:</strong> {currentUser.name} ({currentRole})<br />
+                  <strong>Approval Required:</strong> Managing Director / Chairman sign-off is required before publishing company-wide.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button type="button" variant="outline" onClick={() => setHolidayModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white">
+                  Save & Submit for Approval
+                </Button>
+              </div>
+            </form>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
   );
 }

@@ -133,6 +133,7 @@ model Organization {
   companyPolicies CompanyPolicy[]
   transfers     TransferPromotionCase[]
   disciplinaryCases DisciplinaryCase[]
+  companyHolidays CompanyHoliday[]
   auditLogs     AuditLog[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -664,4 +665,29 @@ model DisciplinaryCase {
 
   @@index([organizationId, employeeId, currentStage])
 }
+
+model CompanyHoliday {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  date           DateTime     @db.Date
+  dayOfWeek      String       // e.g. "Monday"
+  category       String       @default("mandatory") // "mandatory", "restricted_optional", "national", "regional"
+  branchId       String?      // Null = All Branches, String = Specific Branch
+  description    String?
+  status         String       @default("approved") // "draft", "pending_approval", "approved"
+  createdById    String?
+  createdByName  String?
+  createdByRole  UserRole     @default(hr_head)
+  approvedById   String?
+  approvedByName String?
+  approvedByRole UserRole?
+  year           Int          @default(2026)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, year, status])
+}
+
 

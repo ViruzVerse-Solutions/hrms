@@ -9,6 +9,7 @@ async function main() {
     // 0. Clean up all tables in reverse dependency order for a fresh, clean database
     console.log('🧹 Purging existing database tables...');
     await prisma.notification.deleteMany().catch(() => {});
+    await prisma.companyHoliday.deleteMany().catch(() => {});
     await prisma.companyPolicy.deleteMany().catch(() => {});
     await prisma.transferPromotionCase.deleteMany().catch(() => {});
     await prisma.disciplinaryCase.deleteMany().catch(() => {});
@@ -794,6 +795,104 @@ async function main() {
       ],
     });
     console.log('✅ Disciplinary cases seeded');
+
+    // 17. Seed Official Company Holiday Calendar (2026)
+    await prisma.companyHoliday.createMany({
+      data: [
+        {
+          organizationId: org.id,
+          title: 'New Year\'s Day',
+          date: new Date('2026-01-01'),
+          dayOfWeek: 'Thursday',
+          category: 'national',
+          status: 'approved',
+          createdByName: 'Kavita Menon',
+          createdByRole: 'compliance_statutory',
+          approvedByName: 'Dr. Vikramaditya Rathore',
+          approvedByRole: 'managing_director',
+          year: 2026,
+        },
+        {
+          organizationId: org.id,
+          title: 'Republic Day',
+          date: new Date('2026-01-26'),
+          dayOfWeek: 'Monday',
+          category: 'national',
+          status: 'approved',
+          createdByName: 'Kavita Menon',
+          createdByRole: 'compliance_statutory',
+          approvedByName: 'Dr. Vikramaditya Rathore',
+          approvedByRole: 'managing_director',
+          year: 2026,
+        },
+        {
+          organizationId: org.id,
+          title: 'International Workers\' Day (May Day)',
+          date: new Date('2026-05-01'),
+          dayOfWeek: 'Friday',
+          category: 'mandatory',
+          status: 'approved',
+          createdByName: 'Eleanor Vance',
+          createdByRole: 'hr_head',
+          approvedByName: 'Dr. Vikramaditya Rathore',
+          approvedByRole: 'managing_director',
+          year: 2026,
+        },
+        {
+          organizationId: org.id,
+          title: 'Independence Day',
+          date: new Date('2026-08-15'),
+          dayOfWeek: 'Saturday',
+          category: 'national',
+          status: 'approved',
+          createdByName: 'Kavita Menon',
+          createdByRole: 'compliance_statutory',
+          approvedByName: 'Dr. Vikramaditya Rathore',
+          approvedByRole: 'managing_director',
+          year: 2026,
+        },
+        {
+          organizationId: org.id,
+          title: 'Gandhi Jayanti',
+          date: new Date('2026-10-02'),
+          dayOfWeek: 'Friday',
+          category: 'national',
+          status: 'approved',
+          createdByName: 'Kavita Menon',
+          createdByRole: 'compliance_statutory',
+          approvedByName: 'Dr. Vikramaditya Rathore',
+          approvedByRole: 'managing_director',
+          year: 2026,
+        },
+        {
+          organizationId: org.id,
+          title: 'Deepavali / Diwali',
+          date: new Date('2026-11-08'),
+          dayOfWeek: 'Sunday',
+          category: 'mandatory',
+          status: 'approved',
+          createdByName: 'Eleanor Vance',
+          createdByRole: 'hr_head',
+          approvedByName: 'Dr. Vikramaditya Rathore',
+          approvedByRole: 'managing_director',
+          year: 2026,
+        },
+        {
+          organizationId: org.id,
+          title: 'Christmas Day',
+          date: new Date('2026-12-25'),
+          dayOfWeek: 'Friday',
+          category: 'national',
+          status: 'approved',
+          createdByName: 'Eleanor Vance',
+          createdByRole: 'hr_head',
+          approvedByName: 'Dr. Vikramaditya Rathore',
+          approvedByRole: 'managing_director',
+          year: 2026,
+        },
+      ],
+    });
+    console.log('✅ Company holiday calendar (2026) seeded');
 
     console.log('🎉 Full Viruzverse HRM seed completed successfully!');
   } finally {

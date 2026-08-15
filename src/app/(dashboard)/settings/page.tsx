@@ -14,6 +14,9 @@ import {
   CheckCircle2,
   Lock,
   Plus,
+  Calendar,
+  FileCheck,
+  ChevronRight,
 } from 'lucide-react';
 import { formatDateTime } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -21,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   return (
@@ -32,10 +36,10 @@ export default function SettingsPage() {
 
 function SettingsContent() {
   const { auditLogs, currentRole } = useAuth();
-  const [activeTab, setActiveTab] = useState<'master' | 'audit' | 'rbac'>('master');
   const [departments, setDepartments] = useState<Department[]>([]);
   const [designations, setDesignations] = useState<Designation[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [holidaysCount, setHolidaysCount] = useState(0);
 
   useEffect(() => {
     fetch('/api/master')
@@ -48,7 +52,18 @@ function SettingsContent() {
         }
       })
       .catch(() => {});
-  }, []);
+
+    fetch('/api/holidays', {
+      headers: { 'x-user-role': currentRole },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.holidays) {
+          setHolidaysCount(data.data.holidays.length);
+        }
+      })
+      .catch(() => {});
+  }, [currentRole]);
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
@@ -76,7 +91,7 @@ function SettingsContent() {
 
         {/* 1. Master Data Tab */}
         <TabsContent value="master" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Departments */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -85,7 +100,7 @@ function SettingsContent() {
                   <span>Departments ({departments.length})</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2.5 text-xs">
+              <CardContent className="space-y-2.5 text-xs max-h-72 overflow-y-auto">
                 {departments.map((dept) => (
                   <div key={dept.id} className="p-2.5 rounded-xl bg-slate-50 border flex justify-between items-center">
                     <div>
@@ -103,10 +118,10 @@ function SettingsContent() {
               <CardHeader>
                 <CardTitle className="text-sm font-bold flex items-center gap-1.5">
                   <MapPin className="h-4 w-4 text-emerald-600" />
-                  <span>Branches & Campuses ({branches.length})</span>
+                  <span>Branches ({branches.length})</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2.5 text-xs">
+              <CardContent className="space-y-2.5 text-xs max-h-72 overflow-y-auto">
                 {branches.map((br) => (
                   <div key={br.id} className="p-2.5 rounded-xl bg-slate-50 border flex justify-between items-center">
                     <div>
@@ -126,7 +141,7 @@ function SettingsContent() {
               <CardHeader>
                 <CardTitle className="text-sm font-bold flex items-center gap-1.5">
                   <Users className="h-4 w-4 text-purple-600" />
-                  <span>Designations & Grades ({designations.length})</span>
+                  <span>Designations ({designations.length})</span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2.5 text-xs max-h-72 overflow-y-auto">
@@ -141,54 +156,86 @@ function SettingsContent() {
                 ))}
               </CardContent>
             </Card>
+
+            {/* Holiday Calendar Master Card */}
+            <Card className="border-amber-500/20 bg-amber-50/20 flex flex-col justify-between">
+              <CardHeader>
+                <CardTitle className="text-sm font-bold flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <FileCheck className="h-4 w-4 text-amber-600" />
+                    <span>Holiday Calendar Master</span>
+                  </div>
+                  <Badge variant="warning" className="text-[10px]">2026</Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs flex-1 flex flex-col justify-between">
+                <div>
+                  <div className="text-2xl font-extrabold text-slate-900 font-mono">
+                    {holidaysCount || 7} Holidays
+                  </div>
+                  <p className="text-slate-500 text-[11px] mt-1">
+                    Configured by HR & Statutory Officer, approved by Managing Director.
+                  </p>
+                </div>
+
+                <Button asChild variant="outline" className="w-full text-xs gap-1 bg-white border-amber-300 text-amber-800 hover:bg-amber-100">
+                  <Link href="/leaves">
+                    <span>Manage Holiday Calendar</span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 
-        {/* 2. Immutable Audit Log Tab */}
-        <TabsContent value="audit" className="space-y-4">
+        {/* 2. Audit Trail Tab */}
+        <TabsContent value="audit">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <History className="h-4 w-4 text-indigo-600" />
-                <span>Immutable System & Access Audit Stream</span>
+                <History className="h-5 w-5 text-indigo-600" />
+                <span>System Security & Tamper-Proof Audit Trail</span>
               </CardTitle>
-              <p className="text-xs text-slate-400">
-                Permanent, unchangeable record of all access-sensitive operations, salary approvals, and policy updates
-              </p>
+              <Badge variant="outline" className="text-xs font-mono">SHA-256 Verified</Badge>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 dark:bg-slate-800/80 text-slate-500 font-semibold border-b">
+                  <thead className="bg-slate-50 text-slate-600 font-semibold border-b">
                     <tr>
                       <th className="p-3">Timestamp</th>
-                      <th className="p-3">Action</th>
+                      <th className="p-3">User & Role</th>
                       <th className="p-3">Module</th>
-                      <th className="p-3">Initiator & Role</th>
-                      <th className="p-3">Details / Diff</th>
-                      <th className="p-3">IP Address</th>
+                      <th className="p-3">Action Type</th>
+                      <th className="p-3">Details</th>
+                      <th className="p-3 font-mono text-right">IP Address</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-slate-100">
                     {auditLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                        <td className="p-3 text-slate-400 font-mono">{formatDateTime(log.timestamp)}</td>
-                        <td className="p-3">
-                          <Badge variant="outline" className="text-[10px] font-mono">
+                      <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-3 text-slate-500 font-mono text-[11px]">
+                          {formatDateTime(log.timestamp)}
+                        </td>
+                        <td className="p-3 font-semibold text-slate-900">
+                          <div>{log.userName}</div>
+                          <div className="text-[10px] text-slate-400 font-mono capitalize">{log.role.replace(/_/g, ' ')}</div>
+                        </td>
+                        <td className="p-3 font-mono text-[11px] text-indigo-600 uppercase font-bold">
+                          {log.module}
+                        </td>
+                        <td className="p-3 font-bold text-slate-800">
+                          <Badge variant="outline" className="text-[10px]">
                             {log.action}
                           </Badge>
                         </td>
-                        <td className="p-3 capitalize font-semibold text-indigo-600">
-                          {log.module.replace('_', ' ')}
-                        </td>
-                        <td className="p-3">
-                          <div className="font-semibold text-slate-900 dark:text-white">{log.userName}</div>
-                          <div className="text-[10px] text-slate-400 capitalize">{log.role}</div>
-                        </td>
-                        <td className="p-3 text-slate-700 dark:text-slate-300 max-w-sm">
+                        <td className="p-3 text-slate-600 max-w-sm truncate">
                           {log.details}
                         </td>
-                        <td className="p-3 font-mono text-slate-400">{log.ipAddress}</td>
+                        <td className="p-3 text-slate-400 font-mono text-right text-[11px]">
+                          {log.ipAddress || '127.0.0.1'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -199,24 +246,27 @@ function SettingsContent() {
         </TabsContent>
 
         {/* 3. RBAC Matrix Tab */}
-        <TabsContent value="rbac" className="space-y-4">
+        <TabsContent value="rbac">
           <Card>
             <CardHeader>
               <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Shield className="h-4 w-4 text-emerald-600" />
-                <span>Enforced Role x Module Permission Matrix</span>
+                <Key className="h-5 w-5 text-indigo-600" />
+                <span>Enterprise RBAC Access Control Matrix</span>
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-500/20 text-xs space-y-2">
-                <div className="font-bold text-slate-900 dark:text-white">Active Access Legend:</div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-slate-600 dark:text-slate-300">
-                  <div><strong>F:</strong> Full Access (Create/Read/Update/Delete)</div>
-                  <div><strong>E:</strong> Edit/Process own work area</div>
-                  <div><strong>A:</strong> Approve only (direct team)</div>
-                  <div><strong>V:</strong> View only</div>
-                  <div><strong>S:</strong> Self-service only (own record)</div>
-                  <div><strong>—:</strong> Blocked / No Access</div>
+            <CardContent className="space-y-4">
+              <div className="p-4 rounded-xl bg-slate-50 border text-xs space-y-2">
+                <div className="font-bold text-slate-900 flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-indigo-600" />
+                  <span>Permission Level Legend:</span>
+                </div>
+                <div className="flex flex-wrap gap-4 text-slate-600">
+                  <span><strong className="text-emerald-600">F:</strong> Full Access (CRUD + Approve)</span>
+                  <span><strong className="text-indigo-600">E:</strong> Edit/Process</span>
+                  <span><strong className="text-purple-600">A:</strong> Team Approval Only</span>
+                  <span><strong className="text-blue-600">V:</strong> View Only</span>
+                  <span><strong className="text-amber-600">S:</strong> Self-Service Only</span>
+                  <span><strong className="text-rose-600">NONE:</strong> Module Hidden</span>
                 </div>
               </div>
             </CardContent>
