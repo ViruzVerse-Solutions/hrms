@@ -48,11 +48,11 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const rolesList: UserRole[] = [
-    'super_admin',
-    'hr_admin',
-    'hr_executive',
-    'payroll_officer',
-    'reporting_manager',
+    'chairman',
+    'managing_director',
+    'hr_head',
+    'internal_audit_head',
+    'compliance_statutory',
     'employee',
   ];
 

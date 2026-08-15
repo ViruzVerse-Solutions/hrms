@@ -134,7 +134,7 @@ function PayrollContent() {
                       {run.approvedBy ? `Approved by ${run.approvedBy}` : 'Pending final approval review'}
                     </span>
 
-                    {run.status === 'under_review' && (currentRole === 'hr_admin' || currentRole === 'super_admin') && (
+                    {run.status === 'under_review' && (currentRole === 'hr_head' || currentRole === 'managing_director') && (
                       <Button
                         size="sm"
                         onClick={() => approvePayrollRun(run.id)}

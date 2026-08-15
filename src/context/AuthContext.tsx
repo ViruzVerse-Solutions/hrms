@@ -61,8 +61,8 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [currentRole, setCurrentRole] = useState<UserRole>('hr_admin');
-  const [currentUser, setCurrentUser] = useState<User>(CORE_PERSONAS[1]); // Default Eleanor Vance (HR Admin)
+  const [currentRole, setCurrentRole] = useState<UserRole>('hr_head');
+  const [currentUser, setCurrentUser] = useState<User>(CORE_PERSONAS[2]); // Default Eleanor Vance (HR Head)
   
   // Data stores
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -171,8 +171,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
 
-    // 8. Fetch Audit Logs (Admin only)
-    if (currentRole === 'hr_admin' || currentRole === 'super_admin') {
+    // 8. Fetch Audit Logs (Admin & Audit only)
+    if (['hr_head', 'managing_director', 'chairman', 'internal_audit_head'].includes(currentRole)) {
       fetch('/api/audit-logs', {
         headers: { 'x-user-role': currentRole },
       })

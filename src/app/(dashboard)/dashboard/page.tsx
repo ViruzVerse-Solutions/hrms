@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   AlertTriangle,
   ChevronRight,
+  BarChart3,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -72,11 +73,11 @@ export default function DashboardPage() {
               Welcome back, {currentUser.name}
             </h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl">
-              {currentRole === 'super_admin' && 'Enterprise infrastructure is operational. System audit logs, security policies, and master tables are synchronized.'}
-              {currentRole === 'hr_admin' && 'Full operational visibility across plant departments, active requisitions, leave queues, and compliance checklists.'}
-              {currentRole === 'hr_executive' && 'You have active technical interview rounds, onboarding documentation queues, and attendance monitoring tasks.'}
-              {currentRole === 'payroll_officer' && 'August 2026 plant wage calculations and statutory deduction reports (PF, ESI, TDS) are ready for review.'}
-              {currentRole === 'reporting_manager' && 'Supervising direct reports: track daily shift attendance, approve pending leave applications, and review performance KRAs.'}
+              {currentRole === 'chairman' && 'Board-level strategic governance: macro workforce analytics, executive appointments, compliance oversight, and corporate policy sign-offs.'}
+              {currentRole === 'managing_director' && 'Executive operations: operational KPIs, departmental leave approvals, payroll authorizations, and senior promotion sanctions.'}
+              {currentRole === 'hr_head' && 'Full operational authority across all 17 lifecycle stages: headcount requisitions, attendance & leave queues, payroll processing, and calibrations.'}
+              {currentRole === 'internal_audit_head' && 'Forensic audit & internal controls: inspect immutable SHA-256 logs, review payroll/attendance variances, and verify regulatory adherence.'}
+              {currentRole === 'compliance_statutory' && 'Statutory & regulatory governance: Factory Act registers, PF/ESI/TDS remittance filings, POSH compliance, and EHS safety audits.'}
               {currentRole === 'employee' && 'Self-service portal: manage your daily check-in, review leave balances, download salary payslips, and check company announcements.'}
             </p>
           </div>
@@ -94,7 +95,7 @@ export default function DashboardPage() {
                 {isCheckedInToday ? 'Shift Logged (Present)' : 'Web Check-In (Present)'}
               </Button>
             )}
-            {currentRole === 'hr_admin' && (
+            {currentRole === 'hr_head' && (
               <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
                 <Link href="/recruitment">
                   <UserPlus className="h-4 w-4 mr-2" />
@@ -102,27 +103,35 @@ export default function DashboardPage() {
                 </Link>
               </Button>
             )}
-            {currentRole === 'payroll_officer' && (
-              <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
-                <Link href="/payroll">
-                  <Wallet className="h-4 w-4 mr-2" />
-                  Open Payroll Run
-                </Link>
-              </Button>
-            )}
-            {currentRole === 'reporting_manager' && (
+            {currentRole === 'managing_director' && (
               <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
                 <Link href="/leaves">
                   <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Review Team Leaves
+                  Review Approvals
                 </Link>
               </Button>
             )}
-            {currentRole === 'super_admin' && (
+            {currentRole === 'compliance_statutory' && (
+              <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
+                <Link href="/compliance">
+                  <ShieldCheck className="h-4 w-4 mr-2" />
+                  Statutory Register
+                </Link>
+              </Button>
+            )}
+            {currentRole === 'internal_audit_head' && (
               <Button asChild variant="outline">
                 <Link href="/settings">
-                  <Server className="h-4 w-4 mr-2" />
-                  System Master Setup
+                  <Shield className="h-4 w-4 mr-2" />
+                  Inspect Audit Trail
+                </Link>
+              </Button>
+            )}
+            {currentRole === 'chairman' && (
+              <Button asChild variant="outline">
+                <Link href="/reports">
+                  <BarChart3 className="h-4 w-4 mr-2" />
+                  Board Analytics
                 </Link>
               </Button>
             )}
@@ -131,106 +140,253 @@ export default function DashboardPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 1. SUPER ADMIN DASHBOARD */}
+      {/* 1. CHAIRMAN DASHBOARD */}
       {/* ========================================================================= */}
-      {currentRole === 'super_admin' && (
+      {currentRole === 'chairman' && (
         <div className="space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-semibold uppercase tracking-wider">System Availability</span>
-                  <Activity className="h-4 w-4 text-emerald-600" />
-                </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">99.99%</div>
-                <div className="text-xs text-emerald-600 font-medium mt-1">All plant nodes operational</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Active Staff</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Enterprise Workforce</span>
                   <Users className="h-4 w-4 text-indigo-600" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">{employees.length} Users</div>
-                <div className="text-xs text-indigo-600 font-medium mt-1">6 Active RBAC Roles</div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">{employees.length} Staff</div>
+                <div className="text-xs text-emerald-600 font-medium mt-1">2 Operating Plants (HQ + Campus 2)</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Storage & Vault</span>
-                  <Server className="h-4 w-4 text-slate-600" />
+                  <span className="text-xs font-semibold uppercase tracking-wider">Annual Payroll Budget</span>
+                  <Wallet className="h-4 w-4 text-emerald-600" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">4.8 GB</div>
-                <div className="text-xs text-slate-500 font-medium mt-1">Encrypted Personnel Vault</div>
+                <div className="text-3xl font-extrabold mt-3 text-emerald-600">{formatCurrency(83280000)}</div>
+                <div className="text-xs text-slate-500 font-medium mt-1">On-budget & compliant</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Audit Trail Events</span>
-                  <Shield className="h-4 w-4 text-purple-600" />
+                  <span className="text-xs font-semibold uppercase tracking-wider">Governance Index</span>
+                  <ShieldCheck className="h-4 w-4 text-purple-600" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">{auditLogs.length} Events</div>
-                <div className="text-xs text-purple-600 font-medium mt-1">Immutable Log Store</div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">99.4%</div>
+                <div className="text-xs text-purple-600 font-medium mt-1">Zero pending statutory non-conformances</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Strategic Requisitions</span>
+                  <Briefcase className="h-4 w-4 text-blue-600" />
+                </div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">{requisitions.length} Roles</div>
+                <div className="text-xs text-blue-600 font-medium mt-1">Leadership & Technical Expansion</div>
               </CardContent>
             </Card>
           </div>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <Shield className="h-4 w-4 text-indigo-600" />
-                <span>Security & RBAC Audit Stream</span>
-              </CardTitle>
-              <Link href="/settings" className="text-xs font-semibold text-indigo-600 hover:underline">
-                View All System Logs
-              </Link>
-            </CardHeader>
-            <CardContent className="divide-y divide-slate-100 dark:divide-slate-800">
-              {auditLogs.map((log) => (
-                <div key={log.id} className="py-3 flex items-center justify-between text-xs">
-                  <div className="space-y-0.5">
-                    <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px] uppercase font-mono">
-                        {log.action}
-                      </Badge>
-                      <span>{log.details}</span>
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      User: {log.userName} ({log.role}) • Host: {log.ipAddress}
-                    </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold">Executive Summary & Board Indicators</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex justify-between items-center">
+                  <div>
+                    <div className="font-bold text-slate-900">Workforce Retention & Attrition</div>
+                    <div className="text-slate-500">Annual voluntary turnover rate</div>
                   </div>
-                  <span className="text-[11px] text-slate-400">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                  <Badge variant="success">3.2% (Industry Low)</Badge>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex justify-between items-center">
+                  <div>
+                    <div className="font-bold text-slate-900">EHS & Safety Incident Frequency</div>
+                    <div className="text-slate-500">Plant manufacturing safety scorecard</div>
+                  </div>
+                  <Badge variant="success">0 Reportable Incidents</Badge>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex justify-between items-center">
+                  <div>
+                    <div className="font-bold text-slate-900">Statutory Tax & PF Remittance Status</div>
+                    <div className="text-slate-500">100% on-time filings with Zero penalties</div>
+                  </div>
+                  <Badge variant="info">100% Cleared</Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold">Headcount by Business Unit</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {(() => {
+                  const deptCounts: Record<string, number> = {};
+                  employees.forEach((emp) => {
+                    const name = emp.departmentName || 'General';
+                    deptCounts[name] = (deptCounts[name] || 0) + 1;
+                  });
+                  const total = employees.length || 1;
+                  const colors = ['bg-indigo-600', 'bg-purple-600', 'bg-blue-500', 'bg-emerald-500', 'bg-amber-500'];
+
+                  return Object.entries(deptCounts).map(([deptName, count], idx) => {
+                    const pct = Math.round((count / total) * 100);
+                    const color = colors[idx % colors.length];
+                    return (
+                      <div key={deptName} className="space-y-1.5">
+                        <div className="flex justify-between text-xs font-semibold">
+                          <span>{deptName}</span>
+                          <span>{count} staff ({pct}%)</span>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
+                          <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* 2. HR ADMIN DASHBOARD */}
+      {/* 2. MANAGING DIRECTOR (MD) DASHBOARD */}
       {/* ========================================================================= */}
-      {currentRole === 'hr_admin' && (
+      {currentRole === 'managing_director' && (
         <div className="space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Plant Headcount</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Operational Headcount</span>
                   <Users className="h-4 w-4 text-indigo-600" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">
-                  {employees.length}
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">{employees.length} Staff</div>
+                <div className="text-xs text-emerald-600 font-medium mt-1">Present Today: {presentCount || employees.length}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Pending Approvals</span>
+                  <Clock className="h-4 w-4 text-amber-500" />
                 </div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">{pendingLeaves.length + 1}</div>
+                <div className="text-xs text-amber-600 font-medium mt-1">Leaves, promotions & payroll sign-off</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Payroll Disbursal</span>
+                  <Wallet className="h-4 w-4 text-emerald-600" />
+                </div>
+                <div className="text-3xl font-extrabold mt-3 text-emerald-600">{formatCurrency(6940000)}</div>
+                <div className="text-xs text-slate-500 font-medium mt-1">August 2026 Batch Ready</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Active ATS Pipeline</span>
+                  <Briefcase className="h-4 w-4 text-purple-600" />
+                </div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">{candidates.length} Candidates</div>
+                <div className="text-xs text-purple-600 font-medium mt-1">{requisitions.length} open requisitions</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-3">
+                <CardTitle className="text-base font-bold">Executive Decision & Approval Queue</CardTitle>
+                <Link href="/leaves" className="text-xs text-indigo-600 hover:underline font-semibold">
+                  Manage Approvals
+                </Link>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {pendingLeaves.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-400">All leave and movement requests are up to date.</div>
+                ) : (
+                  pendingLeaves.map((leave) => (
+                    <div key={leave.id} className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-slate-900">{leave.employeeName}</span>
+                          <Badge variant="warning" className="text-[10px] capitalize">{leave.leaveType} Leave</Badge>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          {leave.daysCount} days ({formatDate(leave.fromDate)} → {formatDate(leave.toDate)}) • {leave.reason}
+                        </p>
+                      </div>
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href="/leaves">Review</Link>
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold">Plant Operational Readiness</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3 text-xs">
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex justify-between items-center">
+                  <div>
+                    <div className="font-semibold text-slate-900">Shift Muster Roll Compliance</div>
+                    <div className="text-slate-500">HQ Tech Center & Campus 2</div>
+                  </div>
+                  <Badge variant="success">100% Shift Filled</Badge>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex justify-between items-center">
+                  <div>
+                    <div className="font-semibold text-slate-900">Annual Calibration Cycle</div>
+                    <div className="text-slate-500">9-Box talent matrix distribution</div>
+                  </div>
+                  <Badge variant="info">Ready for Final Sign-off</Badge>
+                </div>
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex justify-between items-center">
+                  <div>
+                    <div className="font-semibold text-slate-900">Inter-Plant Transfers</div>
+                    <div className="text-slate-500">Cross-department promotions & grade changes</div>
+                  </div>
+                  <Badge variant="secondary">0 Pending</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* 3. HR HEAD DASHBOARD */}
+      {/* ========================================================================= */}
+      {currentRole === 'hr_head' && (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Total Headcount</span>
+                  <Users className="h-4 w-4 text-indigo-600" />
+                </div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">{employees.length}</div>
                 <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium mt-2">
                   <TrendingUp className="h-3.5 w-3.5" />
-                  <span>+6.2% workforce growth</span>
+                  <span>+6.2% annual growth</span>
                 </div>
               </CardContent>
             </Card>
@@ -241,47 +397,34 @@ export default function DashboardPage() {
                   <span className="text-xs font-semibold uppercase tracking-wider">Open Positions</span>
                   <Briefcase className="h-4 w-4 text-purple-600" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">
-                  {requisitions.length}
-                </div>
-                <div className="text-xs text-purple-600 font-medium mt-2">
-                  {candidates.length} active candidates in pipeline
-                </div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">{requisitions.length}</div>
+                <div className="text-xs text-purple-600 font-medium mt-2">{candidates.length} active candidates in ATS</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Pending Approvals</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Pending Leave & Approvals</span>
                   <Clock className="h-4 w-4 text-amber-500" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">
-                  {pendingLeaves.length + 1}
-                </div>
-                <div className="text-xs text-amber-600 font-medium mt-2">
-                  Leaves, requisitions & payroll
-                </div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">{pendingLeaves.length}</div>
+                <div className="text-xs text-amber-600 font-medium mt-2">Team leave & regularization queues</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Compliance Rate</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Lifecycle Compliance</span>
                   <FileCheck className="h-4 w-4 text-emerald-600" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">
-                  98.5%
-                </div>
-                <div className="text-xs text-emerald-600 font-medium mt-2">
-                  Factory Act registers auditable
-                </div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">17 Stages</div>
+                <div className="text-xs text-emerald-600 font-medium mt-2">All stages fully operational</div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Action Center Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-2">
               <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -294,18 +437,14 @@ export default function DashboardPage() {
                 {pendingLeaves.map((leave) => (
                   <div
                     key={leave.id}
-                    className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between"
+                    className="p-4 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between"
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-sm text-slate-900 dark:text-white">
-                          {leave.employeeName}
-                        </span>
-                        <Badge variant="warning" className="text-[10px] capitalize">
-                          {leave.leaveType} Leave
-                        </Badge>
+                        <span className="font-bold text-sm text-slate-900">{leave.employeeName}</span>
+                        <Badge variant="warning" className="text-[10px] capitalize">{leave.leaveType} Leave</Badge>
                       </div>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                      <p className="text-xs text-slate-500">
                         {leave.daysCount} days ({formatDate(leave.fromDate)} → {formatDate(leave.toDate)}) • {leave.reason}
                       </p>
                     </div>
@@ -340,7 +479,7 @@ export default function DashboardPage() {
                           <span>{deptName}</span>
                           <span>{count} staff ({pct}%)</span>
                         </div>
-                        <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                        <div className="h-2 w-full rounded-full bg-slate-100 overflow-hidden">
                           <div className={`h-full ${color} rounded-full`} style={{ width: `${pct}%` }} />
                         </div>
                       </div>
@@ -354,204 +493,157 @@ export default function DashboardPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* 3. HR EXECUTIVE DASHBOARD */}
+      {/* 4. INTERNAL AUDIT HEAD DASHBOARD */}
       {/* ========================================================================= */}
-      {currentRole === 'hr_executive' && (
+      {currentRole === 'internal_audit_head' && (
         <div className="space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <Card>
               <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Active Candidates</span>
-                <div className="text-3xl font-extrabold mt-2 text-slate-900 dark:text-white">
-                  {candidates.length}
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Audit Trail Integrity</span>
+                  <ShieldCheck className="h-4 w-4 text-emerald-600" />
                 </div>
-                <div className="text-xs text-indigo-600 font-medium mt-1">2 Open plant requisitions</div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">100% Valid</div>
+                <div className="text-xs text-emerald-600 font-medium mt-1">SHA-256 Hash Chain Intact</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Today's Interviews</span>
-                <div className="text-3xl font-extrabold mt-2 text-slate-900 dark:text-white">1 Scheduled</div>
-                <div className="text-xs text-emerald-600 font-medium mt-1">Devraj Mukherjee (11:00 AM)</div>
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Audited Events</span>
+                  <Server className="h-4 w-4 text-indigo-600" />
+                </div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">{auditLogs.length} Events</div>
+                <div className="text-xs text-indigo-600 font-medium mt-1">Recorded across 14 Modules</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Pending Onboarding</span>
-                <div className="text-3xl font-extrabold mt-2 text-slate-900 dark:text-white">2 Joiners</div>
-                <div className="text-xs text-purple-600 font-medium mt-1">Safety & document clearance</div>
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Payroll Variances</span>
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                </div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">0 Flags</div>
+                <div className="text-xs text-slate-500 font-medium mt-1">Gross-to-Net reconciled</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Grievances Audited</span>
+                  <Shield className="h-4 w-4 text-purple-600" />
+                </div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">{grievances.length} Tickets</div>
+                <div className="text-xs text-purple-600 font-medium mt-1">100% SLA compliance</div>
               </CardContent>
             </Card>
           </div>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base font-bold">Candidate Sourcing Pipeline</CardTitle>
-              <Button asChild size="sm">
-                <Link href="/recruitment">Open Recruitment Pipeline</Link>
-              </Button>
+              <CardTitle className="text-base font-bold flex items-center gap-2">
+                <Shield className="h-4 w-4 text-indigo-600" />
+                <span>Forensic Security & Audit Log Stream</span>
+              </CardTitle>
+              <Link href="/settings" className="text-xs font-semibold text-indigo-600 hover:underline">
+                View All System Logs
+              </Link>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                {['applied', 'screened', 'interview', 'offered'].map((stage) => {
-                  const count = candidates.filter((c) => c.currentStage === stage).length;
-                  return (
-                    <div key={stage} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-center">
-                      <span className="text-xs font-semibold uppercase text-slate-400 tracking-wider">
-                        {stage}
-                      </span>
-                      <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
-                        {count}
-                      </div>
+            <CardContent className="divide-y divide-slate-100">
+              {auditLogs.map((log) => (
+                <div key={log.id} className="py-3 flex items-center justify-between text-xs">
+                  <div className="space-y-0.5">
+                    <div className="font-semibold text-slate-900 flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                        {log.action}
+                      </Badge>
+                      <span>{log.details}</span>
                     </div>
-                  );
-                })}
-              </div>
+                    <div className="text-[11px] text-slate-400">
+                      User: {log.userName} ({log.role}) • Host: {log.ipAddress} • Entity: {log.entityId}
+                    </div>
+                  </div>
+                  <span className="text-[11px] text-slate-400 font-mono">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>
       )}
 
       {/* ========================================================================= */}
-      {/* 4. PAYROLL OFFICER DASHBOARD */}
+      {/* 5. COMPLIANCE & STATUTORY DASHBOARD */}
       {/* ========================================================================= */}
-      {currentRole === 'payroll_officer' && (
+      {currentRole === 'compliance_statutory' && (
         <div className="space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <Card>
               <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Current Payroll Cycle</span>
-                <div className="text-2xl font-extrabold mt-2 text-slate-900 dark:text-white">August 2026</div>
-                <Badge variant="warning" className="mt-2 text-[10px]">Under Review</Badge>
+                <span className="text-xs font-semibold text-slate-500">Factory Act Registers</span>
+                <div className="text-2xl font-extrabold mt-2 text-slate-900">Form 25 & Form 12</div>
+                <Badge variant="success" className="mt-2 text-[10px]">100% Up to Date</Badge>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Total Net Disbursal</span>
-                <div className="text-2xl font-extrabold mt-2 text-emerald-600">
-                  {formatCurrency(6940000)}
-                </div>
-                <div className="text-xs text-slate-400 mt-1">110 plant staff members</div>
+                <span className="text-xs font-semibold text-slate-500">Statutory Monthly Deposits</span>
+                <div className="text-2xl font-extrabold mt-2 text-emerald-600">PF + ESI + PT</div>
+                <div className="text-xs text-slate-500 mt-1">August ECR Challan generated</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Full & Final (F&F)</span>
-                <div className="text-2xl font-extrabold mt-2 text-slate-900 dark:text-white">1 Pending</div>
-                <div className="text-xs text-indigo-600 font-medium mt-1">Sneha Kulkarni (Exit Settlement)</div>
+                <span className="text-xs font-semibold text-slate-500">POSH & Safety Committee</span>
+                <div className="text-2xl font-extrabold mt-2 text-slate-900">Quarterly Ready</div>
+                <div className="text-xs text-indigo-600 font-medium mt-1">Next meeting scheduled</div>
               </CardContent>
             </Card>
           </div>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base font-bold">Statutory Compliance Calendar</CardTitle>
+              <CardTitle className="text-base font-bold">Statutory Compliance Calendar & Regulatory Filings</CardTitle>
               <Button asChild size="sm">
-                <Link href="/payroll">Manage Payroll Runs</Link>
+                <Link href="/compliance">View Compliance Details</Link>
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
                 <div>
-                  <div className="font-semibold text-slate-900 dark:text-white">Provident Fund (PF) Monthly Filing & ECR</div>
-                  <div className="text-slate-400">Due: 15th August 2026</div>
+                  <div className="font-semibold text-slate-900">Employees' Provident Fund (EPF) Monthly Filing & ECR</div>
+                  <div className="text-slate-400">Due: 15th August 2026 • 110 Employees Covered</div>
                 </div>
                 <Badge variant="success">Challan Ready</Badge>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
                 <div>
-                  <div className="font-semibold text-slate-900 dark:text-white">ESI Monthly Contribution Deposit</div>
-                  <div className="text-slate-400">Due: 15th August 2026</div>
+                  <div className="font-semibold text-slate-900">Employee State Insurance (ESI) Monthly Contribution</div>
+                  <div className="text-slate-400">Due: 15th August 2026 • Wage Ceiling Checked</div>
                 </div>
                 <Badge variant="success">Calculated</Badge>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
                 <div>
-                  <div className="font-semibold text-slate-900 dark:text-white">TDS (Section 192B) Salary Remittance</div>
+                  <div className="font-semibold text-slate-900">TDS (Section 192B) Salary Remittance & Form 24Q</div>
                   <div className="text-slate-400">Due: 07th September 2026</div>
                 </div>
                 <Badge variant="info">Scheduled</Badge>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
 
-      {/* ========================================================================= */}
-      {/* 5. REPORTING MANAGER DASHBOARD */}
-      {/* ========================================================================= */}
-      {currentRole === 'reporting_manager' && (
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <Card>
-              <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Team Attendance Today</span>
-                <div className="text-3xl font-extrabold mt-2 text-slate-900 dark:text-white">
-                  3 / 3 On Duty
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                <div>
+                  <div className="font-semibold text-slate-900">Karnataka Professional Tax (PT) Monthly Return (Form 5A)</div>
+                  <div className="text-slate-400">Due: 20th August 2026</div>
                 </div>
-                <div className="text-xs text-emerald-600 font-medium mt-1">100% Team On Shift</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Pending Leave Approvals</span>
-                <div className="text-3xl font-extrabold mt-2 text-slate-900 dark:text-white">
-                  1 Request
-                </div>
-                <div className="text-xs text-amber-600 font-medium mt-1">Ananya Deshmukh (2 days)</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Appraisal Reviews</span>
-                <div className="text-3xl font-extrabold mt-2 text-slate-900 dark:text-white">
-                  1 In Progress
-                </div>
-                <div className="text-xs text-indigo-600 font-medium mt-1">Annual Operational Review</div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base font-bold">Direct Reports Roster</CardTitle>
-              <Button asChild size="sm">
-                <Link href="/leaves">Review Team Requests</Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {employees
-                  .filter((e) => e.reportingManagerId === currentEmployee?.id || e.id !== currentEmployee?.id)
-                  .slice(0, 3)
-                  .map((emp) => (
-                    <div key={emp.id} className="py-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={emp.avatarUrl || getPersonaAvatar(emp.employeeCode, `${emp.firstName} ${emp.lastName}`)}
-                          alt={emp.firstName}
-                          className="h-9 w-9 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700"
-                        />
-                        <div>
-                          <div className="font-semibold text-sm text-slate-900 dark:text-white">
-                            {emp.firstName} {emp.lastName}
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            {emp.designationTitle} • {emp.departmentName}
-                          </div>
-                        </div>
-                      </div>
-                      <Badge variant="success" className="text-xs">Active Shift</Badge>
-                    </div>
-                  ))}
+                <Badge variant="success">Verified</Badge>
               </div>
             </CardContent>
           </Card>
@@ -585,7 +677,7 @@ export default function DashboardPage() {
             <Card>
               <CardContent className="p-6">
                 <span className="text-xs font-semibold text-slate-500">Mandatory Training</span>
-                <div className="text-base font-bold mt-2 text-slate-900 dark:text-white">
+                <div className="text-base font-bold mt-2 text-slate-900">
                   Industrial Safety & PPE
                 </div>
                 <div className="text-xs text-purple-600 font-medium mt-1">Scheduled for Aug 22, 2026</div>
@@ -634,22 +726,22 @@ export default function DashboardPage() {
                 <CardTitle className="text-base font-bold">Plant & Operations Bulletins</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
                     <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
                     <span>Quarterly EHS Safety & PPE Verification</span>
                   </div>
-                  <p className="text-slate-500 dark:text-slate-400">
+                  <p className="text-slate-500">
                     Mandatory protective equipment audits scheduled across all manufacturing units next week.
                   </p>
                 </div>
 
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-xs space-y-1">
-                  <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
                     <Award className="h-3.5 w-3.5 text-emerald-600" />
                     <span>Annual Employee Health Checkup Camp</span>
                   </div>
-                  <p className="text-slate-500 dark:text-slate-400">
+                  <p className="text-slate-500">
                     Complimentary industrial health screening on Aug 25-26 at the on-site health center.
                   </p>
                 </div>
