@@ -38,6 +38,16 @@ const HEADCOUNT_GROWTH_DATA = [
 ];
 
 export default function ReportsPage() {
+  const { currentRole } = useAuth();
+
+  if (currentRole === 'employee') {
+    return (
+      <RBACGuard module="system_settings">
+        <ReportsContent />
+      </RBACGuard>
+    );
+  }
+
   return (
     <RBACGuard module="reports_dashboard">
       <ReportsContent />

@@ -10,12 +10,17 @@ export async function GET(req: NextRequest) {
     if (accessError) return accessError;
 
     let whereClause: any = {};
-    if (userCtx.role === 'employee' && userCtx.employeeId) {
-      whereClause.employeeId = userCtx.employeeId;
-    }
-
     let reviews: any[] = [];
     if (prisma) {
+      if (userCtx.role === 'employee' && userCtx.employeeId) {
+        const emp = await prisma.employee.findFirst({
+          where: { OR: [{ id: userCtx.employeeId }, { employeeCode: userCtx.employeeId }] },
+        });
+        if (emp) {
+          whereClause.employeeId = emp.id;
+        }
+      }
+
       reviews = await prisma.performanceReview.findMany({
         where: whereClause,
         include: {

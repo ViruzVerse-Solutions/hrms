@@ -24,7 +24,7 @@ import Link from 'next/link';
 import { getPersonaAvatar } from '@/lib/constants';
 
 export default function EmployeesPage() {
-  const { employees, isSalaryVisible, can, currentRole } = useAuth();
+  const { employees, isSalaryVisible, can, currentRole, currentEmployee, currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('all');
 
@@ -42,6 +42,12 @@ export default function EmployeesPage() {
   }, []);
 
   const filteredEmployees = employees.filter((emp) => {
+    if (currentRole === 'employee') {
+      const selfId = currentEmployee?.id || currentUser.employeeId || 'emp_005';
+      const selfCode = currentEmployee?.employeeCode || 'VV-1005';
+      return emp.id === selfId || emp.employeeCode === selfCode;
+    }
+
     const matchesSearch =
       (emp.firstName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (emp.lastName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -62,14 +68,16 @@ export default function EmployeesPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-              Employee Directory & Master Records
+              {currentRole === 'employee' ? 'Profile 360 (My Profile)' : 'Employee Directory & Master Records'}
             </h1>
             <Badge variant="outline" className="text-xs">
-              {employees.length} Staff
+              {currentRole === 'employee' ? 'ESS View' : `${employees.length} Staff`}
             </Badge>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Single source of truth for employee profiles, statutory records, and 17-stage lifecycle
+            {currentRole === 'employee'
+              ? 'Your personal employee 360° profile, statutory details, and career timeline'
+              : 'Single source of truth for employee profiles, statutory records, and 17-stage lifecycle'}
           </p>
         </div>
 
@@ -82,33 +90,35 @@ export default function EmployeesPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by employee name, code, designation..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full h-11 pl-10 pr-4 rounded-xl text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-          />
-        </div>
+      {currentRole !== 'employee' && (
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by employee name, code, designation..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full h-11 pl-10 pr-4 rounded-xl text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+            />
+          </div>
 
-        <div className="flex items-center gap-2">
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="h-11 px-4 rounded-xl text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-          >
-            <option value="all">All Departments</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            <select
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+              className="h-11 px-4 rounded-xl text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="all">All Departments</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Employee Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

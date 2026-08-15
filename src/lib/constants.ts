@@ -86,9 +86,9 @@ export const CORE_PERSONAS: User[] = [
   },
   {
     id: 'usr_employee',
-    name: 'Ananya Deshmukh',
-    email: 'ananya.deshmukh@viruzverse.com',
-    avatar: 'https://ui-avatars.com/api/?name=Ananya+Deshmukh&background=4f46e5&color=ffffff',
+    name: 'Vishwadharan R',
+    email: 'vishwadharan.r@viruzverse.com',
+    avatar: 'https://ui-avatars.com/api/?name=Vishwadharan+R&background=4f46e5&color=ffffff',
     roles: ['employee'],
     activeRole: 'employee',
     employeeId: 'emp_005',

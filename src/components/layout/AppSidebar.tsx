@@ -121,7 +121,10 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
       {/* Navigation List */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
         {NAV_GROUPS.map((group) => {
-          const visibleItems = group.items.filter((item) => hasAccess(item.module));
+          const visibleItems = group.items.filter((item) => {
+            if (currentRole === 'employee' && item.href === '/reports') return false;
+            return hasAccess(item.module);
+          });
           if (visibleItems.length === 0) return null;
 
           return (
@@ -132,6 +135,19 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
               {visibleItems.map((item) => {
                 const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
                 const Icon = item.icon;
+
+                // Customize nav item titles for Employee (ESS) view
+                let displayTitle = item.title;
+                if (currentRole === 'employee') {
+                  if (item.href === '/employees') displayTitle = 'Profile 360 (My Profile)';
+                  else if (item.href === '/attendance') displayTitle = 'Attendance Check-In';
+                  else if (item.href === '/leaves') displayTitle = 'Leave Requests';
+                  else if (item.href === '/payroll') displayTitle = 'Payslips';
+                  else if (item.href === '/performance') displayTitle = 'Self-Appraisals';
+                  else if (item.href === '/training') displayTitle = 'Training Enrolment';
+                  else if (item.href === '/engagement') displayTitle = 'Grievance Filing';
+                  else if (item.href === '/resignation') displayTitle = 'Resignation Notice';
+                }
 
                 return (
                   <Link
@@ -147,7 +163,7 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                   >
                     <div className="flex items-center gap-2.5">
                       <Icon className={cn("h-4 w-4 shrink-0 transition-transform group-hover:scale-105", isActive ? "text-white" : "text-slate-400 group-hover:text-indigo-600")} />
-                      <span>{item.title}</span>
+                      <span>{displayTitle}</span>
                     </div>
                     {item.badge && (
                       <span className={cn("text-[10px] px-1.5 py-0.5 rounded-md font-bold", isActive ? "bg-white/20 text-white" : "bg-indigo-50 text-indigo-700")}>

@@ -25,7 +25,7 @@ export default function MovementPage() {
 
 function MovementContent() {
   const [transfers] = useState<TransferPromotionCase[]>([
-    { id: 'tp_1', employeeId: 'emp_005', employeeName: 'Ananya Deshmukh', type: 'promotion', currentDepartment: 'Quality Assurance', newDepartment: 'Quality Assurance', currentDesignation: 'QC Chemist (L3)', newDesignation: 'Senior QC Chemist (L4)', currentBranch: 'Bengaluru HQ', newBranch: 'Bengaluru HQ', effectiveDate: '2026-09-01', initiatedBy: 'Dr. Vikramaditya Rathore', status: 'approved', approvalChain: ['Dr. Vikramaditya Rathore', 'Eleanor Vance'] },
+    { id: 'tp_1', employeeId: 'emp_005', employeeName: 'Vishwadharan R', type: 'promotion', currentDepartment: 'Quality Assurance', newDepartment: 'Quality Assurance', currentDesignation: 'QC Chemist (L3)', newDesignation: 'Senior QC Chemist (L4)', currentBranch: 'Bengaluru HQ', newBranch: 'Bengaluru HQ', effectiveDate: '2026-09-01', initiatedBy: 'Dr. Vikramaditya Rathore', status: 'approved', approvalChain: ['Dr. Vikramaditya Rathore', 'Eleanor Vance'] },
   ]);
 
   return (

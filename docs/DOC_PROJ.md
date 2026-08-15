@@ -133,7 +133,7 @@
 ### 🚀 PHASE 6: End-to-End Live Persona Demo Rehearsal
 * **Status**: ✅ **COMPLETED**
 * **Delivered Rehearsal Flow**:
-  1. 👤 **Employee** (Ananya Deshmukh):
+  1. 👤 **Employee** (Vishwadharan R):
      - Opens Dashboard &rarr; Clicks "Web Check-In" &rarr; Submits 2-Day Casual Leave &rarr; Views Payslip &rarr; Submits KRA Self-Appraisal.
   2. 👔 **Managing Director** (Dr. Vikramaditya Rathore):
      - Switches role &rarr; Reviews plant attendance &rarr; Approves pending leave applications &rarr; Authorizes payroll run.

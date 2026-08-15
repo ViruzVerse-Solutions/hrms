@@ -88,7 +88,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     hr_head: 'F',
     internal_audit_head: 'F',
     compliance_statutory: 'F',
-    employee: 'V',
+    employee: 'NONE',
   },
   transfer_promotion: {
     chairman: 'A',
@@ -96,7 +96,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     hr_head: 'F',
     internal_audit_head: 'V',
     compliance_statutory: 'NONE',
-    employee: 'S',
+    employee: 'NONE',
   },
   disciplinary_actions: {
     chairman: 'V',

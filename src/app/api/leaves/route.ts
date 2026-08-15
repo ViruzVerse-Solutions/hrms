@@ -11,14 +11,18 @@ export async function GET(req: NextRequest) {
 
     let whereClause: any = {};
 
-    // Strict RBAC: Employee only sees own requests
-    if (userCtx.role === 'employee' && userCtx.employeeId) {
-      whereClause.employeeId = userCtx.employeeId;
-    }
-
     let leaves: any[] = [];
 
     if (prisma) {
+      if (userCtx.role === 'employee' && userCtx.employeeId) {
+        const emp = await prisma.employee.findFirst({
+          where: { OR: [{ id: userCtx.employeeId }, { employeeCode: userCtx.employeeId }] },
+        });
+        if (emp) {
+          whereClause.employeeId = emp.id;
+        }
+      }
+
       leaves = await prisma.leaveRequest.findMany({
         where: whereClause,
         include: {

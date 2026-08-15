@@ -165,11 +165,11 @@ async function main() {
       },
       {
         code: 'VV-1005',
-        firstName: 'Ananya',
-        lastName: 'Deshmukh',
-        email: 'ananya.deshmukh@viruzverse.com',
+        firstName: 'Vishwadharan',
+        lastName: 'R',
+        email: 'vishwadharan.r@viruzverse.com',
         phone: '+91 98765 43214',
-        gender: 'female' as const,
+        gender: 'male' as const,
         deptCode: 'dept_qc',
         desigCode: 'des_qc_sr',
         ctc: 1850000,
@@ -284,7 +284,7 @@ async function main() {
 
     // Link Manager Relationships
     await prisma.employee.update({
-      where: { employeeCode: 'VV-1005' }, // Ananya reports to Dr. Vikramaditya
+      where: { employeeCode: 'VV-1005' }, // Vishwadharan R reports to Dr. Vikramaditya
       data: { reportingManagerId: empObjMap['VV-1004'].id },
     });
     await prisma.employee.update({
@@ -629,7 +629,7 @@ async function main() {
         userRole: 'hr_admin' as const,
         action: 'EMPLOYEE_RECORD_UPDATED',
         module: 'employee_records',
-        payloadAfter: { note: 'Updated promotion stage to Performance Calibration for Ananya Deshmukh' },
+        payloadAfter: { note: 'Updated promotion stage to Performance Calibration for Vishwadharan R' },
         integrityHash: 'a8f9c1b2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0',
         ipAddress: '192.168.1.45',
       },

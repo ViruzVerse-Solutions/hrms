@@ -184,7 +184,7 @@ function PerformanceContent() {
               <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
                 <span className="font-bold text-emerald-600">Star (Top Talent)</span>
                 <p className="text-[11px] text-slate-400 mt-1">High Potential, High Performance</p>
-                <div className="mt-2 text-xs font-semibold text-emerald-600">Ananya Deshmukh (Lead Promotion)</div>
+                <div className="mt-2 text-xs font-semibold text-emerald-600">Vishwadharan R (Lead Promotion)</div>
               </div>
 
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800 border">

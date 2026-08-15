@@ -20,6 +20,14 @@ export function getApiUserContext(req: NextRequest): AuthenticatedUserContext {
   const userHeader = req.headers.get('x-user-id') || 'usr_hr_admin';
   const employeeHeader = req.headers.get('x-employee-id') || 'emp_001';
 
+  const codeMap: Record<string, string> = {
+    emp_001: 'VV-1001',
+    emp_002: 'VV-1002',
+    emp_003: 'VV-1003',
+    emp_004: 'VV-1004',
+    emp_005: 'VV-1005',
+  };
+
   const validRoles: UserRole[] = [
     'chairman',
     'managing_director',
@@ -36,7 +44,7 @@ export function getApiUserContext(req: NextRequest): AuthenticatedUserContext {
     name: 'Authenticated User',
     email: 'user@viruzverse.com',
     role,
-    employeeId: employeeHeader,
+    employeeId: codeMap[employeeHeader] || employeeHeader,
   };
 }
 
