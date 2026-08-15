@@ -14,12 +14,6 @@ export async function GET(req: NextRequest) {
     // Strict RBAC: Employee only sees own requests
     if (userCtx.role === 'employee' && userCtx.employeeId) {
       whereClause.employeeId = userCtx.employeeId;
-    } else if (userCtx.role === 'reporting_manager' && userCtx.employeeId) {
-      // Manager sees team requests or own requests
-      whereClause.OR = [
-        { approverId: userCtx.employeeId },
-        { employeeId: userCtx.employeeId },
-      ];
     }
 
     let leaves: any[] = [];

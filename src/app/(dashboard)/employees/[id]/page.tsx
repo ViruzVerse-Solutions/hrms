@@ -431,7 +431,7 @@ export default function EmployeeDetailPage({
 
         {/* 4. Document Vault Tab */}
         <TabsContent value="documents" className="space-y-6">
-          {canSeeSalary || currentRole === 'hr_admin' || currentRole === 'hr_executive' || currentRole === 'super_admin' || isOwnProfile ? (
+          {canSeeSalary || currentRole === 'hr_head' || currentRole === 'managing_director' || isOwnProfile ? (
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-base font-bold">Digital Personnel Vault & Letters</CardTitle>

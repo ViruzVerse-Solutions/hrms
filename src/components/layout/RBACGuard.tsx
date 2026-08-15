@@ -69,10 +69,10 @@ export function RBACGuard({ module, children, fallback }: RBACGuardProps) {
             <Button
               size="sm"
               className="gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-              onClick={() => setCurrentRole('hr_admin')}
+              onClick={() => setCurrentRole('hr_head')}
             >
               <UserCheck className="h-4 w-4" />
-              Switch to HR Admin
+              Switch to HR Head
             </Button>
           </div>
         </div>

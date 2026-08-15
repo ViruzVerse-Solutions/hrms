@@ -21,15 +21,15 @@ export function getApiUserContext(req: NextRequest): AuthenticatedUserContext {
   const employeeHeader = req.headers.get('x-employee-id') || 'emp_001';
 
   const validRoles: UserRole[] = [
-    'super_admin',
-    'hr_admin',
-    'hr_executive',
-    'payroll_officer',
-    'reporting_manager',
+    'chairman',
+    'managing_director',
+    'hr_head',
+    'internal_audit_head',
+    'compliance_statutory',
     'employee',
   ];
 
-  const role: UserRole = roleHeader && validRoles.includes(roleHeader) ? roleHeader : 'hr_admin';
+  const role: UserRole = roleHeader && validRoles.includes(roleHeader) ? roleHeader : 'hr_head';
 
   return {
     id: userHeader,

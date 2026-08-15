@@ -1,9 +1,9 @@
 export type UserRole =
-  | 'super_admin'
-  | 'hr_admin'
-  | 'hr_executive'
-  | 'payroll_officer'
-  | 'reporting_manager'
+  | 'chairman'
+  | 'managing_director'
+  | 'hr_head'
+  | 'internal_audit_head'
+  | 'compliance_statutory'
   | 'employee';
 
 export type PermissionLevel = 'F' | 'E' | 'A' | 'V' | 'S' | 'NONE';

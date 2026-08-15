@@ -75,7 +75,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProps) {
   const pathname = usePathname();
-  const { hasAccess } = useAuth();
+  const { hasAccess, currentRole, roleDetails } = useAuth();
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white select-none">
@@ -104,8 +104,22 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
         )}
       </div>
 
+      {/* Role Context Pill */}
+      <div className="px-4 pt-3.5 pb-1">
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center gap-2.5">
+          <div className="h-2 w-2 rounded-full bg-indigo-600 shrink-0 animate-pulse" />
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Active Workspace View</div>
+            <div className="text-xs font-bold text-slate-800 truncate">{roleDetails.title}</div>
+          </div>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-600 font-semibold uppercase">
+            {currentRole === 'employee' ? 'ESS' : 'RBAC'}
+          </span>
+        </div>
+      </div>
+
       {/* Navigation List */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
         {NAV_GROUPS.map((group) => {
           const visibleItems = group.items.filter((item) => hasAccess(item.module));
           if (visibleItems.length === 0) return null;

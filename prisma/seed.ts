@@ -16,6 +16,9 @@ async function main() {
     await prisma.performanceReview.deleteMany().catch(() => {});
     await prisma.grievanceTicket.deleteMany().catch(() => {});
     await prisma.auditLog.deleteMany().catch(() => {});
+    await prisma.bankDetails.deleteMany().catch(() => {});
+    await prisma.statutoryInfo.deleteMany().catch(() => {});
+    await prisma.user.deleteMany().catch(() => {});
 
     // 1. Create Organization
     const org = await prisma.organization.upsert({
@@ -122,19 +125,19 @@ async function main() {
         deptCode: 'dept_hr',
         desigCode: 'des_hr_dir',
         ctc: 3200000,
-        role: 'hr_admin' as const,
+        role: 'hr_head' as const,
       },
       {
         code: 'VV-1002',
-        firstName: 'Priya',
-        lastName: 'Sharma',
-        email: 'priya.sharma@viruzverse.com',
+        firstName: 'Rajeshwari',
+        lastName: 'Nair',
+        email: 'rajeshwari.nair@viruzverse.com',
         phone: '+91 98765 43211',
         gender: 'female' as const,
         deptCode: 'dept_hr',
         desigCode: 'des_hr_exec',
-        ctc: 950000,
-        role: 'hr_executive' as const,
+        ctc: 1950000,
+        role: 'compliance_statutory' as const,
       },
       {
         code: 'VV-1003',
@@ -145,8 +148,8 @@ async function main() {
         gender: 'male' as const,
         deptCode: 'dept_fin',
         desigCode: 'des_fin_lead',
-        ctc: 2100000,
-        role: 'payroll_officer' as const,
+        ctc: 2400000,
+        role: 'internal_audit_head' as const,
       },
       {
         code: 'VV-1004',
@@ -158,7 +161,7 @@ async function main() {
         deptCode: 'dept_qc',
         desigCode: 'des_qc_dir',
         ctc: 4800000,
-        role: 'reporting_manager' as const,
+        role: 'managing_director' as const,
       },
       {
         code: 'VV-1005',
@@ -213,8 +216,8 @@ async function main() {
           name: `${emp.firstName} ${emp.lastName}`,
           avatarUrl,
           passwordHash: '$2b$10$dummyhashedpasswordforlivemvpseed123',
-          roles: [emp.role],
-          activeRole: emp.role,
+          roles: [emp.role as any],
+          activeRole: emp.role as any,
           employeeId: employee.id,
         },
       });
