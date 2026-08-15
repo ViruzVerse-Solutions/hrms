@@ -92,7 +92,7 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
             >
               <ShieldCheck className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
               <span className="hidden md:inline">Role:</span>
-              <span className="truncate max-w-[70px] sm:max-w-[110px] md:max-w-[140px]">
+              <span suppressHydrationWarning className="truncate max-w-[70px] sm:max-w-[110px] md:max-w-[140px]">
                 {ROLE_LABELS[currentRole]?.title || currentRole}
               </span>
               <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
@@ -195,10 +195,10 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
                 className="h-8 w-8 rounded-full object-cover ring-2 ring-indigo-500/20"
               />
               <div className="text-left hidden lg:block">
-                <div className="text-xs font-semibold text-slate-900 leading-tight">
+                <div suppressHydrationWarning className="text-xs font-semibold text-slate-900 leading-tight">
                   {currentUser?.name || 'User'}
                 </div>
-                <div className="text-[10px] text-slate-500 capitalize">
+                <div suppressHydrationWarning className="text-[10px] text-slate-500 capitalize">
                   {ROLE_LABELS[currentRole]?.title || currentRole}
                 </div>
               </div>
