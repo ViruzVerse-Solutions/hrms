@@ -46,6 +46,7 @@ interface AuthContextType {
   grievances: GrievanceTicket[];
   auditLogs: AuditLogItem[];
   notifications: SystemNotification[];
+  setAttendanceRecords: React.Dispatch<React.SetStateAction<AttendanceRecord[]>>;
   // State Mutators
   addLeaveRequest: (req: Omit<LeaveRequest, 'id' | 'appliedAt' | 'status'>) => void;
   updateLeaveStatus: (id: string, status: 'approved' | 'rejected', comment?: string) => void;
@@ -236,9 +237,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Backend persistence
     fetch('/api/leaves/apply', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-role': currentRole,
+        'x-employee-id': currentUser.employeeId || 'emp_005',
+        'x-user-id': currentUser.id,
+      },
       body: JSON.stringify(req),
-    }).catch(() => {});
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.leaveRequest) {
+          // Re-sync leaves from DB
+          fetch('/api/leaves', {
+            headers: {
+              'x-user-role': currentRole,
+              'x-employee-id': currentUser.employeeId || 'emp_005',
+            },
+          })
+            .then((r) => r.json())
+            .then((d) => {
+              if (d?.data?.leaves) {
+                setLeaveRequests(d.data.leaves);
+              }
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(() => {});
 
     // Notification
     const newNotif: SystemNotification = {
@@ -397,6 +423,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         grievances,
         auditLogs,
         notifications,
+        setAttendanceRecords,
         addLeaveRequest,
         updateLeaveStatus,
         updateAttendanceCheckin,

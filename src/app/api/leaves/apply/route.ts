@@ -17,7 +17,18 @@ export async function POST(req: NextRequest) {
       return apiError('Missing required fields: leaveType, fromDate, toDate', 400);
     }
 
+    const codeMap: Record<string, string> = {
+      emp_000: 'VV-1000',
+      emp_001: 'VV-1001',
+      emp_002: 'VV-1002',
+      emp_003: 'VV-1003',
+      emp_004: 'VV-1004',
+      emp_005: 'VV-1005',
+    };
+
     const targetEmpId = employeeId || userCtx.employeeId || 'emp_005';
+    const resolvedCode = codeMap[targetEmpId] || targetEmpId;
+
     const d1 = new Date(fromDate);
     const d2 = new Date(toDate);
     const diffTime = Math.abs(d2.getTime() - d1.getTime());
@@ -28,7 +39,14 @@ export async function POST(req: NextRequest) {
     if (prisma) {
       // Find employee to get real ID
       const emp = await prisma.employee.findFirst({
-        where: { OR: [{ id: targetEmpId }, { employeeCode: targetEmpId }] },
+        where: {
+          OR: [
+            { id: targetEmpId },
+            { employeeCode: targetEmpId },
+            { employeeCode: resolvedCode },
+            { email: userCtx.email },
+          ],
+        },
       });
 
       if (emp) {
@@ -42,6 +60,9 @@ export async function POST(req: NextRequest) {
             reason: reason || 'Personal Leave',
             status: 'pending',
             approverId: emp.reportingManagerId || undefined,
+          },
+          include: {
+            employee: true,
           },
         });
       }

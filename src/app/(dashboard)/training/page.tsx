@@ -16,6 +16,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { useAuth } from '@/context/AuthContext';
 import { TrainingProgram } from '@/types';
 
 export default function TrainingPage() {
@@ -27,6 +28,10 @@ export default function TrainingPage() {
 }
 
 function TrainingContent() {
+  const { currentRole, can } = useAuth();
+  const isEmployee = currentRole === 'employee';
+  const canCreate = can('create', 'training_dev');
+
   const [trainings] = useState<TrainingProgram[]>([
     { id: 'tr_1', title: 'Chemical Hazardous Material Handling & Safety', category: 'compliance', trainer: 'Dr. Vikramaditya Rathore', startDate: '2026-08-22', endDate: '2026-08-24', mode: 'internal', capacity: 40, enrolledCount: 34, status: 'upcoming' },
     { id: 'tr_2', title: 'ISO 9001:2015 Quality & Standard Operating Procedures', category: 'technical', trainer: 'External Lead Auditor', startDate: '2026-08-10', endDate: '2026-08-12', mode: 'external_vendor', vendorName: 'TUV Nord', capacity: 30, enrolledCount: 28, status: 'completed' },
@@ -39,20 +44,24 @@ function TrainingContent() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-            <span>Training & Skill Development Matrix</span>
+            <span>{isEmployee ? 'My Enrolled Training Programs & Certifications' : 'Training & Skill Development Matrix'}</span>
             <Badge variant="purple" className="text-xs">
-              Industrial Upskilling
+              {isEmployee ? 'Enrolled Active' : 'Industrial Upskilling'}
             </Badge>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Safety trainings, ISO quality certifications, technical operations, and skill matrix tracking
+            {isEmployee
+              ? 'View your assigned mandatory compliance workshops, plant technical safety courses, and completion certificates.'
+              : 'Safety trainings, ISO quality certifications, technical operations, and skill matrix tracking'}
           </p>
         </div>
 
-        <Button className="gap-2 shadow-sm text-xs">
-          <Plus className="h-4 w-4" />
-          <span>Create Training Program</span>
-        </Button>
+        {canCreate && (
+          <Button className="gap-2 shadow-sm text-xs">
+            <Plus className="h-4 w-4" />
+            <span>Create Training Program</span>
+          </Button>
+        )}
       </div>
 
       {/* Overview Cards */}

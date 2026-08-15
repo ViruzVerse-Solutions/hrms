@@ -75,7 +75,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProps) {
   const pathname = usePathname();
-  const { hasAccess, currentRole, roleDetails } = useAuth();
+  const { hasAccess, currentRole, roleDetails, currentUser } = useAuth();
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white select-none">
@@ -133,14 +133,15 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                 {group.groupName}
               </div>
               {visibleItems.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-                const Icon = item.icon;
-
-                // Customize nav item titles for Employee (ESS) view
+                let targetHref = item.href;
                 let displayTitle = item.title;
+
+                // Customize nav item titles and direct Profile 360 link for Employee (ESS) view
                 if (currentRole === 'employee') {
-                  if (item.href === '/employees') displayTitle = 'Profile 360 (My Profile)';
-                  else if (item.href === '/attendance') displayTitle = 'Attendance Check-In';
+                  if (item.href === '/employees') {
+                    displayTitle = 'Profile 360 (My Profile)';
+                    targetHref = `/employees/${currentUser?.employeeId || 'emp_005'}`;
+                  } else if (item.href === '/attendance') displayTitle = 'Attendance Check-In';
                   else if (item.href === '/leaves') displayTitle = 'Leave Requests';
                   else if (item.href === '/payroll') displayTitle = 'Payslips';
                   else if (item.href === '/performance') displayTitle = 'Self-Appraisals';
@@ -149,10 +150,13 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                   else if (item.href === '/resignation') displayTitle = 'Resignation Notice';
                 }
 
+                const isActive = pathname === targetHref || (targetHref !== '/dashboard' && pathname.startsWith(targetHref));
+                const Icon = item.icon;
+
                 return (
                   <Link
                     key={item.href}
-                    href={item.href}
+                    href={targetHref}
                     onClick={onCloseMobile}
                     className={cn(
                       "flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all group",

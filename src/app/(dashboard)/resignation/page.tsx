@@ -16,8 +16,9 @@ import { formatCurrency, formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { useAuth } from '@/context/AuthContext';
 import { ResignationCase } from '@/types';
 
 export default function ResignationPage() {
@@ -29,24 +30,57 @@ export default function ResignationPage() {
 }
 
 function ResignationContent() {
-  const [exitCase] = useState<ResignationCase>({
+  const { currentRole, currentEmployee, currentUser, can } = useAuth();
+  const isEmployee = currentRole === 'employee';
+  const canManageExit = can('approve', 'resignation_exit') || currentRole === 'hr_head' || currentRole === 'managing_director';
+
+  const [hasSubmittedResignation, setHasSubmittedResignation] = useState(false);
+  const [resignationReason, setResignationReason] = useState('');
+  const [lastWorkingDay, setLastWorkingDay] = useState('2026-10-15');
+
+  const empName = currentEmployee ? `${currentEmployee.firstName} ${currentEmployee.lastName}` : currentUser.name;
+
+  const [exitCase, setExitCase] = useState<ResignationCase>({
     id: 'res_1',
-    employeeId: 'emp_008',
-    employeeName: 'Kavita Nair',
-    resignationDate: '2026-08-01',
-    requestedLwd: '2026-09-30',
-    approvedLwd: '2026-09-30',
+    employeeId: currentEmployee?.id || currentUser.employeeId || 'emp_005',
+    employeeName: isEmployee ? empName : 'Kavita Nair',
+    resignationDate: '2026-08-15',
+    requestedLwd: '2026-10-15',
+    approvedLwd: '2026-10-15',
     noticePeriodDays: 60,
-    reason: 'Higher studies abroad',
+    reason: 'Career transition & higher studies',
     status: 'clearance_in_progress',
     clearances: {
-      it: { status: 'cleared', clearedBy: 'IT Admin' },
-      admin: { status: 'cleared', clearedBy: 'Admin' },
+      it: { status: 'cleared', clearedBy: 'IT Asset Lead' },
+      admin: { status: 'cleared', clearedBy: 'Admin Desk' },
       finance: { status: 'pending' },
       hr: { status: 'pending' },
     },
+    ffSettlement: {
+      pendingSalary: 112000,
+      leaveEncashment: 42000,
+      bonusGratuity: 85000,
+      noticeShortfallDeduction: 0,
+      assetDeduction: 0,
+      totalNetSettlement: 239000,
+      status: 'draft',
+    },
   });
+
   const [relievingModalOpen, setRelievingModalOpen] = useState(false);
+
+  const handleSubmitNotice = (e: React.FormEvent) => {
+    e.preventDefault();
+    setExitCase({
+      ...exitCase,
+      employeeName: empName,
+      reason: resignationReason || 'Career Transition',
+      requestedLwd: lastWorkingDay,
+      approvedLwd: lastWorkingDay,
+      status: 'clearance_in_progress',
+    });
+    setHasSubmittedResignation(true);
+  };
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
@@ -54,30 +88,87 @@ function ResignationContent() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <span>Resignation, Multi-Dept Clearance & Exit Closure</span>
+            <span>{isEmployee ? 'My Resignation Notice & Exit Clearances' : 'Resignation, Multi-Dept Clearance & Exit Closure'}</span>
             <Badge variant="warning" className="text-xs">
-              Full & Final Flow
+              {isEmployee ? 'Self-Service Exit Flow' : 'Full & Final Engine'}
             </Badge>
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Notice period tracking, digital 4-department sign-offs, F&F calculation, and service certificates
+            {isEmployee
+              ? 'Submit official resignation notice, track 4-department handover clearances, and inspect Full & Final (F&F) settlement.'
+              : 'Notice period tracking, digital 4-department sign-offs, F&F calculation, and service certificates'}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            onClick={() => setRelievingModalOpen(true)}
-            className="gap-2 bg-indigo-600 shadow-md text-xs"
-          >
-            <Download className="h-4 w-4" />
-            <span>Generate Relieving Letter</span>
-          </Button>
-        </div>
+        {canManageExit && (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={() => setRelievingModalOpen(true)}
+              className="gap-2 bg-indigo-600 shadow-md text-xs"
+            >
+              <Download className="h-4 w-4" />
+              <span>Generate Relieving Letter</span>
+            </Button>
+          </div>
+        )}
       </div>
 
+      {/* Employee Submission Dialog / Status when not submitted */}
+      {isEmployee && !hasSubmittedResignation && (
+        <Card className="border-indigo-500/20 bg-slate-50/50 dark:bg-slate-900/50">
+          <CardHeader>
+            <CardTitle className="text-base font-bold flex items-center gap-2">
+              <LogOut className="h-4 w-4 text-indigo-600" />
+              <span>Submit Formal Resignation Notice</span>
+            </CardTitle>
+            <p className="text-xs text-slate-500">
+              Standard contract notice period is <strong>60 days</strong>. Your notice will be routed directly to your reporting manager and HR Head for review.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmitNotice} className="space-y-4 max-w-xl text-xs">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">Employee Details</label>
+                <div className="p-3 rounded-xl bg-white dark:bg-slate-800 border font-semibold">
+                  {empName} ({currentEmployee?.employeeCode || 'VV-1005'}) — Senior Analytical Chemist & QC Specialist
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">Requested Last Working Day (LWD)</label>
+                <input
+                  type="date"
+                  required
+                  value={lastWorkingDay}
+                  onChange={(e) => setLastWorkingDay(e.target.value)}
+                  className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">Reason for Resignation</label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Provide official context for resignation and handover commitment..."
+                  value={resignationReason}
+                  onChange={(e) => setResignationReason(e.target.value)}
+                  className="w-full p-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+
+              <Button type="submit" variant="destructive" className="gap-2 text-xs">
+                <LogOut className="h-4 w-4" />
+                <span>Submit Official Resignation Notice</span>
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Active Resignation Hero */}
-      {exitCase && (
+      {(hasSubmittedResignation || !isEmployee) && exitCase && (
         <div className="space-y-6">
           <Card className="border-indigo-500/20 bg-indigo-50/20 dark:bg-indigo-950/10">
             <CardContent className="p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">

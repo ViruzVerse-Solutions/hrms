@@ -1,7 +1,7 @@
 -- ==============================================================================
 -- VIRUZVERSE SOLUTIONS HRM — PRODUCTION ROW LEVEL SECURITY (RLS) POLICIES
 -- Execute in Supabase Dashboard -> SQL Editor
--- ==========================================
+-- ==============================================================================
 
 -- Helper Function: Get Current Authenticated User Role
 CREATE OR REPLACE FUNCTION auth_user_role()
@@ -26,23 +26,13 @@ $$ LANGUAGE sql STABLE;
 -- ==========================================
 ALTER TABLE "Employee" ENABLE ROW LEVEL SECURITY;
 
--- Admins: Full Access
-CREATE POLICY "Admins full access on Employee"
+-- Executive & HR: Full Access
+CREATE POLICY "Executive & HR full access on Employee"
 ON "Employee" FOR ALL
 TO authenticated
-USING (auth_user_role() IN ('super_admin', 'hr_admin', 'hr_executive'));
+USING (auth_user_role() IN ('chairman', 'managing_director', 'hr_head', 'internal_audit_head', 'compliance_statutory'));
 
--- Managers: View self and team subordinates
-CREATE POLICY "Managers view team on Employee"
-ON "Employee" FOR SELECT
-TO authenticated
-USING (
-  auth_user_role() = 'reporting_manager' AND (
-    "id" = auth_employee_id() OR "reportingManagerId" = auth_employee_id()
-  )
-);
-
--- Employees: View self and company directory (basic info)
+-- Employees: View company directory
 CREATE POLICY "Employees view directory"
 ON "Employee" FOR SELECT
 TO authenticated
@@ -58,7 +48,7 @@ CREATE POLICY "Confidential access on BankDetails"
 ON "BankDetails" FOR ALL
 TO authenticated
 USING (
-  auth_user_role() IN ('super_admin', 'hr_admin', 'payroll_officer') OR
+  auth_user_role() IN ('chairman', 'managing_director', 'hr_head', 'internal_audit_head', 'compliance_statutory') OR
   "employeeId" = auth_employee_id()
 );
 
@@ -66,31 +56,21 @@ CREATE POLICY "Confidential access on StatutoryInfo"
 ON "StatutoryInfo" FOR ALL
 TO authenticated
 USING (
-  auth_user_role() IN ('super_admin', 'hr_admin', 'payroll_officer') OR
+  auth_user_role() IN ('chairman', 'managing_director', 'hr_head', 'internal_audit_head', 'compliance_statutory') OR
   "employeeId" = auth_employee_id()
 );
 
 -- ==========================================
--- 3. ATTENDANCE RECORDS
+-- 3. ATTENDANCE RECORDS (BIOMETRIC GATEWAY)
 -- ==========================================
 ALTER TABLE "AttendanceRecord" ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Admins full access on Attendance"
+CREATE POLICY "Executive & HR full access on Attendance"
 ON "AttendanceRecord" FOR ALL
 TO authenticated
-USING (auth_user_role() IN ('super_admin', 'hr_admin'));
+USING (auth_user_role() IN ('chairman', 'managing_director', 'hr_head', 'internal_audit_head', 'compliance_statutory'));
 
-CREATE POLICY "Managers view team Attendance"
-ON "AttendanceRecord" FOR SELECT
-TO authenticated
-USING (
-  auth_user_role() = 'reporting_manager' AND (
-    "employeeId" = auth_employee_id() OR
-    "employeeId" IN (SELECT "id" FROM "Employee" WHERE "reportingManagerId" = auth_employee_id())
-  )
-);
-
-CREATE POLICY "Employees own Attendance checkins"
+CREATE POLICY "Employees own Attendance logs"
 ON "AttendanceRecord" FOR ALL
 TO authenticated
 USING ("employeeId" = auth_employee_id())
@@ -101,19 +81,15 @@ WITH CHECK ("employeeId" = auth_employee_id());
 -- ==========================================
 ALTER TABLE "LeaveRequest" ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Admins full access on LeaveRequest"
+CREATE POLICY "Management approve LeaveRequests"
 ON "LeaveRequest" FOR ALL
 TO authenticated
-USING (auth_user_role() IN ('super_admin', 'hr_admin'));
+USING (auth_user_role() IN ('chairman', 'managing_director', 'hr_head'));
 
-CREATE POLICY "Managers review team LeaveRequests"
-ON "LeaveRequest" FOR ALL
+CREATE POLICY "Audit & Compliance view LeaveRequests"
+ON "LeaveRequest" FOR SELECT
 TO authenticated
-USING (
-  auth_user_role() = 'reporting_manager' AND (
-    "employeeId" = auth_employee_id() OR "approverId" = auth_employee_id()
-  )
-);
+USING (auth_user_role() IN ('internal_audit_head', 'compliance_statutory'));
 
 CREATE POLICY "Employees manage own LeaveRequests"
 ON "LeaveRequest" FOR ALL
@@ -127,15 +103,15 @@ WITH CHECK ("employeeId" = auth_employee_id());
 ALTER TABLE "PayrollRun" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Payslip" ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Payroll Officers manage PayrollRuns"
+CREATE POLICY "Management & Audit access on PayrollRuns"
 ON "PayrollRun" FOR ALL
 TO authenticated
-USING (auth_user_role() IN ('super_admin', 'payroll_officer'));
+USING (auth_user_role() IN ('chairman', 'managing_director', 'hr_head', 'internal_audit_head', 'compliance_statutory'));
 
-CREATE POLICY "Payroll Officers manage Payslips"
+CREATE POLICY "Management & Audit access on Payslips"
 ON "Payslip" FOR ALL
 TO authenticated
-USING (auth_user_role() IN ('super_admin', 'payroll_officer'));
+USING (auth_user_role() IN ('chairman', 'managing_director', 'hr_head', 'internal_audit_head', 'compliance_statutory'));
 
 CREATE POLICY "Employees view own Payslips"
 ON "Payslip" FOR SELECT
@@ -147,12 +123,12 @@ USING ("employeeId" = auth_employee_id());
 -- ==========================================
 ALTER TABLE "AuditLog" ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Admins view AuditLogs"
+CREATE POLICY "Executive & Audit view AuditLogs"
 ON "AuditLog" FOR SELECT
 TO authenticated
-USING (auth_user_role() IN ('super_admin', 'hr_admin'));
+USING (auth_user_role() IN ('chairman', 'managing_director', 'hr_head', 'internal_audit_head'));
 
-CREATE POLICY "System append AuditLogs"
+CREATE POLICY "System insert AuditLogs"
 ON "AuditLog" FOR INSERT
 TO authenticated
 WITH CHECK (true);

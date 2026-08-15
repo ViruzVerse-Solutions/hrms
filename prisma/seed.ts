@@ -6,25 +6,35 @@ async function main() {
   console.log('🌱 Starting Viruzverse HRM Database Seed...');
 
   try {
-    // Clean up dynamic tables to avoid duplicate key conflicts or connection drops
+    // 0. Clean up all tables in reverse dependency order for a fresh, clean database
+    console.log('🧹 Purging existing database tables...');
+    await prisma.notification.deleteMany().catch(() => {});
+    await prisma.auditLog.deleteMany().catch(() => {});
+    await prisma.grievanceTicket.deleteMany().catch(() => {});
+    await prisma.resignationExitCase.deleteMany().catch(() => {});
+    await prisma.performanceReview.deleteMany().catch(() => {});
     await prisma.candidate.deleteMany().catch(() => {});
     await prisma.jobRequisition.deleteMany().catch(() => {});
     await prisma.payslip.deleteMany().catch(() => {});
     await prisma.payrollRun.deleteMany().catch(() => {});
     await prisma.attendanceRecord.deleteMany().catch(() => {});
     await prisma.leaveRequest.deleteMany().catch(() => {});
-    await prisma.performanceReview.deleteMany().catch(() => {});
-    await prisma.grievanceTicket.deleteMany().catch(() => {});
-    await prisma.auditLog.deleteMany().catch(() => {});
-    await prisma.bankDetails.deleteMany().catch(() => {});
+    await prisma.leaveAllocation.deleteMany().catch(() => {});
+    await prisma.emergencyContact.deleteMany().catch(() => {});
     await prisma.statutoryInfo.deleteMany().catch(() => {});
+    await prisma.bankDetails.deleteMany().catch(() => {});
+    await prisma.userSession.deleteMany().catch(() => {});
     await prisma.user.deleteMany().catch(() => {});
+    await prisma.employee.deleteMany().catch(() => {});
+    await prisma.designation.deleteMany().catch(() => {});
+    await prisma.department.deleteMany().catch(() => {});
+    await prisma.branch.deleteMany().catch(() => {});
+    await prisma.organization.deleteMany().catch(() => {});
+    console.log('✅ Database purged cleanly');
 
     // 1. Create Organization
-    const org = await prisma.organization.upsert({
-      where: { code: 'VV' },
-      update: {},
-      create: {
+    const org = await prisma.organization.create({
+      data: {
         name: 'Viruzverse Solutions Private Limited',
         code: 'VV',
         domain: 'viruzverse.com',
@@ -34,10 +44,8 @@ async function main() {
     console.log(`✅ Organization created: ${org.name}`);
 
     // 2. Create Branches
-    const branchBlr = await prisma.branch.upsert({
-      where: { code: 'BR_BLR' },
-      update: {},
-      create: {
+    const branchBlr = await prisma.branch.create({
+      data: {
         organizationId: org.id,
         name: 'Tech Operations Center (HQ)',
         code: 'BR_BLR',
@@ -48,12 +56,10 @@ async function main() {
       },
     });
 
-    const branchHyd = await prisma.branch.upsert({
-      where: { code: 'BR_HYD' },
-      update: {},
-      create: {
+    const branchHyd = await prisma.branch.create({
+      data: {
         organizationId: org.id,
-        name: 'Central Complex (Campus 2)',
+        name: 'Central Manufacturing Complex (Campus 2)',
         code: 'BR_HYD',
         city: 'Hyderabad',
         state: 'Telangana',
@@ -64,20 +70,19 @@ async function main() {
     console.log('✅ Branches seeded');
 
     // 3. Create Departments
-    const deptMap: Record<string, string> = {};
     const departmentsData = [
+      { code: 'dept_exec', name: 'Executive Board & Governance' },
       { code: 'dept_hr', name: 'Human Resources & Industrial Relations' },
       { code: 'dept_qc', name: 'Quality Assurance & Analytical Lab' },
       { code: 'dept_prod', name: 'Production & Manufacturing Ops' },
-      { code: 'dept_eng', name: 'Plant Engineering & Utilities' },
-      { code: 'dept_fin', name: 'Finance, Costing & Accounts' },
+      { code: 'dept_fin', name: 'Finance, Internal Audit & Costing' },
+      { code: 'dept_legal', name: 'Statutory Compliance & EHS' },
     ];
 
+    const deptMap: Record<string, string> = {};
     for (const dept of departmentsData) {
-      const d = await prisma.department.upsert({
-        where: { code: dept.code },
-        update: {},
-        create: {
+      const d = await prisma.department.create({
+        data: {
           organizationId: org.id,
           name: dept.name,
           code: dept.code,
@@ -89,20 +94,19 @@ async function main() {
 
     // 4. Create Designations
     const designationsData = [
-      { code: 'des_hr_dir', title: 'VP of Human Resources & IR', deptCode: 'dept_hr' },
-      { code: 'des_hr_exec', title: 'HR Operations & Compliance Officer', deptCode: 'dept_hr' },
-      { code: 'des_fin_lead', title: 'Principal Payroll & Plant Cost Lead', deptCode: 'dept_fin' },
-      { code: 'des_qc_dir', title: 'VP of Quality & Process Standards', deptCode: 'dept_qc' },
-      { code: 'des_qc_sr', title: 'Senior Analytical Chemist & QC Lead', deptCode: 'dept_qc' },
+      { code: 'des_chair', title: 'Chairman of the Board', deptCode: 'dept_exec' },
+      { code: 'des_md', title: 'Managing Director & CEO', deptCode: 'dept_exec' },
+      { code: 'des_hr_head', title: 'Head of Human Resources & IR', deptCode: 'dept_hr' },
+      { code: 'des_audit_head', title: 'Head of Internal Audit & Forensics', deptCode: 'dept_fin' },
+      { code: 'des_comp_head', title: 'Head of Compliance & Statutory Affairs', deptCode: 'dept_legal' },
+      { code: 'des_qc_sr', title: 'Senior Analytical Chemist & QC Specialist', deptCode: 'dept_qc' },
       { code: 'des_prod_eng', title: 'Process & Batch Operations Engineer', deptCode: 'dept_prod' },
     ];
 
     const desigMap: Record<string, string> = {};
     for (const des of designationsData) {
-      const d = await prisma.designation.upsert({
-        where: { code: des.code },
-        update: {},
-        create: {
+      const d = await prisma.designation.create({
+        data: {
           organizationId: org.id,
           departmentId: deptMap[des.deptCode],
           title: des.title,
@@ -113,8 +117,32 @@ async function main() {
     }
     console.log('✅ Designations seeded');
 
-    // 5. Seed Core Personas / Employees
+    // 5. Seed Core Personas / Employees (All 6 Roles)
     const employeesData = [
+      {
+        code: 'VV-1000',
+        firstName: 'Alexander',
+        lastName: 'Sterling',
+        email: 'alexander.sterling@viruzverse.com',
+        phone: '+91 98765 43209',
+        gender: 'male' as const,
+        deptCode: 'dept_exec',
+        desigCode: 'des_chair',
+        ctc: 9600000,
+        role: 'chairman' as const,
+      },
+      {
+        code: 'VV-1004',
+        firstName: 'Dr. Vikramaditya',
+        lastName: 'Rathore',
+        email: 'vikram.rathore@viruzverse.com',
+        phone: '+91 98765 43213',
+        gender: 'male' as const,
+        deptCode: 'dept_exec',
+        desigCode: 'des_md',
+        ctc: 7200000,
+        role: 'managing_director' as const,
+      },
       {
         code: 'VV-1001',
         firstName: 'Eleanor',
@@ -123,21 +151,9 @@ async function main() {
         phone: '+91 98765 43210',
         gender: 'female' as const,
         deptCode: 'dept_hr',
-        desigCode: 'des_hr_dir',
-        ctc: 3200000,
+        desigCode: 'des_hr_head',
+        ctc: 3600000,
         role: 'hr_head' as const,
-      },
-      {
-        code: 'VV-1002',
-        firstName: 'Rajeshwari',
-        lastName: 'Nair',
-        email: 'rajeshwari.nair@viruzverse.com',
-        phone: '+91 98765 43211',
-        gender: 'female' as const,
-        deptCode: 'dept_hr',
-        desigCode: 'des_hr_exec',
-        ctc: 1950000,
-        role: 'compliance_statutory' as const,
       },
       {
         code: 'VV-1003',
@@ -147,21 +163,21 @@ async function main() {
         phone: '+91 98765 43212',
         gender: 'male' as const,
         deptCode: 'dept_fin',
-        desigCode: 'des_fin_lead',
-        ctc: 2400000,
+        desigCode: 'des_audit_head',
+        ctc: 3200000,
         role: 'internal_audit_head' as const,
       },
       {
-        code: 'VV-1004',
-        firstName: 'Dr. Vikramaditya',
-        lastName: 'Rathore',
-        email: 'vikram.rathore@viruzverse.com',
-        phone: '+91 98765 43213',
-        gender: 'male' as const,
-        deptCode: 'dept_qc',
-        desigCode: 'des_qc_dir',
-        ctc: 4800000,
-        role: 'managing_director' as const,
+        code: 'VV-1002',
+        firstName: 'Rajeshwari',
+        lastName: 'Nair',
+        email: 'rajeshwari.nair@viruzverse.com',
+        phone: '+91 98765 43211',
+        gender: 'female' as const,
+        deptCode: 'dept_legal',
+        desigCode: 'des_comp_head',
+        ctc: 2800000,
+        role: 'compliance_statutory' as const,
       },
       {
         code: 'VV-1005',
@@ -182,10 +198,8 @@ async function main() {
     for (const emp of employeesData) {
       const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(emp.firstName + ' ' + emp.lastName)}&background=4f46e5&color=ffffff`;
 
-      const employee = await prisma.employee.upsert({
-        where: { employeeCode: emp.code },
-        update: { avatarUrl },
-        create: {
+      const employee = await prisma.employee.create({
+        data: {
           organizationId: org.id,
           employeeCode: emp.code,
           firstName: emp.firstName,
@@ -194,7 +208,7 @@ async function main() {
           phone: emp.phone,
           avatarUrl,
           gender: emp.gender,
-          dob: new Date('1990-01-01'),
+          dob: new Date('1988-05-20'),
           dateOfJoining: new Date('2023-01-15'),
           departmentId: deptMap[emp.deptCode],
           designationId: desigMap[emp.desigCode],
@@ -207,10 +221,8 @@ async function main() {
       empObjMap[emp.code] = employee;
 
       // Create User account
-      await prisma.user.upsert({
-        where: { email: emp.email },
-        update: { avatarUrl },
-        create: {
+      await prisma.user.create({
+        data: {
           organizationId: org.id,
           email: emp.email,
           name: `${emp.firstName} ${emp.lastName}`,
@@ -223,12 +235,10 @@ async function main() {
       });
 
       // Seed Bank Details
-      await prisma.bankDetails.upsert({
-        where: { employeeId: employee.id },
-        update: {},
-        create: {
+      await prisma.bankDetails.create({
+        data: {
           employeeId: employee.id,
-          accountNumber: '91802004512984',
+          accountNumber: `9180200451${emp.code.replace('VV-', '')}`,
           accountName: `${emp.firstName} ${emp.lastName}`,
           bankName: 'HDFC Bank Ltd',
           ifscCode: 'HDFC0000240',
@@ -238,14 +248,12 @@ async function main() {
       });
 
       // Seed Statutory Info
-      await prisma.statutoryInfo.upsert({
-        where: { employeeId: employee.id },
-        update: {},
-        create: {
+      await prisma.statutoryInfo.create({
+        data: {
           employeeId: employee.id,
-          pfNumber: 'KN/BLR/0049201/000/1001',
-          uan: '101294810293',
-          esiNumber: '31004918270001',
+          pfNumber: `KN/BLR/0049201/000/${emp.code.replace('VV-', '')}`,
+          uan: `101294810${emp.code.replace('VV-', '')}`,
+          esiNumber: `3100491827${emp.code.replace('VV-', '')}`,
           ptState: 'Karnataka',
           lwfNumber: 'LWF-KA-2026-94',
         },
@@ -259,16 +267,8 @@ async function main() {
       ];
 
       for (const lt of leaveTypes) {
-        await prisma.leaveAllocation.upsert({
-          where: {
-            employeeId_leaveType_year: {
-              employeeId: employee.id,
-              leaveType: lt.type,
-              year: 2026,
-            },
-          },
-          update: {},
-          create: {
+        await prisma.leaveAllocation.create({
+          data: {
             employeeId: employee.id,
             leaveType: lt.type,
             year: 2026,
@@ -284,16 +284,24 @@ async function main() {
 
     // Link Manager Relationships
     await prisma.employee.update({
-      where: { employeeCode: 'VV-1005' }, // Vishwadharan R reports to Dr. Vikramaditya
+      where: { employeeCode: 'VV-1004' }, // MD reports to Chairman
+      data: { reportingManagerId: empObjMap['VV-1000'].id },
+    });
+    await prisma.employee.update({
+      where: { employeeCode: 'VV-1001' }, // HR Head reports to MD
       data: { reportingManagerId: empObjMap['VV-1004'].id },
     });
     await prisma.employee.update({
-      where: { employeeCode: 'VV-1002' }, // Priya reports to Eleanor
-      data: { reportingManagerId: empObjMap['VV-1001'].id },
+      where: { employeeCode: 'VV-1003' }, // Audit Head reports to Chairman / MD
+      data: { reportingManagerId: empObjMap['VV-1000'].id },
     });
     await prisma.employee.update({
-      where: { employeeCode: 'VV-1003' }, // Marcus reports to Eleanor
-      data: { reportingManagerId: empObjMap['VV-1001'].id },
+      where: { employeeCode: 'VV-1002' }, // Compliance Head reports to MD
+      data: { reportingManagerId: empObjMap['VV-1004'].id },
+    });
+    await prisma.employee.update({
+      where: { employeeCode: 'VV-1005' }, // Ananya reports to MD
+      data: { reportingManagerId: empObjMap['VV-1004'].id },
     });
 
     // 6. Seed Sample Leave Requests
@@ -316,7 +324,7 @@ async function main() {
         daysCount: 2,
         reason: 'Viral flu and doctor advised rest',
         status: 'approved' as const,
-        approverId: empObjMap['VV-1001'].id,
+        approverId: empObjMap['VV-1004'].id,
         approverComment: 'Approved. Get well soon!',
       },
       {
@@ -327,7 +335,7 @@ async function main() {
         daysCount: 5,
         reason: 'Annual vacation leave',
         status: 'approved' as const,
-        approverId: empObjMap['VV-1001'].id,
+        approverId: empObjMap['VV-1000'].id,
       },
     ];
 
@@ -345,17 +353,10 @@ async function main() {
       d.setDate(today.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
 
-      for (const empCode of ['VV-1001', 'VV-1002', 'VV-1003', 'VV-1004', 'VV-1005']) {
+      for (const empCode of ['VV-1000', 'VV-1001', 'VV-1002', 'VV-1003', 'VV-1004', 'VV-1005']) {
         const emp = empObjMap[empCode];
-        await prisma.attendanceRecord.upsert({
-          where: {
-            employeeId_date: {
-              employeeId: emp.id,
-              date: new Date(dateStr),
-            },
-          },
-          update: {},
-          create: {
+        await prisma.attendanceRecord.create({
+          data: {
             employeeId: emp.id,
             date: new Date(dateStr),
             inTime: new Date(`${dateStr}T09:00:00Z`),
@@ -369,53 +370,39 @@ async function main() {
     }
     console.log('✅ Attendance records seeded');
 
-    // 8. Seed Payroll Runs & Payslips (July 2026 Disbursed & August 2026 Review)
-    const runJuly = await prisma.payrollRun.upsert({
-      where: {
-        organizationId_monthYear: {
-          organizationId: org.id,
-          monthYear: 'July 2026',
-        },
-      },
-      update: {},
-      create: {
+    // 8. Seed Payroll Runs & Payslips
+    const runJuly = await prisma.payrollRun.create({
+      data: {
         organizationId: org.id,
         monthYear: 'July 2026',
         periodStart: new Date('2026-07-01'),
         periodEnd: new Date('2026-07-31'),
-        totalEmployees: 5,
-        totalGross: 840000,
-        totalDeductions: 112000,
-        totalNet: 728000,
+        totalEmployees: 6,
+        totalGross: 2420000,
+        totalDeductions: 320000,
+        totalNet: 2100000,
         status: 'disbursed',
         calculatedBy: 'Marcus Chen',
-        approvedBy: 'Eleanor Vance',
+        approvedBy: 'Dr. Vikramaditya Rathore',
       },
     });
 
-    const runAug = await prisma.payrollRun.upsert({
-      where: {
-        organizationId_monthYear: {
-          organizationId: org.id,
-          monthYear: 'August 2026',
-        },
-      },
-      update: {},
-      create: {
+    const runAug = await prisma.payrollRun.create({
+      data: {
         organizationId: org.id,
         monthYear: 'August 2026',
         periodStart: new Date('2026-08-01'),
         periodEnd: new Date('2026-08-31'),
-        totalEmployees: 5,
-        totalGross: 840000,
-        totalDeductions: 112000,
-        totalNet: 728000,
+        totalEmployees: 6,
+        totalGross: 2420000,
+        totalDeductions: 320000,
+        totalNet: 2100000,
         status: 'calculated',
         calculatedBy: 'Marcus Chen',
       },
     });
 
-    for (const empCode of ['VV-1001', 'VV-1002', 'VV-1003', 'VV-1004', 'VV-1005']) {
+    for (const empCode of ['VV-1000', 'VV-1001', 'VV-1002', 'VV-1003', 'VV-1004', 'VV-1005']) {
       const emp = empObjMap[empCode];
       const monthlyCtc = Math.round(Number(emp.ctc) / 12);
       const basic = Math.round(monthlyCtc * 0.4);
@@ -427,20 +414,13 @@ async function main() {
       const pf = Math.min(1800, Math.round(basic * 0.12));
       const esi = gross <= 21000 ? Math.round(gross * 0.0075) : 0;
       const pt = gross > 15000 ? 200 : 0;
-      const tds = Math.round(gross * 0.08);
+      const tds = Math.round(gross * 0.10);
       const totalDed = pf + esi + pt + tds;
       const net = gross - totalDed;
 
-      // Payslip for July 2026
-      await prisma.payslip.upsert({
-        where: {
-          payrollRunId_employeeId: {
-            payrollRunId: runJuly.id,
-            employeeId: emp.id,
-          },
-        },
-        update: {},
-        create: {
+      // Payslip July
+      await prisma.payslip.create({
+        data: {
           payrollRunId: runJuly.id,
           employeeId: emp.id,
           period: 'July 2026',
@@ -461,16 +441,9 @@ async function main() {
         },
       });
 
-      // Payslip for August 2026
-      await prisma.payslip.upsert({
-        where: {
-          payrollRunId_employeeId: {
-            payrollRunId: runAug.id,
-            employeeId: emp.id,
-          },
-        },
-        update: {},
-        create: {
+      // Payslip August
+      await prisma.payslip.create({
+        data: {
           payrollRunId: runAug.id,
           employeeId: emp.id,
           period: 'August 2026',
@@ -504,8 +477,8 @@ async function main() {
         status: 'active',
         experienceMin: 4,
         experienceMax: 8,
-        budgetMin: 1200000,
-        budgetMax: 1900000,
+        budgetMin: 1400000,
+        budgetMax: 2000000,
       },
     });
 
@@ -519,8 +492,8 @@ async function main() {
         status: 'active',
         experienceMin: 3,
         experienceMax: 6,
-        budgetMin: 1000000,
-        budgetMax: 1600000,
+        budgetMin: 1100000,
+        budgetMax: 1700000,
       },
     });
 
@@ -551,7 +524,7 @@ async function main() {
         expectedCtc: 1450000,
         rating: 4.2,
         matchScore: 86,
-        interviewerName: 'Priya Sharma',
+        interviewerName: 'Eleanor Vance',
       },
       {
         jobRequisitionId: reqProd.id,
@@ -626,7 +599,7 @@ async function main() {
       {
         organizationId: org.id,
         userName: 'Eleanor Vance',
-        userRole: 'hr_admin' as const,
+        userRole: 'hr_head' as const,
         action: 'EMPLOYEE_RECORD_UPDATED',
         module: 'employee_records',
         payloadAfter: { note: 'Updated promotion stage to Performance Calibration for Vishwadharan R' },
@@ -636,12 +609,22 @@ async function main() {
       {
         organizationId: org.id,
         userName: 'Marcus Chen',
-        userRole: 'payroll_officer' as const,
-        action: 'PAYROLL_RUN_CALCULATED',
+        userRole: 'internal_audit_head' as const,
+        action: 'PAYROLL_RUN_AUDITED',
         module: 'payroll_benefits',
-        payloadAfter: { note: 'Generated August 2026 payroll batch calculation with statutory PF/ESI rates' },
+        payloadAfter: { note: 'Verified August 2026 payroll batch calculations with zero statutory variances' },
         integrityHash: 'b9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0a8f9c1b2d3e4f5a6b7c8',
         ipAddress: '192.168.1.88',
+      },
+      {
+        organizationId: org.id,
+        userName: 'Rajeshwari Nair',
+        userRole: 'compliance_statutory' as const,
+        action: 'FACTORY_ACT_REGISTER_SUBMITTED',
+        module: 'policy_compliance',
+        payloadAfter: { note: 'Quarterly Form 25 and Form 12 muster registers verified and archived' },
+        integrityHash: 'c0d1e2f3a4b5c6d7e8f9a0b9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9',
+        ipAddress: '192.168.1.92',
       },
     ];
 

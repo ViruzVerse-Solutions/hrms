@@ -95,15 +95,17 @@ export default function EmployeeDetailPage({
 
   return (
     <div className="p-8 space-y-8 max-w-7xl mx-auto">
-      {/* Back Button */}
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" asChild className="gap-1.5 text-xs font-semibold">
-          <Link href="/employees">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to Directory
-          </Link>
-        </Button>
-      </div>
+      {/* Back Button (Hidden for Employee self-service view) */}
+      {currentRole !== 'employee' && (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" asChild className="gap-1.5 text-xs font-semibold">
+            <Link href="/employees">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back to Directory
+            </Link>
+          </Button>
+        </div>
+      )}
 
       {/* Hero Header Card */}
       <div className="relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 shadow-sm">

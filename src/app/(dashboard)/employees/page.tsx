@@ -21,14 +21,23 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { getPersonaAvatar } from '@/lib/constants';
 
 export default function EmployeesPage() {
+  const router = useRouter();
   const { employees, isSalaryVisible, can, currentRole, currentEmployee, currentUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('all');
 
   const [departments, setDepartments] = useState<Array<{ id: string; name: string; code: string }>>([]);
+
+  React.useEffect(() => {
+    if (currentRole === 'employee') {
+      const selfId = currentEmployee?.id || currentUser.employeeId || 'emp_005';
+      router.replace(`/employees/${selfId}`);
+    }
+  }, [currentRole, currentEmployee, currentUser, router]);
 
   React.useEffect(() => {
     fetch('/api/master')
