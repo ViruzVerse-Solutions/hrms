@@ -32,11 +32,25 @@ function TrainingContent() {
   const isEmployee = currentRole === 'employee';
   const canCreate = can('create', 'training_dev');
 
-  const [trainings] = useState<TrainingProgram[]>([
-    { id: 'tr_1', title: 'Chemical Hazardous Material Handling & Safety', category: 'compliance', trainer: 'Dr. Vikramaditya Rathore', startDate: '2026-08-22', endDate: '2026-08-24', mode: 'internal', capacity: 40, enrolledCount: 34, status: 'upcoming' },
-    { id: 'tr_2', title: 'ISO 9001:2015 Quality & Standard Operating Procedures', category: 'technical', trainer: 'External Lead Auditor', startDate: '2026-08-10', endDate: '2026-08-12', mode: 'external_vendor', vendorName: 'TUV Nord', capacity: 30, enrolledCount: 28, status: 'completed' },
-    { id: 'tr_3', title: 'Workplace Ergonomics & EHS First Responder', category: 'compliance', trainer: 'Plant Medical Officer', startDate: '2026-08-28', endDate: '2026-08-29', mode: 'internal', capacity: 25, enrolledCount: 19, status: 'upcoming' },
-  ]);
+  const [trainings, setTrainings] = useState<TrainingProgram[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetch('/api/training', {
+      headers: { 'x-user-role': currentRole },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.trainings) {
+          setTrainings(data.data.trainings);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [currentRole]);
+
+  const upcomingCount = trainings.filter((t) => t.status === 'upcoming').length;
+  const totalEnrolled = trainings.reduce((acc, t) => acc + (t.enrolledCount || 0), 0);
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
@@ -72,7 +86,7 @@ function TrainingContent() {
               <span className="text-xs font-semibold text-slate-500">Upcoming Batches</span>
               <Calendar className="h-4 w-4 text-indigo-600" />
             </div>
-            <div className="font-bold text-2xl text-slate-900">2 Programs</div>
+            <div className="font-bold text-2xl text-slate-900">{upcomingCount} Programs</div>
             <p className="text-xs text-slate-500">Scheduled for August 2026</p>
           </CardContent>
         </Card>
@@ -83,7 +97,7 @@ function TrainingContent() {
               <span className="text-xs font-semibold text-slate-500">Total Enrolled</span>
               <Users className="h-4 w-4 text-emerald-600" />
             </div>
-            <div className="font-bold text-2xl text-slate-900">81 Operators</div>
+            <div className="font-bold text-2xl text-slate-900">{totalEnrolled} Operators</div>
             <p className="text-xs text-slate-500">Across Plant Operations & QC</p>
           </CardContent>
         </Card>

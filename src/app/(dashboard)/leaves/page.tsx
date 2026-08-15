@@ -32,6 +32,7 @@ export default function LeavesPage() {
 function LeavesContent() {
   const {
     leaveRequests,
+    leaveAllocations,
     addLeaveRequest,
     updateLeaveStatus,
     currentUser,
@@ -163,51 +164,72 @@ function LeavesContent() {
       </div>
 
       {/* Leave Balances Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
-        <Card className="border-slate-200 bg-white">
-          <CardContent className="p-6">
-            <div className="flex justify-between text-xs font-semibold text-slate-500">
-              <span>Casual Leave (CL)</span>
-              <Calendar className="h-4 w-4 text-indigo-600" />
-            </div>
-            <div className="text-3xl font-extrabold text-indigo-600 mt-2 font-mono">7 / 12</div>
-            <div className="text-xs text-slate-500 mt-1">3 used • 2 pending approval</div>
-          </CardContent>
-        </Card>
+      {(() => {
+        const getAlloc = (type: string) => leaveAllocations.find((a) => a.leaveType === type);
+        const cl = getAlloc('casual');
+        const sl = getAlloc('sick');
+        const el = getAlloc('earned');
 
-        <Card className="border-slate-200 bg-white">
-          <CardContent className="p-6">
-            <div className="flex justify-between text-xs font-semibold text-slate-500">
-              <span>Sick Leave (SL)</span>
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            </div>
-            <div className="text-3xl font-extrabold text-emerald-600 mt-2 font-mono">8 / 10</div>
-            <div className="text-xs text-slate-500 mt-1">2 used this calendar year</div>
-          </CardContent>
-        </Card>
+        const clBal = cl ? cl.balance : 7;
+        const clAlloc = cl ? cl.totalAllocated : 12;
+        const clUsed = cl ? cl.used : 3;
+        const clPend = cl ? cl.pending : 2;
 
-        <Card className="border-slate-200 bg-white">
-          <CardContent className="p-6">
-            <div className="flex justify-between text-xs font-semibold text-slate-500">
-              <span>Earned Leave (EL)</span>
-              <CalendarDays className="h-4 w-4 text-purple-600" />
-            </div>
-            <div className="text-3xl font-extrabold text-purple-600 mt-2 font-mono">11 / 15</div>
-            <div className="text-xs text-slate-500 mt-1">Encashable balance on exit</div>
-          </CardContent>
-        </Card>
+        const slBal = sl ? sl.balance : 8;
+        const slAlloc = sl ? sl.totalAllocated : 10;
+        const slUsed = sl ? sl.used : 2;
 
-        <Card className="border-slate-200 bg-white">
-          <CardContent className="p-6">
-            <div className="flex justify-between text-xs font-semibold text-slate-500">
-              <span>Holiday Calendar 2026</span>
-              <FileCheck className="h-4 w-4 text-amber-500" />
-            </div>
-            <div className="text-3xl font-extrabold text-slate-900 mt-2 font-mono">14 Days</div>
-            <div className="text-xs text-amber-600 mt-1 font-medium">Next: 15 Aug (Independence Day)</div>
-          </CardContent>
-        </Card>
-      </div>
+        const elBal = el ? el.balance : 11;
+        const elAlloc = el ? el.totalAllocated : 15;
+
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
+            <Card className="border-slate-200 bg-white">
+              <CardContent className="p-6">
+                <div className="flex justify-between text-xs font-semibold text-slate-500">
+                  <span>Casual Leave (CL)</span>
+                  <Calendar className="h-4 w-4 text-indigo-600" />
+                </div>
+                <div className="text-3xl font-extrabold text-indigo-600 mt-2 font-mono">{clBal} / {clAlloc}</div>
+                <div className="text-xs text-slate-500 mt-1">{clUsed} used • {clPend} pending approval</div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 bg-white">
+              <CardContent className="p-6">
+                <div className="flex justify-between text-xs font-semibold text-slate-500">
+                  <span>Sick Leave (SL)</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                </div>
+                <div className="text-3xl font-extrabold text-emerald-600 mt-2 font-mono">{slBal} / {slAlloc}</div>
+                <div className="text-xs text-slate-500 mt-1">{slUsed} used this calendar year</div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 bg-white">
+              <CardContent className="p-6">
+                <div className="flex justify-between text-xs font-semibold text-slate-500">
+                  <span>Earned Leave (EL)</span>
+                  <CalendarDays className="h-4 w-4 text-purple-600" />
+                </div>
+                <div className="text-3xl font-extrabold text-purple-600 mt-2 font-mono">{elBal} / {elAlloc}</div>
+                <div className="text-xs text-slate-500 mt-1">Encashable balance on exit</div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 bg-white">
+              <CardContent className="p-6">
+                <div className="flex justify-between text-xs font-semibold text-slate-500">
+                  <span>Holiday Calendar 2026</span>
+                  <FileCheck className="h-4 w-4 text-amber-500" />
+                </div>
+                <div className="text-3xl font-extrabold text-slate-900 mt-2 font-mono">14 Days</div>
+                <div className="text-xs text-amber-600 mt-1 font-medium">Next: 15 Aug (Independence Day)</div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
 
       {/* Leave Requests & Approvals Queue */}
       <Card>

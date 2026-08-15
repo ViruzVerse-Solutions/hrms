@@ -42,8 +42,10 @@ export default function DashboardPage() {
     currentEmployee,
     employees,
     leaveRequests,
+    leaveAllocations,
     attendanceRecords,
     payrollRuns,
+    payslips,
     candidates,
     requisitions,
     grievances,
@@ -653,22 +655,33 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {/* 6. EMPLOYEE DASHBOARD (SELF-SERVICE / ESS) */}
       {/* ========================================================================= */}
-      {currentRole === 'employee' && (
+      {currentRole === 'employee' && (() => {
+        const casualAlloc = leaveAllocations.find((a) => a.leaveType === 'casual');
+        const casualBal = casualAlloc ? casualAlloc.balance : 7;
+        const casualUsed = casualAlloc ? casualAlloc.used : 3;
+        const casualPend = casualAlloc ? casualAlloc.pending : 2;
+
+        const myEmpId = currentEmployee?.id || currentUser?.employeeId || 'emp_005';
+        const latestPs = payslips.find((p) => p.employeeId === myEmpId || p.employeeCode === 'VV-1005') || payslips[0];
+        const payslipNet = latestPs?.breakup?.netPay ?? 128450;
+        const payslipPeriod = latestPs?.period || 'July 2026';
+
+        return (
         <div className="space-y-8">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <Card>
               <CardContent className="p-6">
                 <span className="text-xs font-semibold text-slate-500">Casual Leave Balance</span>
-                <div className="text-3xl font-extrabold mt-2 text-indigo-600">7 Days</div>
-                <div className="text-xs text-slate-400 mt-1">3 used • 2 pending approval</div>
+                <div className="text-3xl font-extrabold mt-2 text-indigo-600">{casualBal} Days</div>
+                <div className="text-xs text-slate-400 mt-1">{casualUsed} used • {casualPend} pending approval</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Latest Payslip (July 2026)</span>
+                <span className="text-xs font-semibold text-slate-500">Latest Payslip ({payslipPeriod})</span>
                 <div className="text-2xl font-extrabold mt-2 text-emerald-600">
-                  {formatCurrency(128450)}
+                  {formatCurrency(payslipNet)}
                 </div>
                 <div className="text-xs text-slate-400 mt-1">Disbursed via Bank Transfer</div>
               </CardContent>
@@ -678,7 +691,7 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <span className="text-xs font-semibold text-slate-500">Mandatory Training</span>
                 <div className="text-base font-bold mt-2 text-slate-900">
-                  Industrial Safety & PPE
+                  Chemical Hazardous Material Handling & Safety
                 </div>
                 <div className="text-xs text-purple-600 font-medium mt-1">Scheduled for Aug 22, 2026</div>
               </CardContent>
@@ -749,7 +762,8 @@ export default function DashboardPage() {
             </Card>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

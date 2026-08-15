@@ -54,9 +54,41 @@ export async function GET(req: NextRequest) {
       approverComment: l.approverComment,
     }));
 
+    let leaveAllocations: any[] = [];
+
+    if (prisma) {
+      const empIdForAlloc = whereClause.employeeId;
+      if (empIdForAlloc) {
+        leaveAllocations = await prisma.leaveAllocation.findMany({
+          where: { employeeId: empIdForAlloc, year: 2026 },
+        });
+      } else {
+        const emp = await prisma.employee.findFirst({
+          where: { employeeCode: 'VV-1005' },
+        });
+        if (emp) {
+          leaveAllocations = await prisma.leaveAllocation.findMany({
+            where: { employeeId: emp.id, year: 2026 },
+          });
+        }
+      }
+    }
+
+    const formattedAllocations = leaveAllocations.map((a: any) => ({
+      id: a.id,
+      employeeId: a.employeeId,
+      leaveType: a.leaveType,
+      year: a.year,
+      allocatedDays: Number(a.allocatedDays),
+      usedDays: Number(a.usedDays),
+      pendingDays: Number(a.pendingDays),
+      balanceDays: Number(a.balanceDays),
+    }));
+
     return apiSuccess({
       count: formattedLeaves.length,
       leaves: formattedLeaves,
+      leaveAllocations: formattedAllocations,
       userRole: userCtx.role,
     });
   } catch (error: any) {

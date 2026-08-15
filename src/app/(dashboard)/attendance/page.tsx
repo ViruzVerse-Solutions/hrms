@@ -127,44 +127,54 @@ function AttendanceContent() {
 
       {/* Overview Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
-        <Card>
-          <CardContent className="p-6">
-            <span className="text-xs font-semibold text-slate-500">{isEmployee ? 'My Present Days' : 'Present Today'}</span>
-            <div className="text-3xl font-extrabold text-emerald-600 mt-2">
-              {baseRecords.filter((a) => a.status === 'present').length || 21}
-            </div>
-            <div className="text-xs text-emerald-600 mt-1 font-medium">98.2% on-time punch rate</div>
-          </CardContent>
-        </Card>
+        {(() => {
+          const presentDays = baseRecords.filter((a) => a.status === 'present').length;
+          const totalHours = baseRecords.reduce((acc, r) => acc + (Number(r.totalHours) || 0), 0);
+          const punchRate = baseRecords.length > 0 ? ((presentDays / baseRecords.length) * 100).toFixed(1) : '100.0';
 
-        <Card>
-          <CardContent className="p-6">
-            <span className="text-xs font-semibold text-slate-500">{isEmployee ? 'Total Logged Hours' : 'Half-Day & Permissions'}</span>
-            <div className="text-3xl font-extrabold text-indigo-600 mt-2">
-              {isEmployee ? '178.5 hrs' : `${attendanceRecords.filter((a) => a.status === 'half_day').length}`}
-            </div>
-            <div className="text-xs text-slate-400 mt-1">{isEmployee ? 'Current Month Cycle' : '4.5 hours shift recorded'}</div>
-          </CardContent>
-        </Card>
+          return (
+            <>
+              <Card>
+                <CardContent className="p-6">
+                  <span className="text-xs font-semibold text-slate-500">{isEmployee ? 'My Present Days' : 'Present Today'}</span>
+                  <div className="text-3xl font-extrabold text-emerald-600 mt-2">
+                    {presentDays}
+                  </div>
+                  <div className="text-xs text-emerald-600 mt-1 font-medium">{punchRate}% on-time punch rate</div>
+                </CardContent>
+              </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <span className="text-xs font-semibold text-slate-500">{isEmployee ? 'Approved Overtime' : 'Regularization Requests'}</span>
-            <div className="text-3xl font-extrabold text-amber-500 mt-2">{isEmployee ? '4.0 hrs' : '1 Approved'}</div>
-            <div className="text-xs text-indigo-600 mt-1">Audit log verified</div>
-          </CardContent>
-        </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <span className="text-xs font-semibold text-slate-500">{isEmployee ? 'Total Logged Hours' : 'Half-Day & Permissions'}</span>
+                  <div className="text-3xl font-extrabold text-indigo-600 mt-2">
+                    {isEmployee ? `${totalHours.toFixed(1)} hrs` : `${attendanceRecords.filter((a) => a.status === 'half_day').length}`}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">{isEmployee ? 'Current Month Cycle' : '4.5 hours shift recorded'}</div>
+                </CardContent>
+              </Card>
 
-        <Card>
-          <CardContent className="p-6">
-            <span className="text-xs font-semibold text-slate-500">Biometric Gateway</span>
-            <div className="text-base font-bold text-slate-900 dark:text-white mt-2 flex items-center gap-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              Plant Gateway v2.4
-            </div>
-            <div className="text-xs text-slate-400 mt-1">Last synced live</div>
-          </CardContent>
-        </Card>
+              <Card>
+                <CardContent className="p-6">
+                  <span className="text-xs font-semibold text-slate-500">{isEmployee ? 'Approved Overtime' : 'Regularization Requests'}</span>
+                  <div className="text-3xl font-extrabold text-amber-500 mt-2">{isEmployee ? '0.0 hrs' : '0 Pending'}</div>
+                  <div className="text-xs text-indigo-600 mt-1">Audit log verified</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <span className="text-xs font-semibold text-slate-500">Biometric Gateway</span>
+                  <div className="text-base font-bold text-slate-900 dark:text-white mt-2 flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Plant Gateway Live
+                  </div>
+                  <div className="text-xs text-slate-400 mt-1">Last synced live</div>
+                </CardContent>
+              </Card>
+            </>
+          );
+        })()}
       </div>
 
       {/* Filter Toolbar */}

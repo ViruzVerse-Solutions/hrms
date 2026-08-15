@@ -7,6 +7,7 @@ import {
   ModuleKey,
   Employee,
   LeaveRequest,
+  LeaveBalance,
   AttendanceRecord,
   PayrollRun,
   Payslip,
@@ -37,6 +38,7 @@ interface AuthContextType {
   // Reactive Global State
   employees: Employee[];
   leaveRequests: LeaveRequest[];
+  leaveAllocations: LeaveBalance[];
   attendanceRecords: AttendanceRecord[];
   payrollRuns: PayrollRun[];
   payslips: Payslip[];
@@ -68,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Data stores
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [leaveAllocations, setLeaveAllocations] = useState<LeaveBalance[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
@@ -96,12 +99,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 2. Fetch Leaves
     fetch('/api/leaves', {
-      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_005' },
     })
       .then((res) => res.json())
       .then((data) => {
         if (data?.data?.leaves) {
           setLeaveRequests(data.data.leaves);
+        }
+        if (data?.data?.leaveAllocations) {
+          setLeaveAllocations(data.data.leaveAllocations);
         }
       })
       .catch(() => {});
@@ -414,6 +420,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         roleDetails,
         employees,
         leaveRequests,
+        leaveAllocations,
         attendanceRecords,
         payrollRuns,
         payslips,

@@ -37,48 +37,64 @@ function ResignationContent() {
   const [hasSubmittedResignation, setHasSubmittedResignation] = useState(false);
   const [resignationReason, setResignationReason] = useState('');
   const [lastWorkingDay, setLastWorkingDay] = useState('2026-10-15');
+  const [exitCase, setExitCase] = useState<ResignationCase | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const empName = currentEmployee ? `${currentEmployee.firstName} ${currentEmployee.lastName}` : currentUser.name;
 
-  const [exitCase, setExitCase] = useState<ResignationCase>({
-    id: 'res_1',
-    employeeId: currentEmployee?.id || currentUser.employeeId || 'emp_005',
-    employeeName: isEmployee ? empName : 'Kavita Nair',
-    resignationDate: '2026-08-15',
-    requestedLwd: '2026-10-15',
-    approvedLwd: '2026-10-15',
-    noticePeriodDays: 60,
-    reason: 'Career transition & higher studies',
-    status: 'clearance_in_progress',
-    clearances: {
-      it: { status: 'cleared', clearedBy: 'IT Asset Lead' },
-      admin: { status: 'cleared', clearedBy: 'Admin Desk' },
-      finance: { status: 'pending' },
-      hr: { status: 'pending' },
-    },
-    ffSettlement: {
-      pendingSalary: 112000,
-      leaveEncashment: 42000,
-      bonusGratuity: 85000,
-      noticeShortfallDeduction: 0,
-      assetDeduction: 0,
-      totalNetSettlement: 239000,
-      status: 'draft',
-    },
-  });
+  React.useEffect(() => {
+    fetch('/api/resignation', {
+      headers: {
+        'x-user-role': currentRole,
+        'x-employee-id': currentEmployee?.id || currentUser.employeeId || 'emp_005',
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.exitCase) {
+          setExitCase(data.data.exitCase);
+          setHasSubmittedResignation(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [currentRole, currentEmployee]);
 
   const [relievingModalOpen, setRelievingModalOpen] = useState(false);
 
   const handleSubmitNotice = (e: React.FormEvent) => {
     e.preventDefault();
-    setExitCase({
-      ...exitCase,
-      employeeName: empName,
-      reason: resignationReason || 'Career Transition',
+    const payload = {
       requestedLwd: lastWorkingDay,
-      approvedLwd: lastWorkingDay,
-      status: 'clearance_in_progress',
-    });
+      reason: resignationReason || 'Career Transition',
+    };
+
+    fetch('/api/resignation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-role': currentRole,
+        'x-employee-id': currentEmployee?.id || currentUser.employeeId || 'emp_005',
+      },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.exitCase) {
+          fetch('/api/resignation', {
+            headers: {
+              'x-user-role': currentRole,
+              'x-employee-id': currentEmployee?.id || currentUser.employeeId || 'emp_005',
+            },
+          })
+            .then((r) => r.json())
+            .then((d) => {
+              if (d?.data?.exitCase) setExitCase(d.data.exitCase);
+            });
+        }
+      })
+      .catch(() => {});
+
     setHasSubmittedResignation(true);
   };
 
@@ -131,7 +147,7 @@ function ResignationContent() {
               <div className="space-y-1">
                 <label className="font-semibold text-slate-700 dark:text-slate-300">Employee Details</label>
                 <div className="p-3 rounded-xl bg-white dark:bg-slate-800 border font-semibold">
-                  {empName} ({currentEmployee?.employeeCode || 'VV-1005'}) — Senior Analytical Chemist & QC Specialist
+                  {empName} ({currentEmployee?.employeeCode || 'VV-1005'}) — {currentEmployee?.designationTitle || 'Senior Analytical Chemist & QC Specialist'}
                 </div>
               </div>
 

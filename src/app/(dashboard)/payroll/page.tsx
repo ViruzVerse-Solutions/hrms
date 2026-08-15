@@ -194,13 +194,13 @@ function PayrollContent() {
                     <td className="p-3 font-semibold">{ps.period}</td>
                     <td className="p-3 font-mono">{ps.paidDays} Days</td>
                     <td className="p-3 font-mono font-semibold">
-                      {formatCurrency(ps.breakup.grossEarnings)}
+                      {formatCurrency(ps.breakup?.grossEarnings ?? 0)}
                     </td>
                     <td className="p-3 font-mono text-rose-600">
-                      -{formatCurrency(ps.breakup.totalDeductions)}
+                      -{formatCurrency(ps.breakup?.totalDeductions ?? 0)}
                     </td>
                     <td className="p-3 font-mono font-bold text-emerald-600">
-                      {formatCurrency(ps.breakup.netPay)}
+                      {formatCurrency(ps.breakup?.netPay ?? 0)}
                     </td>
                     <td className="p-3 text-right">
                       <Button
@@ -268,23 +268,23 @@ function PayrollContent() {
                   <h4 className="font-bold text-emerald-600 uppercase text-[11px]">Earnings</h4>
                   <div className="flex justify-between py-1 border-b">
                     <span>Basic Pay</span>
-                    <span className="font-mono font-semibold">{formatCurrency(selectedPayslip.breakup.basic)}</span>
+                    <span className="font-mono font-semibold">{formatCurrency(selectedPayslip.breakup?.basic ?? 0)}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b">
                     <span>HRA</span>
-                    <span className="font-mono font-semibold">{formatCurrency(selectedPayslip.breakup.hra)}</span>
+                    <span className="font-mono font-semibold">{formatCurrency(selectedPayslip.breakup?.hra ?? 0)}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b">
                     <span>Special Allowance</span>
-                    <span className="font-mono font-semibold">{formatCurrency(selectedPayslip.breakup.specialAllowance)}</span>
+                    <span className="font-mono font-semibold">{formatCurrency(selectedPayslip.breakup?.specialAllowance ?? 0)}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b">
                     <span>Conveyance</span>
-                    <span className="font-mono font-semibold">{formatCurrency(selectedPayslip.breakup.conveyance)}</span>
+                    <span className="font-mono font-semibold">{formatCurrency(selectedPayslip.breakup?.conveyance ?? 0)}</span>
                   </div>
                   <div className="flex justify-between py-1.5 font-bold text-slate-900 dark:text-white">
                     <span>Gross Earnings</span>
-                    <span className="font-mono">{formatCurrency(selectedPayslip.breakup.grossEarnings)}</span>
+                    <span className="font-mono">{formatCurrency(selectedPayslip.breakup?.grossEarnings ?? 0)}</span>
                   </div>
                 </div>
 
@@ -293,23 +293,23 @@ function PayrollContent() {
                   <h4 className="font-bold text-rose-600 uppercase text-[11px]">Deductions</h4>
                   <div className="flex justify-between py-1 border-b">
                     <span>PF (Employee)</span>
-                    <span className="font-mono font-semibold text-rose-600">-{formatCurrency(selectedPayslip.breakup.pfEmployee)}</span>
+                    <span className="font-mono font-semibold text-rose-600">-{formatCurrency(selectedPayslip.breakup?.pfEmployee ?? 0)}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b">
                     <span>ESI (Employee)</span>
-                    <span className="font-mono font-semibold text-rose-600">-{formatCurrency(selectedPayslip.breakup.esiEmployee)}</span>
+                    <span className="font-mono font-semibold text-rose-600">-{formatCurrency(selectedPayslip.breakup?.esiEmployee ?? 0)}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b">
                     <span>Professional Tax</span>
-                    <span className="font-mono font-semibold text-rose-600">-{formatCurrency(selectedPayslip.breakup.professionalTax)}</span>
+                    <span className="font-mono font-semibold text-rose-600">-{formatCurrency(selectedPayslip.breakup?.professionalTax ?? 0)}</span>
                   </div>
                   <div className="flex justify-between py-1 border-b">
                     <span>TDS (Tax)</span>
-                    <span className="font-mono font-semibold text-rose-600">-{formatCurrency(selectedPayslip.breakup.tds)}</span>
+                    <span className="font-mono font-semibold text-rose-600">-{formatCurrency(selectedPayslip.breakup?.tds ?? 0)}</span>
                   </div>
                   <div className="flex justify-between py-1.5 font-bold text-rose-600">
                     <span>Total Deductions</span>
-                    <span className="font-mono">-{formatCurrency(selectedPayslip.breakup.totalDeductions)}</span>
+                    <span className="font-mono">-{formatCurrency(selectedPayslip.breakup?.totalDeductions ?? 0)}</span>
                   </div>
                 </div>
               </div>
@@ -321,7 +321,7 @@ function PayrollContent() {
                   <div className="text-xs text-slate-400">Direct credit to employee bank account</div>
                 </div>
                 <div className="text-2xl font-extrabold text-emerald-600 font-mono">
-                  {formatCurrency(selectedPayslip.breakup.netPay)}
+                  {formatCurrency(selectedPayslip.breakup?.netPay ?? 0)}
                 </div>
               </div>
             </div>

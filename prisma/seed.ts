@@ -12,6 +12,7 @@ async function main() {
     await prisma.auditLog.deleteMany().catch(() => {});
     await prisma.grievanceTicket.deleteMany().catch(() => {});
     await prisma.resignationExitCase.deleteMany().catch(() => {});
+    await prisma.trainingProgram.deleteMany().catch(() => {});
     await prisma.performanceReview.deleteMany().catch(() => {});
     await prisma.candidate.deleteMany().catch(() => {});
     await prisma.jobRequisition.deleteMany().catch(() => {});
@@ -634,6 +635,69 @@ async function main() {
       });
     }
     console.log('✅ Grievances & Audit Logs seeded');
+
+    // 12. Seed Training Programs
+    const sampleTrainings = [
+      {
+        organizationId: org.id,
+        title: 'Chemical Hazardous Material Handling & Safety',
+        category: 'compliance',
+        trainer: 'Dr. Vikramaditya Rathore',
+        startDate: new Date('2026-08-22'),
+        endDate: new Date('2026-08-24'),
+        mode: 'internal',
+        capacity: 40,
+        enrolledCount: 34,
+        status: 'upcoming',
+      },
+      {
+        organizationId: org.id,
+        title: 'ISO 9001:2015 Quality & Standard Operating Procedures',
+        category: 'technical',
+        trainer: 'External Lead Auditor',
+        startDate: new Date('2026-08-10'),
+        endDate: new Date('2026-08-12'),
+        mode: 'external_vendor',
+        vendorName: 'TUV Nord',
+        capacity: 30,
+        enrolledCount: 28,
+        status: 'completed',
+      },
+      {
+        organizationId: org.id,
+        title: 'Workplace Ergonomics & EHS First Responder',
+        category: 'compliance',
+        trainer: 'Plant Medical Officer',
+        startDate: new Date('2026-08-28'),
+        endDate: new Date('2026-08-29'),
+        mode: 'internal',
+        capacity: 25,
+        enrolledCount: 19,
+        status: 'upcoming',
+      },
+    ];
+
+    for (const tr of sampleTrainings) {
+      await prisma.trainingProgram.create({ data: tr });
+    }
+    console.log('✅ Training programs seeded');
+
+    // 13. Seed Resignation Exit Case for Employee
+    await prisma.resignationExitCase.create({
+      data: {
+        employeeId: empObjMap['VV-1005'].id,
+        resignationDate: new Date('2026-08-15'),
+        lastWorkingDay: new Date('2026-10-15'),
+        reason: 'Career transition & higher studies',
+        noticePeriodDays: 60,
+        itClearanceStatus: 'cleared',
+        deptClearanceStatus: 'cleared',
+        financeClearanceStatus: 'pending',
+        fnfAmount: 239000,
+        fnfStatus: 'draft',
+      },
+    });
+    console.log('✅ Resignation exit cases seeded');
 
     console.log('🎉 Full Viruzverse HRM seed completed successfully!');
   } finally {

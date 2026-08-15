@@ -128,11 +128,11 @@ function PerformanceContent() {
                 <CardTitle className="text-base font-bold">Key Result Areas (KRAs) & Weightages</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {(review.kras || [
-                  { title: 'Core Process & Quality Compliance', weightage: 40, target: 'Zero procedural deviations and adherence to cGMP/ISO guidelines', selfScore: 4.5, managerScore: 4.6 },
-                  { title: 'Operational Efficiency & Turnaround', weightage: 35, target: 'Achieve >95% SLA adherence across batch processes and analysis', selfScore: 4.6, managerScore: 4.8 },
-                  { title: 'Team Collaboration & Plant Safety', weightage: 25, target: 'Active participation in EHS audits and junior team mentoring', selfScore: 4.8, managerScore: 4.7 },
-                ]).map((kra, idx) => (
+                {(review.kras && review.kras.length > 0 ? review.kras : [
+                  { title: 'Core Process & Quality Compliance', weightage: 40, target: 'Zero procedural deviations and adherence to cGMP/ISO guidelines', selfScore: Number(review.selfRating || 4.5), managerScore: Number(review.managerRating || 4.7) },
+                  { title: 'Operational Efficiency & Turnaround', weightage: 35, target: 'Achieve >95% SLA adherence across batch processes and analysis', selfScore: Number(review.selfRating || 4.5), managerScore: Number(review.managerRating || 4.7) },
+                  { title: 'Team Collaboration & Plant Safety', weightage: 25, target: 'Active participation in EHS audits and junior team mentoring', selfScore: Number(review.selfRating || 4.5), managerScore: Number(review.managerRating || 4.7) },
+                ]).map((kra: any, idx: number) => (
                   <div key={idx} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border space-y-2 text-xs">
                     <div className="flex items-center justify-between font-bold">
                       <span className="text-slate-900 dark:text-white text-sm">{kra.title}</span>

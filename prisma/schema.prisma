@@ -129,6 +129,7 @@ model Organization {
   users         User[]
   employees     Employee[]
   payrollRuns   PayrollRun[]
+  trainingPrograms TrainingProgram[]
   auditLogs     AuditLog[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -573,4 +574,24 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, read])
+}
+
+model TrainingProgram {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  category       String       // e.g. "compliance", "technical"
+  trainer        String
+  startDate      DateTime     @db.Date
+  endDate        DateTime     @db.Date
+  mode           String       @default("internal") // "internal", "external_vendor"
+  vendorName     String?
+  capacity       Int          @default(30)
+  enrolledCount  Int          @default(0)
+  status         String       @default("upcoming") // "upcoming", "completed"
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, status])
 }
