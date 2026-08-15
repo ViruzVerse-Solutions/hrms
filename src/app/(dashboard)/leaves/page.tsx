@@ -33,6 +33,7 @@ function LeavesContent() {
   const {
     leaveRequests,
     leaveAllocations,
+    setLeaveAllocations,
     addLeaveRequest,
     updateLeaveStatus,
     currentUser,
@@ -90,6 +91,43 @@ function LeavesContent() {
     setForm({ leaveType: 'casual', fromDate: todayStr, toDate: todayStr, reason: '' });
   };
 
+  const canConfigurePolicy = currentRole === 'hr_head' || currentRole === 'managing_director';
+  const [policyModalOpen, setPolicyModalOpen] = useState(false);
+  const [policyForm, setPolicyForm] = useState({
+    leaveType: 'casual' as LeaveType,
+    allocatedDays: 12,
+  });
+  const [policySuccessMsg, setPolicySuccessMsg] = useState('');
+
+  const handleUpdatePolicy = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetch('/api/leaves/allocation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-role': currentRole,
+      },
+      body: JSON.stringify(policyForm),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success) {
+          setPolicySuccessMsg(data.message || 'Leave quota policy updated successfully');
+          fetch('/api/leaves', {
+            headers: {
+              'x-user-role': currentRole,
+              'x-employee-id': currentUser.employeeId || 'emp_005',
+            },
+          })
+            .then((r) => r.json())
+            .then((d) => {
+              if (d?.data?.leaveAllocations) setLeaveAllocations(d.data.leaveAllocations);
+            });
+        }
+      })
+      .catch(() => {});
+  };
+
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -106,14 +144,71 @@ function LeavesContent() {
           </p>
         </div>
 
-        {/* Apply Leave Modal */}
-        <Dialog open={applyModalOpen} onOpenChange={(open) => {
-          setApplyModalOpen(open);
-          if (open) {
-            setForm({ leaveType: 'casual', fromDate: todayStr, toDate: todayStr, reason: '' });
-            setDateError('');
-          }
-        }}>
+        <div className="flex items-center gap-2">
+          {canConfigurePolicy && (
+            <Dialog open={policyModalOpen} onOpenChange={(open) => {
+              setPolicyModalOpen(open);
+              if (open) setPolicySuccessMsg('');
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="gap-2 shadow-sm text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+                  <AlertTriangle className="h-4 w-4 text-indigo-600" />
+                  <span>Configure Leave Quotas</span>
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Configure Company Leave Quota Policy</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleUpdatePolicy} className="space-y-4 pt-2 text-xs">
+                  {policySuccessMsg && (
+                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
+                      {policySuccessMsg}
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">Leave Type</label>
+                    <select
+                      value={policyForm.leaveType}
+                      onChange={(e) => setPolicyForm({ ...policyForm, leaveType: e.target.value as LeaveType })}
+                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                    >
+                      <option value="casual">Casual Leave (CL)</option>
+                      <option value="sick">Sick Leave (SL)</option>
+                      <option value="earned">Earned / Privilege Leave (EL)</option>
+                      <option value="maternity">Maternity Leave</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">Annual Allocated Days Quota</label>
+                    <Input
+                      type="number"
+                      required
+                      min={1}
+                      max={365}
+                      value={policyForm.allocatedDays}
+                      onChange={(e) => setPolicyForm({ ...policyForm, allocatedDays: Number(e.target.value) })}
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700">
+                    Save Policy Quota & Recalculate DB Balances
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          {/* Apply Leave Modal */}
+          <Dialog open={applyModalOpen} onOpenChange={(open) => {
+            setApplyModalOpen(open);
+            if (open) {
+              setForm({ leaveType: 'casual', fromDate: todayStr, toDate: todayStr, reason: '' });
+              setDateError('');
+            }
+          }}>
           <DialogTrigger asChild>
             <Button className="gap-2 shadow-md text-xs">
               <Plus className="h-4 w-4" />
@@ -214,6 +309,7 @@ function LeavesContent() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {/* Leave Balances Grid */}

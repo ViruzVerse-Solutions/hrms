@@ -49,7 +49,8 @@ interface AuthContextType {
   auditLogs: AuditLogItem[];
   notifications: SystemNotification[];
   setAttendanceRecords: React.Dispatch<React.SetStateAction<AttendanceRecord[]>>;
-  // State Mutators
+  setLeaveAllocations: React.Dispatch<React.SetStateAction<LeaveBalance[]>>;
+  refreshLeaves: () => Promise<void>;
   addLeaveRequest: (req: Omit<LeaveRequest, 'id' | 'appliedAt' | 'status'>) => void;
   updateLeaveStatus: (id: string, status: 'approved' | 'rejected', comment?: string) => void;
   updateAttendanceCheckin: (status: 'present' | 'half_day') => void;
@@ -213,6 +214,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     canPerformAction(currentRole, module, action);
   const isSalaryVisible = (isOwnProfile = false) => canViewSensitiveSalary(currentRole, isOwnProfile);
   const roleDetails = ROLE_LABELS[currentRole];
+
+  const refreshLeaves = async () => {
+    try {
+      const res = await fetch('/api/leaves', {
+        headers: {
+          'x-user-role': currentRole,
+          'x-employee-id': currentUser.employeeId || 'emp_005',
+        },
+      });
+      const data = await res.json();
+      if (data?.data?.leaves) setLeaveRequests(data.data.leaves);
+      if (data?.data?.leaveAllocations) setLeaveAllocations(data.data.leaveAllocations);
+    } catch {}
+  };
 
   const logAuditAction = (action: string, module: ModuleKey, entityId: string, details: string) => {
     const newLog: AuditLogItem = {
@@ -448,6 +463,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         auditLogs,
         notifications,
         setAttendanceRecords,
+        setLeaveAllocations,
+        refreshLeaves,
         addLeaveRequest,
         updateLeaveStatus,
         updateAttendanceCheckin,
