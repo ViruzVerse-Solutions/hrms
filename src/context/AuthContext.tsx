@@ -67,6 +67,37 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [currentRole, setCurrentRole] = useState<UserRole>('hr_head');
   const [currentUser, setCurrentUser] = useState<User>(CORE_PERSONAS[2]); // Default Eleanor Vance (HR Head)
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Restore saved role from localStorage on initial mount
+  useEffect(() => {
+    try {
+      const savedRole = localStorage.getItem('hrms_active_role') as UserRole | null;
+      const validRoles: UserRole[] = [
+        'chairman',
+        'managing_director',
+        'hr_head',
+        'internal_audit_head',
+        'compliance_statutory',
+        'employee',
+      ];
+      if (savedRole && validRoles.includes(savedRole)) {
+        setCurrentRole(savedRole);
+        const matchingUser =
+          CORE_PERSONAS.find((u) => u.activeRole === savedRole) ||
+          CORE_PERSONAS.find((u) => u.roles.includes(savedRole)) ||
+          CORE_PERSONAS[0];
+        setCurrentUser({
+          ...matchingUser,
+          activeRole: savedRole,
+        });
+      }
+    } catch (e) {
+      console.error('Failed to load saved role from localStorage:', e);
+    } finally {
+      setIsInitialized(true);
+    }
+  }, []);
   
   // Data stores
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -86,6 +117,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Initial database sync on mount & role switch
   useEffect(() => {
+    if (!isInitialized) return;
+
     // 1. Fetch Employees
     fetch('/api/employees', {
       headers: { 'x-user-role': currentRole },
@@ -192,7 +225,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         })
         .catch(() => {});
     }
-  }, [currentRole, currentUser.employeeId]);
+  }, [isInitialized, currentRole, currentUser.employeeId]);
 
   // Sync user profile synchronously when role is changed
   const handleSetRole = (newRole: UserRole) => {
@@ -205,6 +238,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ...matchingUser,
       activeRole: newRole,
     });
+    try {
+      localStorage.setItem('hrms_active_role', newRole);
+    } catch (e) {
+      console.error('Failed to save role to localStorage:', e);
+    }
   };
 
   const currentEmployee = employees.find((e) => e.userId === currentUser.id || e.id === currentUser.employeeId);
