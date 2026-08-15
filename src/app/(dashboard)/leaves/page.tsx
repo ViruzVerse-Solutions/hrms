@@ -39,6 +39,7 @@ function LeavesContent() {
     currentUser,
     currentEmployee,
     currentRole,
+    employees,
     can,
   } = useAuth();
 
@@ -52,11 +53,11 @@ function LeavesContent() {
     reason: '',
   });
 
-  const empId = currentEmployee?.id || currentUser?.employeeId || 'emp_005';
+  const empId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
   const empName = currentEmployee ? `${currentEmployee.firstName} ${currentEmployee.lastName}` : currentUser.name;
 
   const visibleLeaves = currentRole === 'employee'
-    ? leaveRequests.filter((l) => l.employeeId === empId || l.employeeId === 'emp_005' || l.employeeName === empName || l.employeeName?.includes('Vishwadharan'))
+    ? leaveRequests.filter((l) => l.employeeId === empId || l.employeeName === empName)
     : leaveRequests;
 
   const handleApply = (e: React.FormEvent) => {
@@ -84,7 +85,7 @@ function LeavesContent() {
       toDate: form.toDate,
       daysCount: Math.max(1, daysCount),
       reason: form.reason,
-      approverId: currentEmployee?.reportingManagerId || 'emp_004',
+      approverId: currentEmployee?.reportingManagerId || '',
       approverName: currentEmployee?.reportingManagerName || 'Dr. Vikramaditya Rathore',
     });
     setApplyModalOpen(false);
@@ -116,7 +117,7 @@ function LeavesContent() {
           fetch('/api/leaves', {
             headers: {
               'x-user-role': currentRole,
-              'x-employee-id': currentUser.employeeId || 'emp_005',
+              'x-employee-id': currentUser.employeeId || '',
             },
           })
             .then((r) => r.json())

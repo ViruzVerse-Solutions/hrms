@@ -72,7 +72,7 @@ function RecruitmentContent() {
     e.preventDefault();
     addRequisition({
       ...reqForm,
-      requestedById: currentUser.employeeId || 'emp_001',
+      requestedById: currentUser.employeeId || currentUser.id,
       requestedByName: currentUser.name,
     });
     setReqModalOpen(false);

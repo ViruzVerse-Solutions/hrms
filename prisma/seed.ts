@@ -9,6 +9,9 @@ async function main() {
     // 0. Clean up all tables in reverse dependency order for a fresh, clean database
     console.log('🧹 Purging existing database tables...');
     await prisma.notification.deleteMany().catch(() => {});
+    await prisma.companyPolicy.deleteMany().catch(() => {});
+    await prisma.transferPromotionCase.deleteMany().catch(() => {});
+    await prisma.disciplinaryCase.deleteMany().catch(() => {});
     await prisma.auditLog.deleteMany().catch(() => {});
     await prisma.grievanceTicket.deleteMany().catch(() => {});
     await prisma.resignationExitCase.deleteMany().catch(() => {});
@@ -698,6 +701,99 @@ async function main() {
       },
     });
     console.log('✅ Resignation exit cases seeded');
+
+    // 14. Seed Company Policies (Set by HR Head & Compliance Officer)
+    await prisma.companyPolicy.createMany({
+      data: [
+        {
+          organizationId: org.id,
+          title: 'Plant Health & Safety Policy (EHS)',
+          category: 'safety_ehs',
+          version: 'v3.2',
+          effectiveDate: new Date('2026-01-01'),
+          status: 'active',
+          createdByName: 'Eleanor Vance',
+          createdByRole: 'hr_head',
+          acknowledgedCount: 104,
+          content: 'Mandatory environmental, health, and safety protocols for chemical and plant facility operations.',
+        },
+        {
+          organizationId: org.id,
+          title: 'Code of Business Conduct & Ethics',
+          category: 'code_of_conduct',
+          version: 'v2.1',
+          effectiveDate: new Date('2025-06-01'),
+          status: 'active',
+          createdByName: 'Kavita Menon',
+          createdByRole: 'compliance_statutory',
+          acknowledgedCount: 110,
+          content: 'Ethical guidelines, conflict of interest policy, and statutory compliance framework.',
+        },
+        {
+          organizationId: org.id,
+          title: 'POSH & Anti-Harassment Guidelines',
+          category: 'posh',
+          version: 'v4.0',
+          effectiveDate: new Date('2026-02-15'),
+          status: 'active',
+          createdByName: 'Kavita Menon',
+          createdByRole: 'compliance_statutory',
+          acknowledgedCount: 108,
+          content: 'Prevention of Sexual Harassment at Workplace Act compliance and Internal Complaints Committee framework.',
+        },
+        {
+          organizationId: org.id,
+          title: 'Industrial Shift & Overtime Regulations',
+          category: 'leave_attendance',
+          version: 'v1.4',
+          effectiveDate: new Date('2025-11-01'),
+          status: 'active',
+          createdByName: 'Eleanor Vance',
+          createdByRole: 'hr_head',
+          acknowledgedCount: 95,
+          content: 'Shift rotation, overtime calculation under Factories Act, and attendance regularization rules.',
+        },
+      ],
+    });
+    console.log('✅ Company policies seeded');
+
+    // 15. Seed Transfer & Promotion Cases
+    await prisma.transferPromotionCase.create({
+      data: {
+        organizationId: org.id,
+        employeeId: empObjMap['VV-1005'].id,
+        type: 'promotion',
+        currentDepartment: 'Quality Assurance & Analytical Lab',
+        newDepartment: 'Quality Assurance & Analytical Lab',
+        currentDesignation: 'QC Chemist (L3)',
+        newDesignation: 'Senior QC Chemist (L4)',
+        currentBranch: 'Tech Operations Center (HQ)',
+        newBranch: 'Tech Operations Center (HQ)',
+        effectiveDate: new Date('2026-09-01'),
+        initiatedBy: 'Dr. Vikramaditya Rathore',
+        status: 'approved',
+        approvalChain: ['Dr. Vikramaditya Rathore', 'Eleanor Vance'],
+      },
+    });
+    console.log('✅ Transfer & promotion cases seeded');
+
+    // 16. Seed Disciplinary Cases
+    await prisma.disciplinaryCase.createMany({
+      data: [
+        {
+          organizationId: org.id,
+          caseNumber: 'DC-2026-004',
+          employeeId: empObjMap['VV-1005'].id,
+          violationType: 'breach_of_policy',
+          incidentDate: new Date('2026-08-05'),
+          reportedBy: 'Shift Supervisor',
+          severity: 'major',
+          currentStage: 'inquiry_panel',
+          description: 'Procedural deviation during batch quality testing cycle.',
+        },
+      ],
+    });
+    console.log('✅ Disciplinary cases seeded');
 
     console.log('🎉 Full Viruzverse HRM seed completed successfully!');
   } finally {

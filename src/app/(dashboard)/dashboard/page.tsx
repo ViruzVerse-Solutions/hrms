@@ -661,8 +661,8 @@ export default function DashboardPage() {
         const casualUsed = casualAlloc ? casualAlloc.used : 3;
         const casualPend = casualAlloc ? casualAlloc.pending : 2;
 
-        const myEmpId = currentEmployee?.id || currentUser?.employeeId || 'emp_005';
-        const latestPs = payslips.find((p) => p.employeeId === myEmpId || p.employeeCode === 'VV-1005') || payslips[0];
+        const myEmpId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
+        const latestPs = payslips.find((p) => p.employeeId === myEmpId || p.employeeCode === currentEmployee?.employeeCode) || payslips[0];
         const payslipNet = latestPs?.breakup?.netPay ?? 128450;
         const payslipPeriod = latestPs?.period || 'July 2026';
 

@@ -46,7 +46,7 @@ function ResignationContent() {
     fetch('/api/resignation', {
       headers: {
         'x-user-role': currentRole,
-        'x-employee-id': currentEmployee?.id || currentUser.employeeId || 'emp_005',
+        'x-employee-id': currentEmployee?.id || currentUser.employeeId || '',
       },
     })
       .then((res) => res.json())
@@ -74,7 +74,7 @@ function ResignationContent() {
       headers: {
         'Content-Type': 'application/json',
         'x-user-role': currentRole,
-        'x-employee-id': currentEmployee?.id || currentUser.employeeId || 'emp_005',
+        'x-employee-id': currentEmployee?.id || currentUser.employeeId || '',
       },
       body: JSON.stringify(payload),
     })
@@ -84,7 +84,7 @@ function ResignationContent() {
           fetch('/api/resignation', {
             headers: {
               'x-user-role': currentRole,
-              'x-employee-id': currentEmployee?.id || currentUser.employeeId || 'emp_005',
+              'x-employee-id': currentEmployee?.id || currentUser.employeeId || '',
             },
           })
             .then((r) => r.json())

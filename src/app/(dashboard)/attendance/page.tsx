@@ -36,6 +36,7 @@ function AttendanceContent() {
     currentRole,
     currentEmployee,
     currentUser,
+    employees,
     setAttendanceRecords,
   } = useAuth();
 
@@ -44,7 +45,7 @@ function AttendanceContent() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState('Just now');
 
-  const empId = currentEmployee?.id || currentUser?.employeeId || 'emp_005';
+  const empId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
   const isEmployee = currentRole === 'employee';
 
   const syncBiometricData = () => {
@@ -76,7 +77,7 @@ function AttendanceContent() {
   }, [currentRole, empId]);
 
   const baseRecords = isEmployee
-    ? attendanceRecords.filter((r) => r.employeeId === empId || r.employeeId === 'emp_005' || r.employeeId === 'VV-1005')
+    ? attendanceRecords.filter((r) => r.employeeId === empId || (currentEmployee?.employeeCode && r.employeeId === currentEmployee.employeeCode))
     : attendanceRecords;
 
   const filteredRecords = baseRecords.filter((rec) => {

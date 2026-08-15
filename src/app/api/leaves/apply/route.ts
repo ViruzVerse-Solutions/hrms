@@ -17,17 +17,23 @@ export async function POST(req: NextRequest) {
       return apiError('Missing required fields: leaveType, fromDate, toDate', 400);
     }
 
-    const codeMap: Record<string, string> = {
-      emp_000: 'VV-1000',
-      emp_001: 'VV-1001',
-      emp_002: 'VV-1002',
-      emp_003: 'VV-1003',
-      emp_004: 'VV-1004',
-      emp_005: 'VV-1005',
-    };
+    let emp = await prisma.employee.findFirst({
+      where: {
+        OR: [
+          { id: employeeId || userCtx.employeeId || '' },
+          { employeeCode: employeeId || userCtx.employeeCode || '' },
+          { userId: userCtx.userId },
+        ],
+      },
+    });
 
-    const targetEmpId = employeeId || userCtx.employeeId || 'emp_005';
-    const resolvedCode = codeMap[targetEmpId] || targetEmpId;
+    if (!emp) {
+      emp = await prisma.employee.findFirst();
+    }
+
+    if (!emp) {
+      return apiError('No target employee record found in database', 404);
+    }
 
     const d1 = new Date(fromDate);
     const d2 = new Date(toDate);
@@ -36,55 +42,41 @@ export async function POST(req: NextRequest) {
 
     let createdRequest: any = null;
 
-    if (prisma) {
-      // Find employee to get real ID
-      const emp = await prisma.employee.findFirst({
-        where: {
-          OR: [
-            { id: targetEmpId },
-            { employeeCode: targetEmpId },
-            { employeeCode: resolvedCode },
-            { email: userCtx.email },
-          ],
+    if (prisma && emp) {
+      createdRequest = await prisma.leaveRequest.create({
+        data: {
+          employeeId: emp.id,
+          leaveType: leaveType as any,
+          fromDate: new Date(fromDate),
+          toDate: new Date(toDate),
+          daysCount: daysCount,
+          reason: reason || 'Personal Leave',
+          status: 'pending',
+          approverId: emp.reportingManagerId || undefined,
+        },
+        include: {
+          employee: true,
         },
       });
 
-      if (emp) {
-        createdRequest = await prisma.leaveRequest.create({
-          data: {
-            employeeId: emp.id,
-            leaveType: leaveType as any,
-            fromDate: new Date(fromDate),
-            toDate: new Date(toDate),
-            daysCount: daysCount,
-            reason: reason || 'Personal Leave',
-            status: 'pending',
-            approverId: emp.reportingManagerId || undefined,
-          },
-          include: {
-            employee: true,
-          },
-        });
-
-        // Update leave allocation pending days
-        await prisma.leaveAllocation.updateMany({
-          where: {
-            employeeId: emp.id,
-            leaveType: leaveType as any,
-            year: 2026,
-          },
-          data: {
-            pendingDays: { increment: daysCount },
-          },
-        }).catch(() => {});
-      }
+      // Update leave allocation pending days
+      await prisma.leaveAllocation.updateMany({
+        where: {
+          employeeId: emp.id,
+          leaveType: leaveType as any,
+          year: 2026,
+        },
+        data: {
+          pendingDays: { increment: daysCount },
+        },
+      }).catch(() => {});
     }
 
     if (!createdRequest) {
       createdRequest = {
         id: `leave_${Date.now()}`,
-        employeeId: targetEmpId,
-        employeeName: userCtx.name,
+        employeeId: emp?.id || 'emp_001',
+        employeeName: userCtx.employeeName || 'Employee',
         leaveType: leaveType as LeaveType,
         fromDate,
         toDate,

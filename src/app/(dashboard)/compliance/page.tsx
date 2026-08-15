@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   FileText,
@@ -9,6 +9,8 @@ import {
   Download,
   Plus,
   BookOpen,
+  X,
+  Lock,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -16,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { PolicyDocument } from '@/types';
+import { useAuth } from '@/context/AuthContext';
 
 export default function CompliancePage() {
   return (
@@ -26,12 +29,71 @@ export default function CompliancePage() {
 }
 
 function ComplianceContent() {
-  const [policies] = useState<PolicyDocument[]>([
-    { id: 'pol_1', title: 'Plant Health & Safety Policy (EHS)', category: 'code_of_conduct', version: 'v3.2', effectiveDate: '2026-01-01', acknowledgedCount: 104, totalEmployees: 110, fileUrl: '#' },
-    { id: 'pol_2', title: 'Code of Business Conduct & Ethics', category: 'code_of_conduct', version: 'v2.1', effectiveDate: '2025-06-01', acknowledgedCount: 110, totalEmployees: 110, fileUrl: '#' },
-    { id: 'pol_3', title: 'POSH & Anti-Harassment Guidelines', category: 'posh', version: 'v4.0', effectiveDate: '2026-02-15', acknowledgedCount: 108, totalEmployees: 110, fileUrl: '#' },
-    { id: 'pol_4', title: 'Industrial Shift & Overtime Regulations', category: 'leave_attendance', version: 'v1.4', effectiveDate: '2025-11-01', acknowledgedCount: 95, totalEmployees: 110, fileUrl: '#' },
-  ]);
+  const { currentRole, can } = useAuth();
+  const [policies, setPolicies] = useState<PolicyDocument[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    title: '',
+    category: 'code_of_conduct',
+    version: 'v1.0',
+    effectiveDate: new Date().toISOString().split('T')[0],
+    content: '',
+  });
+
+  const canPublish = can('create', 'policy_compliance');
+
+  const fetchPolicies = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch('/api/compliance', {
+        headers: { 'x-user-role': currentRole },
+      });
+      const data = await res.json();
+      if (data?.data?.policies) {
+        setPolicies(data.data.policies);
+      }
+    } catch (err) {
+      console.error('Failed to load policies:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPolicies();
+  }, [currentRole]);
+
+  const handlePublish = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.title) return;
+
+    try {
+      const res = await fetch('/api/compliance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': currentRole,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setIsModalOpen(false);
+        setFormData({
+          title: '',
+          category: 'code_of_conduct',
+          version: 'v1.0',
+          effectiveDate: new Date().toISOString().split('T')[0],
+          content: '',
+        });
+        fetchPolicies();
+      }
+    } catch (err) {
+      console.error('Failed to publish policy:', err);
+    }
+  };
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
@@ -49,10 +111,17 @@ function ComplianceContent() {
           </p>
         </div>
 
-        <Button className="gap-2 shadow-sm text-xs">
-          <Plus className="h-4 w-4" />
-          <span>Publish Policy Document</span>
-        </Button>
+        {canPublish ? (
+          <Button onClick={() => setIsModalOpen(true)} className="gap-2 shadow-sm text-xs bg-indigo-600 hover:bg-indigo-700">
+            <Plus className="h-4 w-4" />
+            <span>Publish Policy Document</span>
+          </Button>
+        ) : (
+          <Badge variant="secondary" className="px-3 py-1.5 gap-1.5 text-xs text-slate-600 bg-slate-100">
+            <Lock className="h-3.5 w-3.5" />
+            <span>Policy Governance (View Only)</span>
+          </Badge>
+        )}
       </div>
 
       {/* Statutory Register Cards */}
@@ -103,68 +172,150 @@ function ComplianceContent() {
         </Card>
       </div>
 
-      {/* Published Policy Documents */}
+      {/* Policy Repository */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base font-bold flex items-center gap-2">
-            <FileText className="h-4 w-4 text-indigo-600" />
-            <span>Active Enterprise Policies & Digital Acknowledgement Status</span>
+          <CardTitle className="text-base font-bold flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-indigo-600" />
+              <span>Active Corporate Policies</span>
+            </div>
+            <Badge variant="outline" className="text-xs font-mono">
+              {policies.length} Active Documents
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 text-slate-500 uppercase font-semibold border-b">
-                <tr>
-                  <th className="py-3 px-4">Policy Document</th>
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Version</th>
-                  <th className="py-3 px-4">Effective Date</th>
-                  <th className="py-3 px-4">Acknowledgement Rate</th>
-                  <th className="py-3 px-4 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {policies.map((policy) => {
-                  const ackPercentage = Math.round((policy.acknowledgedCount / policy.totalEmployees) * 100);
-                  return (
-                    <tr key={policy.id} className="hover:bg-slate-50/50">
-                      <td className="py-3.5 px-4 font-semibold text-slate-900">
-                        {policy.title}
-                      </td>
-                      <td className="py-3.5 px-4 capitalize">
-                        <Badge variant="outline">{policy.category.replace('_', ' ')}</Badge>
-                      </td>
-                      <td className="py-3.5 px-4 font-mono">{policy.version}</td>
-                      <td className="py-3.5 px-4 text-slate-500">{formatDate(policy.effectiveDate)}</td>
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-slate-200 h-2 rounded-full overflow-hidden w-24">
-                            <div
-                              className={`h-full rounded-full ${
-                                ackPercentage >= 95 ? 'bg-emerald-500' : ackPercentage >= 80 ? 'bg-indigo-500' : 'bg-amber-500'
-                              }`}
-                              style={{ width: `${ackPercentage}%` }}
-                            />
-                          </div>
-                          <span className="font-bold text-slate-700">{ackPercentage}%</span>
-                          <span className="text-[10px] text-slate-400">({policy.acknowledgedCount}/{policy.totalEmployees})</span>
-                        </div>
-                      </td>
-                      <td className="py-3.5 px-4 text-right">
-                        <Button variant="ghost" size="sm" className="h-8 text-xs gap-1">
-                          <Download className="h-3.5 w-3.5" />
-                          <span>PDF</span>
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          {isLoading ? (
+            <div className="py-8 text-center text-xs text-slate-500">Syncing policies from database...</div>
+          ) : policies.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-500">No active corporate policies found in database.</div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {policies.map((p) => (
+                <div key={p.id} className="py-4 flex items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-slate-900">{p.title}</span>
+                      <Badge variant="secondary" className="text-[10px] uppercase font-mono">
+                        {p.version}
+                      </Badge>
+                      {p.createdByRole && (
+                        <span className="text-[10px] text-slate-400">
+                          Set by: <strong className="text-slate-600">{p.createdByName || p.createdByRole}</strong>
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500 flex items-center gap-4">
+                      <span>Category: <strong className="capitalize">{p.category.replace(/_/g, ' ')}</strong></span>
+                      <span>Effective: {formatDate(p.effectiveDate)}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-xs font-bold text-slate-800">
+                        {p.acknowledgedCount} / {p.totalEmployees || 110}
+                      </div>
+                      <div className="text-[10px] text-slate-400">Acknowledged</div>
+                    </div>
+                    <Button variant="outline" size="sm" className="gap-1 text-xs">
+                      <Download className="h-3.5 w-3.5" />
+                      <span>PDF</span>
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Publish Policy Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-200">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-bold text-base text-slate-900">Publish New Corporate Policy</h3>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handlePublish} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Policy Document Title</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g., Information Security & Data Protection Policy"
+                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Category</label>
+                  <select
+                    className="w-full px-3 py-2 border rounded-lg outline-none"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  >
+                    <option value="code_of_conduct">Code of Conduct</option>
+                    <option value="posh">POSH Compliance</option>
+                    <option value="leave_attendance">Leave & Attendance</option>
+                    <option value="safety_ehs">Plant Safety (EHS)</option>
+                    <option value="it_security">IT & Data Security</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Version</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="v1.0"
+                    className="w-full px-3 py-2 border rounded-lg outline-none"
+                    value={formData.version}
+                    onChange={(e) => setFormData({ ...formData, version: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Effective Date</label>
+                <input
+                  type="date"
+                  required
+                  className="w-full px-3 py-2 border rounded-lg outline-none"
+                  value={formData.effectiveDate}
+                  onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Policy Description & Directives</label>
+                <textarea
+                  rows={3}
+                  placeholder="Enter policy terms, statutory adherence guidelines, and mandatory scope..."
+                  className="w-full px-3 py-2 border rounded-lg outline-none"
+                  value={formData.content}
+                  onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t">
+                <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                  Publish Policy
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

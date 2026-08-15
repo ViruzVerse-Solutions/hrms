@@ -41,13 +41,14 @@ function PayrollContent() {
     currentEmployee,
     can,
     currentRole,
+    employees,
   } = useAuth();
 
   // Employee self-service: only see own payslip!
-  const employeeId = currentEmployee?.id || currentUser?.employeeId || 'emp_005';
-  const employeeCode = currentEmployee?.employeeCode || 'VV-1005';
+  const employeeId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
+  const employeeCode = currentEmployee?.employeeCode || '';
   const visiblePayslips = currentRole === 'employee'
-    ? payslips.filter((ps) => ps.employeeId === employeeId || ps.employeeCode === employeeCode || ps.employeeId === 'emp_005' || ps.employeeCode === 'VV-1005')
+    ? payslips.filter((ps) => ps.employeeId === employeeId || (employeeCode && ps.employeeCode === employeeCode))
     : payslips;
 
   const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(visiblePayslips[0] || null);

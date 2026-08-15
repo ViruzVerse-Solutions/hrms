@@ -342,12 +342,15 @@ export interface TrainingProgram {
 export interface PolicyDocument {
   id: string;
   title: string;
-  category: 'code_of_conduct' | 'leave_attendance' | 'posh' | 'it_security' | 'compensation';
+  category: 'code_of_conduct' | 'leave_attendance' | 'posh' | 'it_security' | 'compensation' | 'safety_ehs' | string;
   version: string;
   effectiveDate: string;
   acknowledgedCount: number;
   totalEmployees: number;
   fileUrl: string;
+  createdByName?: string;
+  createdByRole?: UserRole;
+  status?: string;
 }
 
 export interface ResignationCase {
@@ -366,6 +369,12 @@ export interface ResignationCase {
     finance: { status: 'pending' | 'cleared'; clearedBy?: string; notes?: string };
     hr: { status: 'pending' | 'cleared'; clearedBy?: string; notes?: string };
   };
+  fnfDetails?: {
+    grossAmount: number;
+    deductions: number;
+    netAmount: number;
+    status: 'pending' | 'processed' | 'disbursed';
+  };
   ffSettlement?: {
     pendingSalary: number;
     leaveEncashment: number;
@@ -379,15 +388,16 @@ export interface ResignationCase {
 
 export interface DisciplinaryCase {
   id: string;
-  caseNumber: string;
+  caseNumber?: string;
   employeeId: string;
   employeeName: string;
-  violationType: 'absenteeism' | 'insubordination' | 'misconduct' | 'breach_of_policy';
+  violationType: 'absenteeism' | 'insubordination' | 'misconduct' | 'breach_of_policy' | 'posh_violation' | string;
   incidentDate: string;
   reportedBy: string;
-  severity: 'minor' | 'major' | 'severe';
-  currentStage: 'show_cause_issued' | 'explanation_received' | 'inquiry_panel' | 'capa_active' | 'closed';
-  actionTaken?: 'written_warning' | 'pip' | 'suspension' | 'termination';
+  severity: 'minor' | 'major' | 'critical' | 'severe' | string;
+  currentStage: 'show_cause_notice' | 'show_cause_issued' | 'explanation_received' | 'inquiry_panel' | 'action_taken' | 'capa_active' | 'closed' | string;
+  actionTaken?: string;
+  description?: string;
   createdAt: string;
 }
 
@@ -395,7 +405,7 @@ export interface TransferPromotionCase {
   id: string;
   employeeId: string;
   employeeName: string;
-  type: 'transfer' | 'promotion' | 'role_change';
+  type: 'transfer' | 'promotion' | 'relocation' | 'role_change' | string;
   currentDepartment: string;
   newDepartment: string;
   currentDesignation: string;
@@ -404,7 +414,7 @@ export interface TransferPromotionCase {
   newBranch: string;
   effectiveDate: string;
   initiatedBy: string;
-  status: 'draft' | 'pending_approval' | 'approved' | 'completed';
+  status: 'draft' | 'pending' | 'pending_approval' | 'approved' | 'completed' | string;
   approvalChain: string[];
 }
 

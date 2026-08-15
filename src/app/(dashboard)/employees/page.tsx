@@ -34,10 +34,10 @@ export default function EmployeesPage() {
 
   React.useEffect(() => {
     if (currentRole === 'employee') {
-      const selfId = currentEmployee?.id || currentUser.employeeId || 'emp_005';
-      router.replace(`/employees/${selfId}`);
+      const selfId = currentEmployee?.id || currentUser.employeeId || employees[0]?.id;
+      if (selfId) router.replace(`/employees/${selfId}`);
     }
-  }, [currentRole, currentEmployee, currentUser, router]);
+  }, [currentRole, currentEmployee, currentUser, employees, router]);
 
   React.useEffect(() => {
     fetch('/api/master')
@@ -52,9 +52,9 @@ export default function EmployeesPage() {
 
   const filteredEmployees = employees.filter((emp) => {
     if (currentRole === 'employee') {
-      const selfId = currentEmployee?.id || currentUser.employeeId || 'emp_005';
-      const selfCode = currentEmployee?.employeeCode || 'VV-1005';
-      return emp.id === selfId || emp.employeeCode === selfCode;
+      const selfId = currentEmployee?.id || currentUser.employeeId || employees[0]?.id;
+      const selfCode = currentEmployee?.employeeCode;
+      return emp.id === selfId || (selfCode && emp.employeeCode === selfCode);
     }
 
     const matchesSearch =

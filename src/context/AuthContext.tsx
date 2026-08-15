@@ -133,7 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 2. Fetch Leaves
     fetch('/api/leaves', {
-      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_005' },
+      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
     })
       .then((res) => res.json())
       .then((data) => {
@@ -148,7 +148,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 3. Fetch Payroll Runs
     fetch('/api/payroll/runs', {
-      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
     })
       .then((res) => res.json())
       .then((data) => {
@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 4. Fetch Attendance Records
     fetch('/api/attendance', {
-      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
     })
       .then((res) => res.json())
       .then((data) => {
@@ -190,7 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 6. Fetch Performance Reviews
     fetch('/api/performance', {
-      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
     })
       .then((res) => res.json())
       .then((data) => {
@@ -202,7 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // 7. Fetch Grievances
     fetch('/api/grievances', {
-      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
     })
       .then((res) => res.json())
       .then((data) => {
@@ -258,7 +258,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/leaves', {
         headers: {
           'x-user-role': currentRole,
-          'x-employee-id': currentUser.employeeId || 'emp_005',
+          'x-employee-id': currentUser.employeeId || '',
         },
       });
       const data = await res.json();
@@ -299,7 +299,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       headers: {
         'Content-Type': 'application/json',
         'x-user-role': currentRole,
-        'x-employee-id': currentUser.employeeId || 'emp_005',
+        'x-employee-id': currentUser.employeeId || '',
         'x-user-id': currentUser.id,
       },
       body: JSON.stringify(req),
@@ -311,7 +311,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           fetch('/api/leaves', {
             headers: {
               'x-user-role': currentRole,
-              'x-employee-id': currentUser.employeeId || 'emp_005',
+              'x-employee-id': currentUser.employeeId || '',
             },
           })
             .then((r) => r.json())
@@ -360,7 +360,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetch('/api/leaves', {
           headers: {
             'x-user-role': currentRole,
-            'x-employee-id': currentUser.employeeId || 'emp_005',
+            'x-employee-id': currentUser.employeeId || '',
           },
         })
           .then((r) => r.json())
@@ -466,7 +466,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logAuditAction('SUBMITTED_GRIEVANCE', 'engagement_welfare', newTicket.id, `Grievance ticket ${newTicket.ticketNumber} filed`);
     fetch('/api/grievances', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || 'emp_001' },
+      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
       body: JSON.stringify(grv),
     }).catch(() => {});
   };

@@ -34,7 +34,7 @@ export async function POST(
       where: { id },
       data: {
         status: status as any,
-        approverComment: comment || `Processed by ${userCtx.name}`,
+        approverComment: comment || `Processed by ${userCtx.employeeName || 'Manager'}`,
         processedAt: new Date(),
       },
     });

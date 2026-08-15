@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       status: r.status,
       targetDate: r.updatedAt ? r.updatedAt.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       justification: `Approved headcount requirement for ${r.title}`,
-      requestedById: userCtx.employeeId || 'emp_001',
+      requestedById: userCtx.employeeId || userCtx.userId,
       requestedByName: 'HR Administrator',
     }));
 

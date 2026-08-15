@@ -50,8 +50,8 @@ export async function POST(req: NextRequest) {
     if (!createdRecord) {
       createdRecord = {
         id: `att_${Date.now()}`,
-        employeeId: userCtx.employeeId || 'emp_005',
-        employeeName: userCtx.name,
+        employeeId: userCtx.employeeId || userCtx.userId,
+        employeeName: userCtx.employeeName || 'Employee',
         date: todayStr,
         inTime: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`,
         totalHours: 8.5,

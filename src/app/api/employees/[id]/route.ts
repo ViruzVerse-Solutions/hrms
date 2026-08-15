@@ -18,24 +18,12 @@ export async function GET(
     let employee: any = null;
 
     if (prisma) {
-      // Map emp_001 -> VV-1001, emp_005 -> VV-1005 if needed
-      const codeMap: Record<string, string> = {
-        emp_001: 'VV-1001',
-        emp_002: 'VV-1002',
-        emp_003: 'VV-1003',
-        emp_004: 'VV-1004',
-        emp_005: 'VV-1005',
-      };
-      const searchCode = codeMap[id] || id;
-
       employee = await prisma.employee.findFirst({
         where: {
           OR: [
             { id },
             { employeeCode: id },
-            { employeeCode: searchCode },
             { employeeCode: { equals: id, mode: 'insensitive' } },
-            { employeeCode: { equals: searchCode, mode: 'insensitive' } },
           ],
         },
         include: {
@@ -53,7 +41,7 @@ export async function GET(
       return apiNotFound(`Employee with ID '${id}' not found in database`);
     }
 
-    const isSelf = employee.id === userCtx.employeeId || employee.employeeCode === userCtx.employeeId || employee.userId === userCtx.id;
+    const isSelf = employee.id === userCtx.employeeId || employee.employeeCode === userCtx.employeeId || employee.userId === userCtx.userId;
     const isSalaryVisible = canViewSensitiveSalary(userCtx.role, isSelf);
 
     const sanitizedEmployee = {

@@ -130,6 +130,9 @@ model Organization {
   employees     Employee[]
   payrollRuns   PayrollRun[]
   trainingPrograms TrainingProgram[]
+  companyPolicies CompanyPolicy[]
+  transfers     TransferPromotionCase[]
+  disciplinaryCases DisciplinaryCase[]
   auditLogs     AuditLog[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
@@ -294,6 +297,8 @@ model Employee {
   performanceReviews    PerformanceReview[]
   grievanceTickets      GrievanceTicket[]
   exitCase              ResignationExitCase?
+  transfers             TransferPromotionCase[]
+  disciplinaryCases     DisciplinaryCase[]
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
 
@@ -595,3 +600,68 @@ model TrainingProgram {
 
   @@index([organizationId, status])
 }
+
+model CompanyPolicy {
+  id                String       @id @default(cuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title             String
+  category          String       // "code_of_conduct", "posh", "leave_attendance", "safety_ehs", "it_security"
+  version           String       // e.g., "v3.2"
+  effectiveDate     DateTime     @db.Date
+  content           String?
+  status            String       @default("active") // "active", "draft", "archived"
+  createdById       String?
+  createdByName     String?
+  createdByRole     UserRole     @default(hr_head)
+  acknowledgedCount Int          @default(0)
+  fileUrl           String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([organizationId, category])
+}
+
+model TransferPromotionCase {
+  id                 String       @id @default(cuid())
+  organizationId     String
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  employeeId         String
+  employee           Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type               String       // "transfer", "promotion", "relocation"
+  currentDepartment  String
+  newDepartment      String
+  currentDesignation String
+  newDesignation     String
+  currentBranch      String
+  newBranch          String
+  effectiveDate      DateTime     @db.Date
+  initiatedBy        String
+  status             String       @default("pending") // "pending", "approved", "rejected"
+  approvalChain      String[]     // Array of approver titles / names
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([organizationId, employeeId])
+}
+
+model DisciplinaryCase {
+  id            String       @id @default(cuid())
+  organizationId String
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  caseNumber    String       @unique // e.g. "DC-2026-004"
+  employeeId    String
+  employee      Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  violationType String       // "breach_of_policy", "absenteeism", "misconduct", "posh_violation"
+  incidentDate  DateTime     @db.Date
+  reportedBy    String
+  severity      String       @default("medium") // "minor", "major", "critical"
+  currentStage  String       @default("show_cause_notice") // "show_cause_notice", "inquiry_panel", "action_taken", "closed"
+  actionTaken   String?      // "written_warning", "suspension", "termination", "capa"
+  description   String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([organizationId, employeeId, currentStage])
+}
+

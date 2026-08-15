@@ -56,7 +56,7 @@ function EngagementContent() {
       description: form.description,
       isAnonymous: form.isAnonymous,
       priority: form.priority,
-      employeeId: form.isAnonymous ? undefined : (currentEmployee?.id || 'emp_005'),
+      employeeId: form.isAnonymous ? undefined : (currentEmployee?.id || currentUser?.employeeId),
       employeeName: form.isAnonymous ? undefined : (currentEmployee ? `${currentEmployee.firstName} ${currentEmployee.lastName}` : currentUser.name),
     });
     setModalOpen(false);
