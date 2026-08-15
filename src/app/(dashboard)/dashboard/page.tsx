@@ -78,7 +78,7 @@ export default function DashboardPage() {
               {currentRole === 'chairman' && 'Board-level strategic governance: macro workforce analytics, executive appointments, compliance oversight, and corporate policy sign-offs.'}
               {currentRole === 'managing_director' && 'Executive operations: operational KPIs, departmental leave approvals, payroll authorizations, and senior promotion sanctions.'}
               {currentRole === 'hr_head' && 'Full operational authority across all 17 lifecycle stages: headcount requisitions, attendance & leave queues, payroll processing, and calibrations.'}
-              {currentRole === 'internal_audit_head' && 'Forensic audit & internal controls: inspect immutable SHA-256 logs, review payroll/attendance variances, and verify regulatory adherence.'}
+              {currentRole === 'internal_audit_head' && 'Internal audit & inspection: check company activity history, verify salary and attendance accuracy, and ensure government compliance.'}
               {currentRole === 'compliance_statutory' && 'Statutory & regulatory governance: Factory Act registers, PF/ESI/TDS remittance filings, POSH compliance, and EHS safety audits.'}
               {currentRole === 'employee' && 'Self-service portal: manage your daily check-in, review leave balances, download salary payslips, and check company announcements.'}
             </p>
@@ -503,44 +503,44 @@ export default function DashboardPage() {
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Audit Trail Integrity</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Activity Log Security</span>
                   <ShieldCheck className="h-4 w-4 text-emerald-600" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900">100% Valid</div>
-                <div className="text-xs text-emerald-600 font-medium mt-1">SHA-256 Hash Chain Intact</div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">100% Protected</div>
+                <div className="text-xs text-emerald-600 font-medium mt-1">All Records Authenticated & Safe</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Audited Events</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Total Recorded Actions</span>
                   <Server className="h-4 w-4 text-indigo-600" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900">{auditLogs.length} Events</div>
-                <div className="text-xs text-indigo-600 font-medium mt-1">Recorded across 14 Modules</div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">{auditLogs.length} Actions</div>
+                <div className="text-xs text-indigo-600 font-medium mt-1">Recorded across all company areas</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Payroll Variances</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Salary Calculation Errors</span>
                   <AlertTriangle className="h-4 w-4 text-amber-500" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900">0 Flags</div>
-                <div className="text-xs text-slate-500 font-medium mt-1">Gross-to-Net reconciled</div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">0 Errors</div>
+                <div className="text-xs text-slate-500 font-medium mt-1">Gross & Net pay fully matched</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between text-slate-500">
-                  <span className="text-xs font-semibold uppercase tracking-wider">Grievances Audited</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider">Complaints Audited</span>
                   <Shield className="h-4 w-4 text-purple-600" />
                 </div>
                 <div className="text-3xl font-extrabold mt-3 text-slate-900">{grievances.length} Tickets</div>
-                <div className="text-xs text-purple-600 font-medium mt-1">100% SLA compliance</div>
+                <div className="text-xs text-purple-600 font-medium mt-1">100% on-time resolution</div>
               </CardContent>
             </Card>
           </div>
@@ -549,7 +549,7 @@ export default function DashboardPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-3">
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Shield className="h-4 w-4 text-indigo-600" />
-                <span>Forensic Security & Audit Log Stream</span>
+                <span>Recent Company Activity Log</span>
               </CardTitle>
               <Link href="/settings" className="text-xs font-semibold text-indigo-600 hover:underline">
                 View All System Logs
@@ -557,7 +557,7 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="divide-y divide-slate-100">
               {auditLogs.map((log) => (
-                <div key={log.id} className="py-3 flex items-center justify-between text-xs">
+                <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
                   <div className="space-y-0.5">
                     <div className="font-semibold text-slate-900 flex items-center gap-2">
                       <Badge variant="outline" className="text-[10px] uppercase font-mono">
@@ -566,7 +566,7 @@ export default function DashboardPage() {
                       <span>{log.details}</span>
                     </div>
                     <div className="text-[11px] text-slate-400">
-                      User: {log.userName} ({log.role}) • Host: {log.ipAddress} • Entity: {log.entityId}
+                      User: {log.userName} ({log.role.replace(/_/g, ' ')}) • Module: {log.module.replace(/_/g, ' ')}
                     </div>
                   </div>
                   <span className="text-[11px] text-slate-400 font-mono">{new Date(log.timestamp).toLocaleTimeString()}</span>

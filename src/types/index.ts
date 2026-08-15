@@ -429,6 +429,7 @@ export interface AuditLogItem {
   details: string;
   timestamp: string;
   ipAddress: string;
+  integrityHash?: string;
 }
 
 export interface SystemNotification {

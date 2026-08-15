@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db/prisma';
 import { authenticateApiRequest } from '@/lib/auth/rbac-guard-api';
-
-const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,7 +20,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    const formattedCases = cases.map((c) => ({
+    const formattedCases = cases.map((c: any) => ({
       id: c.id,
       employeeId: c.employeeId,
       employeeName: c.employee ? `${c.employee.firstName} ${c.employee.lastName}` : 'Employee',
