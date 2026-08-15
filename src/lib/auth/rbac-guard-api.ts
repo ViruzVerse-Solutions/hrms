@@ -1,10 +1,8 @@
 import { NextRequest } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db/prisma';
 import { UserRole, ModuleKey } from '@/types';
 import { getModulePermission, canPerformAction } from '@/lib/rbac';
 import { apiForbidden } from '@/lib/api-response';
-
-const prisma = new PrismaClient();
 
 export interface AuthenticatedUserContext {
   userId: string;

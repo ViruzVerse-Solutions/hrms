@@ -122,7 +122,7 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
         {NAV_GROUPS.map((group) => {
           const visibleItems = group.items.filter((item) => {
-            if (currentRole === 'employee' && item.href === '/reports') return false;
+            if ((currentRole === 'employee' || currentRole === 'internal_audit_head') && item.href === '/reports') return false;
             return hasAccess(item.module);
           });
           if (visibleItems.length === 0) return null;
@@ -135,6 +135,15 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
               {visibleItems.map((item) => {
                 let targetHref = item.href;
                 let displayTitle = item.title;
+
+                // Customize nav item titles for Internal Audit Head
+                if (currentRole === 'internal_audit_head') {
+                  if (item.href === '/dashboard') displayTitle = 'Audit Dashboard';
+                  else if (item.href === '/payroll') displayTitle = 'Salary & Statutory Audit';
+                  else if (item.href === '/compliance') displayTitle = 'Policy & Rulebook';
+                  else if (item.href === '/disciplinary') displayTitle = 'Disciplinary & Inquiries';
+                  else if (item.href === '/settings') displayTitle = 'System Activity Logs';
+                }
 
                 // Customize nav item titles and direct Profile 360 link for Employee (ESS) view
                 if (currentRole === 'employee') {

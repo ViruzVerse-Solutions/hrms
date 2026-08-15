@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db/prisma';
 import { authenticateApiRequest } from '@/lib/auth/rbac-guard-api';
-
-const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,7 +19,7 @@ export async function GET(req: NextRequest) {
       orderBy: { date: 'asc' },
     });
 
-    const formattedHolidays = holidays.map((h) => ({
+    const formattedHolidays = holidays.map((h: any) => ({
       id: h.id,
       title: h.title,
       date: h.date.toISOString().split('T')[0],
