@@ -65,6 +65,18 @@ export async function POST(req: NextRequest) {
             employee: true,
           },
         });
+
+        // Update leave allocation pending days
+        await prisma.leaveAllocation.updateMany({
+          where: {
+            employeeId: emp.id,
+            leaveType: leaveType as any,
+            year: 2026,
+          },
+          data: {
+            pendingDays: { increment: daysCount },
+          },
+        }).catch(() => {});
       }
     }
 

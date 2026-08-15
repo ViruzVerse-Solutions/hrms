@@ -300,7 +300,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         'x-user-role': currentRole,
       },
       body: JSON.stringify({ status, comment }),
-    }).catch(() => {});
+    })
+      .then((res) => res.json())
+      .then(() => {
+        // Re-sync leaves and allocations from DB
+        fetch('/api/leaves', {
+          headers: {
+            'x-user-role': currentRole,
+            'x-employee-id': currentUser.employeeId || 'emp_005',
+          },
+        })
+          .then((r) => r.json())
+          .then((d) => {
+            if (d?.data?.leaves) setLeaveRequests(d.data.leaves);
+            if (d?.data?.leaveAllocations) setLeaveAllocations(d.data.leaveAllocations);
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
   };
 
   const updateAttendanceCheckin = (status: 'present' | 'half_day') => {

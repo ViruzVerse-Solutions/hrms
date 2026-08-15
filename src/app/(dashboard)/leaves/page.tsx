@@ -41,11 +41,13 @@ function LeavesContent() {
     can,
   } = useAuth();
 
+  const todayStr = new Date().toISOString().split('T')[0];
   const [applyModalOpen, setApplyModalOpen] = useState(false);
+  const [dateError, setDateError] = useState('');
   const [form, setForm] = useState({
     leaveType: 'casual' as LeaveType,
-    fromDate: '2026-08-20',
-    toDate: '2026-08-21',
+    fromDate: todayStr,
+    toDate: todayStr,
     reason: '',
   });
 
@@ -58,6 +60,16 @@ function LeavesContent() {
 
   const handleApply = (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.fromDate < todayStr) {
+      setDateError('Leave start date cannot be in the past. Please select today or a future date.');
+      return;
+    }
+    if (form.toDate < form.fromDate) {
+      setDateError('Leave end date cannot be earlier than start date.');
+      return;
+    }
+    setDateError('');
+
     const d1 = new Date(form.fromDate);
     const d2 = new Date(form.toDate);
     const diffTime = Math.abs(d2.getTime() - d1.getTime());
@@ -75,7 +87,7 @@ function LeavesContent() {
       approverName: currentEmployee?.reportingManagerName || 'Dr. Vikramaditya Rathore',
     });
     setApplyModalOpen(false);
-    setForm({ leaveType: 'casual', fromDate: '2026-08-20', toDate: '2026-08-21', reason: '' });
+    setForm({ leaveType: 'casual', fromDate: todayStr, toDate: todayStr, reason: '' });
   };
 
   return (
@@ -95,7 +107,13 @@ function LeavesContent() {
         </div>
 
         {/* Apply Leave Modal */}
-        <Dialog open={applyModalOpen} onOpenChange={setApplyModalOpen}>
+        <Dialog open={applyModalOpen} onOpenChange={(open) => {
+          setApplyModalOpen(open);
+          if (open) {
+            setForm({ leaveType: 'casual', fromDate: todayStr, toDate: todayStr, reason: '' });
+            setDateError('');
+          }
+        }}>
           <DialogTrigger asChild>
             <Button className="gap-2 shadow-md text-xs">
               <Plus className="h-4 w-4" />
@@ -107,6 +125,12 @@ function LeavesContent() {
               <DialogTitle>Submit Leave Application</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleApply} className="space-y-4 pt-2 text-xs">
+              {dateError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
+                  {dateError}
+                </div>
+              )}
+
               <div className="space-y-1">
                 <label className="font-semibold text-slate-700 dark:text-slate-300">Leave Type</label>
                 <select
@@ -114,11 +138,27 @@ function LeavesContent() {
                   onChange={(e) => setForm({ ...form, leaveType: e.target.value as LeaveType })}
                   className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
                 >
-                  <option value="casual">Casual Leave (CL) - Balance: 7 Days</option>
-                  <option value="sick">Sick Leave (SL) - Balance: 8 Days</option>
-                  <option value="earned">Earned / Privilege Leave (EL) - Balance: 11 Days</option>
-                  <option value="maternity">Maternity Leave - Balance: 180 Days</option>
-                  <option value="unpaid">Loss of Pay (LOP / Unpaid)</option>
+                  {(() => {
+                    const getAvailBal = (t: string, defAlloc: number) => {
+                      const alloc = leaveAllocations.find((a) => a.leaveType === t);
+                      const usedReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+                      const pendReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+                      const allocated = alloc ? Number(alloc.totalAllocated || (alloc as any).allocatedDays || defAlloc) : defAlloc;
+                      const used = alloc ? Math.max(Number(alloc.used || (alloc as any).usedDays || 0), usedReq) : usedReq;
+                      const pending = alloc ? Math.max(Number(alloc.pending || (alloc as any).pendingDays || 0), pendReq) : pendReq;
+                      return Math.max(0, allocated - (used + pending));
+                    };
+
+                    return (
+                      <>
+                        <option value="casual">Casual Leave (CL) - Balance: {getAvailBal('casual', 12)} Days</option>
+                        <option value="sick">Sick Leave (SL) - Balance: {getAvailBal('sick', 10)} Days</option>
+                        <option value="earned">Earned / Privilege Leave (EL) - Balance: {getAvailBal('earned', 15)} Days</option>
+                        <option value="maternity">Maternity Leave - Balance: 180 Days</option>
+                        <option value="unpaid">Loss of Pay (LOP / Unpaid)</option>
+                      </>
+                    );
+                  })()}
                 </select>
               </div>
 
@@ -128,8 +168,17 @@ function LeavesContent() {
                   <Input
                     type="date"
                     required
+                    min={todayStr}
                     value={form.fromDate}
-                    onChange={(e) => setForm({ ...form, fromDate: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setForm((prev) => ({
+                        ...prev,
+                        fromDate: val,
+                        toDate: prev.toDate < val ? val : prev.toDate,
+                      }));
+                      setDateError('');
+                    }}
                   />
                 </div>
                 <div className="space-y-1">
@@ -137,8 +186,12 @@ function LeavesContent() {
                   <Input
                     type="date"
                     required
+                    min={form.fromDate || todayStr}
                     value={form.toDate}
-                    onChange={(e) => setForm({ ...form, toDate: e.target.value })}
+                    onChange={(e) => {
+                      setForm({ ...form, toDate: e.target.value });
+                      setDateError('');
+                    }}
                   />
                 </div>
               </div>
@@ -165,22 +218,22 @@ function LeavesContent() {
 
       {/* Leave Balances Grid */}
       {(() => {
-        const getAlloc = (type: string) => leaveAllocations.find((a) => a.leaveType === type);
-        const cl = getAlloc('casual');
-        const sl = getAlloc('sick');
-        const el = getAlloc('earned');
+        const calcLeaveStats = (type: string, defAlloc: number) => {
+          const alloc = leaveAllocations.find((a) => a.leaveType === type);
+          const approvedCount = visibleLeaves.filter((l) => l.leaveType === type && l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+          const pendingCount = visibleLeaves.filter((l) => l.leaveType === type && l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
 
-        const clBal = cl ? cl.balance : 7;
-        const clAlloc = cl ? cl.totalAllocated : 12;
-        const clUsed = cl ? cl.used : 3;
-        const clPend = cl ? cl.pending : 2;
+          const totalAllocated = alloc ? Number(alloc.totalAllocated || (alloc as any).allocatedDays || defAlloc) : defAlloc;
+          const used = alloc ? Math.max(Number(alloc.used || (alloc as any).usedDays || 0), approvedCount) : approvedCount;
+          const pending = alloc ? Math.max(Number(alloc.pending || (alloc as any).pendingDays || 0), pendingCount) : pendingCount;
+          const balance = Math.max(0, totalAllocated - used);
 
-        const slBal = sl ? sl.balance : 8;
-        const slAlloc = sl ? sl.totalAllocated : 10;
-        const slUsed = sl ? sl.used : 2;
+          return { totalAllocated, used, pending, balance };
+        };
 
-        const elBal = el ? el.balance : 11;
-        const elAlloc = el ? el.totalAllocated : 15;
+        const cl = calcLeaveStats('casual', 12);
+        const sl = calcLeaveStats('sick', 10);
+        const el = calcLeaveStats('earned', 15);
 
         return (
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
@@ -190,8 +243,8 @@ function LeavesContent() {
                   <span>Casual Leave (CL)</span>
                   <Calendar className="h-4 w-4 text-indigo-600" />
                 </div>
-                <div className="text-3xl font-extrabold text-indigo-600 mt-2 font-mono">{clBal} / {clAlloc}</div>
-                <div className="text-xs text-slate-500 mt-1">{clUsed} used • {clPend} pending approval</div>
+                <div className="text-3xl font-extrabold text-indigo-600 mt-2 font-mono">{cl.balance} / {cl.totalAllocated}</div>
+                <div className="text-xs text-slate-500 mt-1">{cl.used} used • {cl.pending} pending approval</div>
               </CardContent>
             </Card>
 
@@ -201,8 +254,8 @@ function LeavesContent() {
                   <span>Sick Leave (SL)</span>
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                 </div>
-                <div className="text-3xl font-extrabold text-emerald-600 mt-2 font-mono">{slBal} / {slAlloc}</div>
-                <div className="text-xs text-slate-500 mt-1">{slUsed} used this calendar year</div>
+                <div className="text-3xl font-extrabold text-emerald-600 mt-2 font-mono">{sl.balance} / {sl.totalAllocated}</div>
+                <div className="text-xs text-slate-500 mt-1">{sl.used} used • {sl.pending} pending approval</div>
               </CardContent>
             </Card>
 
@@ -212,8 +265,8 @@ function LeavesContent() {
                   <span>Earned Leave (EL)</span>
                   <CalendarDays className="h-4 w-4 text-purple-600" />
                 </div>
-                <div className="text-3xl font-extrabold text-purple-600 mt-2 font-mono">{elBal} / {elAlloc}</div>
-                <div className="text-xs text-slate-500 mt-1">Encashable balance on exit</div>
+                <div className="text-3xl font-extrabold text-purple-600 mt-2 font-mono">{el.balance} / {el.totalAllocated}</div>
+                <div className="text-xs text-slate-500 mt-1">{el.used} used • {el.pending} pending approval</div>
               </CardContent>
             </Card>
 

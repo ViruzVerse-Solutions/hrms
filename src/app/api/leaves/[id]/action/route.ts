@@ -39,6 +39,49 @@ export async function POST(
       },
     });
 
+    if (status === 'approved') {
+      const alloc = await prisma.leaveAllocation.findFirst({
+        where: {
+          employeeId: updatedLeave.employeeId,
+          leaveType: updatedLeave.leaveType,
+          year: 2026,
+        },
+      });
+
+      if (alloc) {
+        const newUsed = Number(alloc.usedDays) + Number(updatedLeave.daysCount);
+        const newPending = Math.max(0, Number(alloc.pendingDays) - Number(updatedLeave.daysCount));
+        const newBalance = Math.max(0, Number(alloc.allocatedDays) - newUsed);
+
+        await prisma.leaveAllocation.update({
+          where: { id: alloc.id },
+          data: {
+            usedDays: newUsed,
+            pendingDays: newPending,
+            balanceDays: newBalance,
+          },
+        });
+      }
+    } else if (status === 'rejected') {
+      const alloc = await prisma.leaveAllocation.findFirst({
+        where: {
+          employeeId: updatedLeave.employeeId,
+          leaveType: updatedLeave.leaveType,
+          year: 2026,
+        },
+      });
+
+      if (alloc) {
+        const newPending = Math.max(0, Number(alloc.pendingDays) - Number(updatedLeave.daysCount));
+        await prisma.leaveAllocation.update({
+          where: { id: alloc.id },
+          data: {
+            pendingDays: newPending,
+          },
+        });
+      }
+    }
+
     return apiSuccess({
       leave: updatedLeave,
       message: `Leave request ${status} successfully`,
