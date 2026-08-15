@@ -18,11 +18,6 @@ enum UserRole {
   internal_audit_head
   compliance_statutory
   employee
-  super_admin
-  hr_admin
-  hr_executive
-  payroll_officer
-  reporting_manager
 }
 
 enum PermissionLevel {

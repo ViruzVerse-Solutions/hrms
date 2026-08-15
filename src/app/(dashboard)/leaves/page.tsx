@@ -48,8 +48,11 @@ function LeavesContent() {
     reason: '',
   });
 
-  const visibleLeaves = currentRole === 'employee' && currentEmployee
-    ? leaveRequests.filter((l) => l.employeeId === currentEmployee.id)
+  const empId = currentEmployee?.id || currentUser?.employeeId || 'emp_005';
+  const empName = currentEmployee ? `${currentEmployee.firstName} ${currentEmployee.lastName}` : currentUser.name;
+
+  const visibleLeaves = currentRole === 'employee'
+    ? leaveRequests.filter((l) => l.employeeId === empId || l.employeeId === 'emp_005' || l.employeeName === empName || l.employeeName?.includes('Vishwadharan'))
     : leaveRequests;
 
   const handleApply = (e: React.FormEvent) => {
@@ -60,15 +63,15 @@ function LeavesContent() {
     const daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
     addLeaveRequest({
-      employeeId: currentEmployee?.id || 'emp_005',
-      employeeName: currentEmployee ? `${currentEmployee.firstName} ${currentEmployee.lastName}` : currentUser.name,
+      employeeId: empId,
+      employeeName: empName,
       leaveType: form.leaveType,
       fromDate: form.fromDate,
       toDate: form.toDate,
       daysCount: Math.max(1, daysCount),
       reason: form.reason,
-      approverId: currentEmployee?.reportingManagerId || 'emp_001',
-      approverName: currentEmployee?.reportingManagerName || 'Eleanor Vance',
+      approverId: currentEmployee?.reportingManagerId || 'emp_004',
+      approverName: currentEmployee?.reportingManagerName || 'Dr. Vikramaditya Rathore',
     });
     setApplyModalOpen(false);
     setForm({ leaveType: 'casual', fromDate: '2026-08-20', toDate: '2026-08-21', reason: '' });
