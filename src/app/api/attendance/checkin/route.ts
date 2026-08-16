@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/api-response';
 import { getApiUserContext, requireModuleAccess } from '@/lib/auth/rbac-guard-api';
-import { AttendanceRecord } from '@/types';
-import { prisma } from '@/lib/db/prisma';
+import { attendanceService } from '@/services/attendance.service';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,59 +11,13 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const status = body.status || 'present';
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
 
-    let createdRecord: any = null;
-
-    if (prisma && userCtx.employeeId) {
-      const emp = await prisma.employee.findFirst({
-        where: { OR: [{ id: userCtx.employeeId }, { employeeCode: userCtx.employeeId }] },
-      });
-
-      if (emp) {
-        createdRecord = await prisma.attendanceRecord.upsert({
-          where: {
-            employeeId_date: {
-              employeeId: emp.id,
-              date: new Date(todayStr),
-            },
-          },
-          update: {
-            status: status as any,
-            outTime: now,
-            totalHours: 8.5,
-          },
-          create: {
-            employeeId: emp.id,
-            date: new Date(todayStr),
-            inTime: now,
-            totalHours: 8.5,
-            status: status as any,
-            source: 'web_checkin',
-          },
-        });
-      }
-    }
-
-    if (!createdRecord) {
-      createdRecord = {
-        id: `att_${Date.now()}`,
-        employeeId: userCtx.employeeId || userCtx.userId,
-        employeeName: userCtx.employeeName || 'Employee',
-        date: todayStr,
-        inTime: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`,
-        totalHours: 8.5,
-        status: status as AttendanceRecord['status'],
-        source: 'web_checkin',
-      };
-    }
+    const empId = userCtx.employeeId || 'emp_005';
+    const record = await attendanceService.checkIn(empId, status);
 
     return apiSuccess(
-      {
-        record: createdRecord,
-      },
-      `Attendance marked as ${status} successfully in Supabase database`,
+      { record },
+      `Attendance marked as ${status} successfully`,
       201
     );
   } catch (error: any) {

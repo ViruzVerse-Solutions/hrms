@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/api-response';
 import { getApiUserContext, requireModuleAccess } from '@/lib/auth/rbac-guard-api';
-import { prisma } from '@/lib/db/prisma';
+import { attendanceService } from '@/services/attendance.service';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,51 +9,15 @@ export async function GET(req: NextRequest) {
     const accessError = requireModuleAccess(userCtx, 'attendance_leave');
     if (accessError) return accessError;
 
-    let whereClause: any = {};
+    const { searchParams } = new URL(req.url);
+    const employeeId = searchParams.get('employeeId') || userCtx.employeeId;
+    const date = searchParams.get('date') || undefined;
 
-    let records: any[] = [];
-    if (prisma) {
-      if (userCtx.role === 'employee' && userCtx.employeeId) {
-        const emp = await prisma.employee.findFirst({
-          where: {
-            OR: [
-              { id: userCtx.employeeId },
-              { employeeCode: userCtx.employeeId },
-              { employeeCode: 'VV-1005' },
-              { email: userCtx.email },
-            ],
-          },
-        });
-        if (emp) {
-          whereClause.employeeId = emp.id;
-        }
-      }
-
-      records = await prisma.attendanceRecord.findMany({
-        where: whereClause,
-        include: {
-          employee: true,
-        },
-        orderBy: { date: 'desc' },
-      });
-    }
-
-    const formattedRecords = records.map((r: any) => ({
-      id: r.id,
-      employeeId: r.employeeId,
-      employeeName: r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : 'Employee',
-      date: typeof r.date === 'string' ? r.date : r.date?.toISOString().split('T')[0],
-      inTime: r.inTime ? (typeof r.inTime === 'string' ? r.inTime : r.inTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) : null,
-      outTime: r.outTime ? (typeof r.outTime === 'string' ? r.outTime : r.outTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) : null,
-      totalHours: Number(r.totalHours || 0),
-      status: r.status,
-      source: r.source,
-      notes: r.notes,
-    }));
+    const records = await attendanceService.getRecords(userCtx.role, employeeId, date);
 
     return apiSuccess({
-      count: formattedRecords.length,
-      attendanceRecords: formattedRecords,
+      count: records.length,
+      attendanceRecords: records,
       userRole: userCtx.role,
     });
   } catch (error: any) {
