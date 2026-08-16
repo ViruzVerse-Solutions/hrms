@@ -95,6 +95,7 @@ export interface Employee {
   branchId?: string;
   branchName?: string;
   employmentStatus: EmploymentStatus;
+  lifecycleTrack?: LifecycleTrack;
   currentLifecycleStage?: LifecycleStageKey;
   ctc?: number; // Confidential
   bankDetails?: {
@@ -115,7 +116,19 @@ export interface Employee {
   };
 }
 
-export type LifecycleStageKey =
+export type LifecycleTrack = 'standard_staff' | 'executive' | 'board_governance' | 'exempt';
+
+export type ExecutiveLifecycleStageKey =
+  | 'exec_nomination'
+  | 'exec_agreement'
+  | 'exec_appointment'
+  | 'exec_induction'
+  | 'exec_compensation'
+  | 'exec_evaluation'
+  | 'exec_succession'
+  | 'exec_transition';
+
+export type StandardLifecycleStageKey =
   | 'manpower_planning'
   | 'recruitment'
   | 'selection'
@@ -134,11 +147,14 @@ export type LifecycleStageKey =
   | 'ff_settlement'
   | 'exit_documentation';
 
+export type LifecycleStageKey = StandardLifecycleStageKey | ExecutiveLifecycleStageKey;
+
 export interface LifecycleStage {
   key: LifecycleStageKey;
   label: string;
   order: number;
   description: string;
+  track?: LifecycleTrack;
 }
 
 export interface AttendanceRecord {

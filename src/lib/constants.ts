@@ -1,24 +1,45 @@
-import { LifecycleStage, User } from '@/types';
+import { LifecycleStage, LifecycleTrack, User } from '@/types';
 
 export const LIFECYCLE_STAGES: LifecycleStage[] = [
-  { key: 'manpower_planning', label: 'Manpower Planning', order: 1, description: 'Plant workforce requisition & budget approval' },
-  { key: 'recruitment', label: 'Recruitment', order: 2, description: 'Sourcing, screening & technical interview rounds' },
-  { key: 'selection', label: 'Selection', order: 3, description: 'Technical scorecard & candidate selection' },
-  { key: 'offer', label: 'Offer & Pre-Joining', order: 4, description: 'Offer letter rollout & credential verification' },
-  { key: 'joining', label: 'Joining & Day 1', order: 5, description: 'Plant safety kit, ID issuance & workstation setup' },
-  { key: 'onboarding', label: 'Onboarding & KRAs', order: 6, description: 'EHS signoff, supervisor buddy & operational goals' },
-  { key: 'attendance_leave', label: 'Attendance & Leave', order: 7, description: 'Shift biometric capture & statutory leave records' },
-  { key: 'payroll', label: 'Payroll & Benefits', order: 8, description: 'Monthly wage processing & PF/ESI/PT statutory filing' },
-  { key: 'performance', label: 'Performance Appraisal', order: 9, description: 'Plant KRA review & annual calibration' },
-  { key: 'training', label: 'Training & Skill Dev', order: 10, description: 'Industrial safety, ISO 9001 & technical upskilling' },
-  { key: 'engagement', label: 'Engagement & Welfare', order: 11, description: 'Plant committee, surveys & grievance resolution' },
-  { key: 'transfer_promotion', label: 'Transfer & Promotion', order: 12, description: 'Inter-plant transfers, grade upgrades & promotions' },
-  { key: 'compliance', label: 'Policy & Compliance', order: 13, description: 'Factory Act registers, EHS audits & inspections' },
-  { key: 'resignation', label: 'Resignation Notice', order: 14, description: 'Resignation submission & notice period calculation' },
-  { key: 'clearance', label: 'Department Clearance', order: 15, description: 'Plant tools, IT, Finance, & HR digital sign-offs' },
-  { key: 'ff_settlement', label: 'Full & Final (F&F)', order: 16, description: 'Final dues, leave encashment & gratuity clearance' },
-  { key: 'exit_documentation', label: 'Exit & Archival', order: 17, description: 'Relieving certificate & permanent statutory archival' },
+  { key: 'manpower_planning', label: 'Manpower Planning', order: 1, description: 'Plant workforce requisition & budget approval', track: 'standard_staff' },
+  { key: 'recruitment', label: 'Recruitment', order: 2, description: 'Sourcing, screening & technical interview rounds', track: 'standard_staff' },
+  { key: 'selection', label: 'Selection', order: 3, description: 'Technical scorecard & candidate selection', track: 'standard_staff' },
+  { key: 'offer', label: 'Offer & Pre-Joining', order: 4, description: 'Offer letter rollout & credential verification', track: 'standard_staff' },
+  { key: 'joining', label: 'Joining & Day 1', order: 5, description: 'Plant safety kit, ID issuance & workstation setup', track: 'standard_staff' },
+  { key: 'onboarding', label: 'Onboarding & KRAs', order: 6, description: 'EHS signoff, supervisor buddy & operational goals', track: 'standard_staff' },
+  { key: 'attendance_leave', label: 'Attendance & Leave', order: 7, description: 'Shift biometric capture & statutory leave records', track: 'standard_staff' },
+  { key: 'payroll', label: 'Payroll & Benefits', order: 8, description: 'Monthly wage processing & PF/ESI/PT statutory filing', track: 'standard_staff' },
+  { key: 'performance', label: 'Performance Appraisal', order: 9, description: 'Plant KRA review & annual calibration', track: 'standard_staff' },
+  { key: 'training', label: 'Training & Skill Dev', order: 10, description: 'Industrial safety, ISO 9001 & technical upskilling', track: 'standard_staff' },
+  { key: 'engagement', label: 'Engagement & Welfare', order: 11, description: 'Plant committee, surveys & grievance resolution', track: 'standard_staff' },
+  { key: 'transfer_promotion', label: 'Transfer & Promotion', order: 12, description: 'Inter-plant transfers, grade upgrades & promotions', track: 'standard_staff' },
+  { key: 'compliance', label: 'Policy & Compliance', order: 13, description: 'Factory Act registers, EHS audits & inspections', track: 'standard_staff' },
+  { key: 'resignation', label: 'Resignation Notice', order: 14, description: 'Resignation submission & notice period calculation', track: 'standard_staff' },
+  { key: 'clearance', label: 'Department Clearance', order: 15, description: 'Plant tools, IT, Finance, & HR digital sign-offs', track: 'standard_staff' },
+  { key: 'ff_settlement', label: 'Full & Final (F&F)', order: 16, description: 'Final dues, leave encashment & gratuity clearance', track: 'standard_staff' },
+  { key: 'exit_documentation', label: 'Exit & Archival', order: 17, description: 'Relieving certificate & permanent statutory archival', track: 'standard_staff' },
 ];
+
+export const EXECUTIVE_LIFECYCLE_STAGES: LifecycleStage[] = [
+  { key: 'exec_nomination', label: 'Board Nomination', order: 1, description: 'Executive search & nomination committee clearance', track: 'executive' },
+  { key: 'exec_agreement', label: 'Terms & Compensation', order: 2, description: 'Executive remuneration & contract terms agreement', track: 'executive' },
+  { key: 'exec_appointment', label: 'Board Resolution', order: 3, description: 'Board of Directors appointment & statutory DIN filing', track: 'executive' },
+  { key: 'exec_induction', label: 'Executive Induction', order: 4, description: 'Corporate governance induction & fiduciary charter', track: 'executive' },
+  { key: 'exec_compensation', label: 'Executive Payroll', order: 5, description: 'Executive payroll, profit-share & statutory benefits', track: 'executive' },
+  { key: 'exec_evaluation', label: 'Strategic OKRs & Review', order: 6, description: 'Annual enterprise KPIs, EBITDA & Board evaluation', track: 'executive' },
+  { key: 'exec_succession', label: 'Leadership Succession', order: 7, description: 'Succession planning & executive mandate extension', track: 'executive' },
+  { key: 'exec_transition', label: 'Board Exit & Transition', order: 8, description: 'Board resolution, directorship release & archival', track: 'executive' },
+];
+
+export function getLifecycleStagesForTrack(track: LifecycleTrack = 'standard_staff'): LifecycleStage[] {
+  if (track === 'executive') {
+    return EXECUTIVE_LIFECYCLE_STAGES;
+  }
+  if (track === 'board_governance' || track === 'exempt') {
+    return [];
+  }
+  return LIFECYCLE_STAGES;
+}
 
 export const CORE_PERSONAS: User[] = [
   {
