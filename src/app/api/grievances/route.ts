@@ -77,8 +77,8 @@ export async function POST(req: NextRequest) {
         data: {
           employeeId: body.isAnonymous ? null : empId,
           category: body.category || 'work_environment',
-          subject: body.subject,
-          description: body.description,
+          subject: body.subject || body.title || (body.description ? body.description.slice(0, 50) : 'Workplace Grievance Ticket'),
+          description: body.description || 'No description provided.',
           isAnonymous: Boolean(body.isAnonymous),
           priority: body.priority || 'medium',
           status: 'open',

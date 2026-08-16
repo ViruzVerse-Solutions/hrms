@@ -52,6 +52,31 @@ function TrainingContent() {
   const upcomingCount = trainings.filter((t) => t.status === 'upcoming').length;
   const totalEnrolled = trainings.reduce((acc, t) => acc + (t.enrolledCount || 0), 0);
 
+  const [enrolledMap, setEnrolledMap] = useState<Record<string, boolean>>({});
+
+  const handleEnroll = async (trainingId: string) => {
+    try {
+      const res = await fetch('/api/training', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': currentRole,
+        },
+        body: JSON.stringify({ action: 'enroll', trainingId }),
+      });
+
+      const data = await res.json();
+      if (data?.success) {
+        setEnrolledMap((prev) => ({ ...prev, [trainingId]: true }));
+        setTrainings((prev) =>
+          prev.map((t) => (t.id === trainingId ? { ...t, enrolledCount: (t.enrolledCount || 0) + 1 } : t))
+        );
+      }
+    } catch (err) {
+      console.error('Failed to enroll in training program:', err);
+    }
+  };
+
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -116,48 +141,65 @@ function TrainingContent() {
 
       {/* Training Programs Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {trainings.map((prog) => (
-          <Card key={prog.id} className="hover:border-indigo-300 transition-all flex flex-col justify-between">
-            <CardHeader className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Badge variant={prog.status === 'completed' ? 'success' : 'purple'}>
-                  {prog.status}
-                </Badge>
-                <span className="text-xs font-semibold text-slate-500 capitalize">
-                  {prog.category}
-                </span>
-              </div>
-              <CardTitle className="text-sm font-bold leading-snug text-slate-900">
-                {prog.title}
-              </CardTitle>
-            </CardHeader>
+        {trainings.map((prog) => {
+          const isEnrolled = enrolledMap[prog.id];
 
-            <CardContent className="space-y-4 text-xs">
-              <div className="space-y-1.5 text-slate-600">
+          return (
+            <Card key={prog.id} className="hover:border-indigo-300 transition-all flex flex-col justify-between">
+              <CardHeader className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Trainer:</span>
-                  <span className="font-medium text-slate-900">{prog.trainer}</span>
+                  <Badge variant={prog.status === 'completed' ? 'success' : 'purple'}>
+                    {prog.status}
+                  </Badge>
+                  <span className="text-xs font-semibold text-slate-500 capitalize">
+                    {prog.category}
+                  </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Schedule:</span>
-                  <span className="font-medium text-slate-900">{formatDate(prog.startDate)} &rarr; {formatDate(prog.endDate)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Mode:</span>
-                  <span className="capitalize font-medium text-slate-900">{prog.mode.replace('_', ' ')}</span>
-                </div>
-              </div>
+                <CardTitle className="text-sm font-bold leading-snug text-slate-900">
+                  {prog.title}
+                </CardTitle>
+              </CardHeader>
 
-              <div className="pt-2 border-t flex items-center justify-between">
-                <span className="text-slate-500">Enrolled: {prog.enrolledCount} / {prog.capacity}</span>
-                <Button size="sm" variant="outline" className="h-7 text-xs">
-                  Details
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              <CardContent className="space-y-4 text-xs">
+                <div className="space-y-1.5 text-slate-600">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Trainer:</span>
+                    <span className="font-medium text-slate-900">{prog.trainer}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Schedule:</span>
+                    <span className="font-medium text-slate-900">{formatDate(prog.startDate)} &rarr; {formatDate(prog.endDate)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Mode:</span>
+                    <span className="capitalize font-medium text-slate-900">{prog.mode.replace('_', ' ')}</span>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t flex items-center justify-between">
+                  <span className="text-slate-500 font-semibold">Enrolled: {prog.enrolledCount} / {prog.capacity}</span>
+                  {isEmployee ? (
+                    <Button
+                      size="sm"
+                      variant={isEnrolled ? 'outline' : 'default'}
+                      disabled={isEnrolled}
+                      onClick={() => handleEnroll(prog.id)}
+                      className={isEnrolled ? 'text-emerald-600 border-emerald-300 bg-emerald-50 h-7 text-xs font-bold' : 'bg-indigo-600 hover:bg-indigo-700 text-white h-7 text-xs'}
+                    >
+                      {isEnrolled ? 'Enrolled' : 'Enroll Now'}
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" className="h-7 text-xs">
+                      Details
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
 }
+

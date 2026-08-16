@@ -20,9 +20,8 @@ export async function POST(req: NextRequest) {
     let emp = await prisma.employee.findFirst({
       where: {
         OR: [
-          { id: employeeId || userCtx.employeeId || '' },
-          { employeeCode: employeeId || userCtx.employeeCode || '' },
-          { userId: userCtx.userId },
+          ...(employeeId || userCtx.employeeId ? [{ id: employeeId || userCtx.employeeId }, { employeeCode: employeeId || userCtx.employeeId }] : []),
+          ...(userCtx.email ? [{ email: userCtx.email }] : []),
         ],
       },
     });

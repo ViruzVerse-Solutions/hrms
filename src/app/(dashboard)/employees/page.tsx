@@ -24,13 +24,28 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getPersonaAvatar } from '@/lib/constants';
 
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+
 export default function EmployeesPage() {
   const router = useRouter();
-  const { employees, isSalaryVisible, can, currentRole, currentEmployee, currentUser } = useAuth();
+  const { employees, isSalaryVisible, can, currentRole, currentEmployee, currentUser, logAuditAction } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('all');
 
   const [departments, setDepartments] = useState<Array<{ id: string; name: string; code: string }>>([]);
+  const [onboardModalOpen, setOnboardModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [onboardSuccess, setOnboardSuccess] = useState('');
+  const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    departmentId: '',
+    designationTitle: 'Senior Quality Inspector',
+    dateOfJoining: new Date().toISOString().split('T')[0],
+    ctc: 540000,
+  });
 
   React.useEffect(() => {
     if (currentRole === 'employee') {
@@ -45,10 +60,57 @@ export default function EmployeesPage() {
       .then((data) => {
         if (data?.data?.departments) {
           setDepartments(data.data.departments);
+          if (data.data.departments[0]) {
+            setForm((prev) => ({ ...prev, departmentId: data.data.departments[0].id }));
+          }
         }
       })
       .catch(() => {});
   }, []);
+
+  const handleOnboardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.firstName || !form.lastName || !form.email) return;
+
+    try {
+      setIsSubmitting(true);
+      const res = await fetch('/api/employees', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': currentRole,
+        },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+      if (data?.success) {
+        setOnboardSuccess(`Employee ${form.firstName} ${form.lastName} onboarded successfully to database.`);
+        if (logAuditAction) {
+          logAuditAction('EMPLOYEE_ONBOARDED', 'employee_records', 'new_emp', `Onboarded ${form.firstName} ${form.lastName}`);
+        }
+        setTimeout(() => {
+          setOnboardModalOpen(false);
+          setOnboardSuccess('');
+          setForm({
+            firstName: '',
+            lastName: '',
+            email: '',
+            phone: '',
+            departmentId: departments[0]?.id || '',
+            designationTitle: 'Senior Quality Inspector',
+            dateOfJoining: new Date().toISOString().split('T')[0],
+            ctc: 540000,
+          });
+          window.location.reload();
+        }, 1500);
+      }
+    } catch (err) {
+      console.error('Failed to onboard employee:', err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const filteredEmployees = employees.filter((emp) => {
     if (currentRole === 'employee') {
@@ -91,12 +153,123 @@ export default function EmployeesPage() {
         </div>
 
         {can('create', 'employee_records') && (
-          <Button className="rounded-xl gap-2 shadow-md">
-            <Plus className="h-4 w-4" />
-            <span>Onboard New Employee</span>
-          </Button>
+          <Dialog open={onboardModalOpen} onOpenChange={setOnboardModalOpen}>
+            <DialogTrigger asChild>
+              <Button className="rounded-xl gap-2 shadow-md bg-indigo-600 hover:bg-indigo-700 text-white">
+                <Plus className="h-4 w-4" />
+                <span>Onboard New Employee</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Onboard New Employee Dossier</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleOnboardSubmit} className="space-y-4 pt-2 text-xs">
+                {onboardSuccess && (
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold">
+                    {onboardSuccess}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">First Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Ramesh"
+                      value={form.firstName}
+                      onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                      className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">Last Name</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Patel"
+                      value={form.lastName}
+                      onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                      className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">Official Email</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="ramesh.patel@viruzverse.com"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">Phone</label>
+                    <input
+                      type="text"
+                      placeholder="+91 98765 43210"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">Joining Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={form.dateOfJoining}
+                      onChange={(e) => setForm({ ...form, dateOfJoining: e.target.value })}
+                      className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">Designation Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Senior Quality Inspector"
+                    value={form.designationTitle}
+                    onChange={(e) => setForm({ ...form, designationTitle: e.target.value })}
+                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">Annual CTC (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    min={100000}
+                    step={10000}
+                    value={form.ctc}
+                    onChange={(e) => setForm({ ...form, ctc: Number(e.target.value) })}
+                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button type="button" variant="outline" onClick={() => setOnboardModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                    {isSubmitting ? 'Creating...' : 'Create Employee Record'}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
+
 
       {/* Filter and Search Bar */}
       {currentRole !== 'employee' && (

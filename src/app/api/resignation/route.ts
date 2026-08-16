@@ -21,10 +21,8 @@ export async function GET(req: NextRequest) {
       const emp = await prisma.employee.findFirst({
         where: {
           OR: [
-            { id: userCtx.employeeId || '' },
-            { employeeCode: userCtx.employeeId || '' },
-            { userId: userCtx.userId },
-            { email: userCtx.email },
+            ...(userCtx.employeeId ? [{ id: userCtx.employeeId }, { employeeCode: userCtx.employeeId }] : []),
+            ...(userCtx.email ? [{ email: userCtx.email }] : []),
           ],
         },
       });
@@ -114,10 +112,8 @@ export async function POST(req: NextRequest) {
     let emp = await prisma.employee.findFirst({
       where: {
         OR: [
-          { id: body.employeeId || userCtx.employeeId || '' },
-          { employeeCode: body.employeeId || userCtx.employeeId || '' },
-          { userId: userCtx.userId },
-          { email: userCtx.email },
+          ...(body.employeeId || userCtx.employeeId ? [{ id: body.employeeId || userCtx.employeeId }, { employeeCode: body.employeeId || userCtx.employeeId }] : []),
+          ...(userCtx.email ? [{ email: userCtx.email }] : []),
         ],
       },
     });
