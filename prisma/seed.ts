@@ -332,6 +332,7 @@ async function main() {
     // 7. Seed Leave Requests
     await prisma.leaveRequest.create({
       data: {
+        organizationId: org.id,
         employeeId: 'emp_005', // Vishwadharan
         leaveType: LeaveTypeEnum.casual,
         fromDate: new Date('2026-08-20'),
@@ -406,6 +407,9 @@ async function main() {
     }
 
     // 10. Seed Payroll Run & Payslips
+    const hrUser = seededUsers[UserRole.hr_head];
+    const mdUser = seededUsers[UserRole.managing_director];
+
     const payrollRun = await prisma.payrollRun.create({
       data: {
         organizationId: org.id,
@@ -417,8 +421,8 @@ async function main() {
         totalDeductions: 336000,
         totalNet: 2464000,
         status: PayrollStatus.approved,
-        calculatedBy: 'Eleanor Vance',
-        approvedBy: 'Dr. Vikramaditya Rathore',
+        calculatedById: hrUser.id,
+        approvedById: mdUser.id,
       },
     });
 
@@ -434,6 +438,7 @@ async function main() {
 
       await prisma.payslip.create({
         data: {
+          organizationId: org.id,
           payrollRunId: payrollRun.id,
           employeeId: emp.id,
           period: '2026-08',
@@ -473,6 +478,7 @@ async function main() {
 
     await prisma.candidate.create({
       data: {
+        organizationId: org.id,
         jobRequisitionId: jobReq.id,
         candidateCode: 'CAN-2026-001',
         name: 'Ananya Sharma',

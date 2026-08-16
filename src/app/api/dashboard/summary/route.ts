@@ -60,9 +60,10 @@ export async function GET(req: NextRequest) {
         orderBy: { employeeCode: 'asc' },
       }).catch(() => []),
 
-      // 2. Attendance Today
+      // 2. Attendance Records
       prisma.attendanceRecord.findMany({
-        where: { date: today },
+        take: 50,
+        orderBy: { date: 'desc' },
         include: {
           employee: {
             select: { id: true, firstName: true, lastName: true, employeeCode: true, department: true },
