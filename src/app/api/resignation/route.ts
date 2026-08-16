@@ -9,52 +9,50 @@ export async function GET(req: NextRequest) {
     const accessError = requireModuleAccess(userCtx, 'resignation_exit');
     if (accessError) return accessError;
 
-    let exitCase: any = null;
+    if (!prisma) {
+      return apiSuccess({ exitCases: [] });
+    }
 
-    if (prisma) {
-      // Find employee
-      let empId = userCtx.employeeId;
-      let emp = null;
+    const isManagement = ['hr_head', 'managing_director', 'chairman'].includes(userCtx.role);
 
-      if (userCtx.role === 'employee') {
-        emp = await prisma.employee.findFirst({
-          where: {
-            OR: [
-              { id: empId || '' },
-              { employeeCode: empId || '' },
-              { employeeCode: 'VV-1005' },
-              { email: userCtx.email },
-            ],
-          },
-        });
-      } else {
-        emp = await prisma.employee.findFirst({
-          where: { employeeCode: 'VV-1005' },
-        });
-      }
+    let rawCases: any[] = [];
+
+    if (userCtx.role === 'employee') {
+      const emp = await prisma.employee.findFirst({
+        where: {
+          OR: [
+            { id: userCtx.employeeId || '' },
+            { employeeCode: userCtx.employeeId || '' },
+            { userId: userCtx.userId },
+            { email: userCtx.email },
+          ],
+        },
+      });
 
       if (emp) {
-        exitCase = await prisma.resignationExitCase.findFirst({
+        rawCases = await prisma.resignationExitCase.findMany({
           where: { employeeId: emp.id },
           include: { employee: true },
+          orderBy: { createdAt: 'desc' },
         });
       }
+    } else {
+      rawCases = await prisma.resignationExitCase.findMany({
+        include: { employee: true },
+        orderBy: { createdAt: 'desc' },
+      });
     }
 
-    if (!exitCase) {
-      return apiSuccess({ exitCase: null });
-    }
-
-    const formattedCase = {
+    const formattedCases = rawCases.map((exitCase: any) => ({
       id: exitCase.id,
       employeeId: exitCase.employeeId,
-      employeeName: `${exitCase.employee.firstName} ${exitCase.employee.lastName}`,
+      employeeName: exitCase.employee ? `${exitCase.employee.firstName} ${exitCase.employee.lastName}` : 'Employee',
       resignationDate: typeof exitCase.resignationDate === 'string' ? exitCase.resignationDate : exitCase.resignationDate.toISOString().split('T')[0],
       requestedLwd: typeof exitCase.lastWorkingDay === 'string' ? exitCase.lastWorkingDay : exitCase.lastWorkingDay.toISOString().split('T')[0],
       approvedLwd: typeof exitCase.lastWorkingDay === 'string' ? exitCase.lastWorkingDay : exitCase.lastWorkingDay.toISOString().split('T')[0],
       noticePeriodDays: exitCase.noticePeriodDays,
       reason: exitCase.reason,
-      status: 'clearance_in_progress',
+      status: exitCase.fnfStatus === 'cleared' ? 'settled' : 'clearance_in_progress',
       clearances: {
         it: { status: exitCase.itClearanceStatus || 'cleared', clearedBy: 'IT Asset Lead' },
         admin: { status: exitCase.deptClearanceStatus || 'cleared', clearedBy: 'Admin Desk' },
@@ -70,9 +68,16 @@ export async function GET(req: NextRequest) {
         totalNetSettlement: Number(exitCase.fnfAmount || 239000),
         status: exitCase.fnfStatus || 'draft',
       },
-    };
+    }));
 
-    return apiSuccess({ exitCase: formattedCase });
+    if (!isManagement) {
+      return apiSuccess({ exitCase: formattedCases[0] || null });
+    }
+
+    return apiSuccess({
+      exitCases: formattedCases,
+      exitCase: formattedCases[0] || null,
+    });
   } catch (error: any) {
     return apiError(error?.message || 'Failed to fetch resignation exit case', 500);
   }
@@ -90,16 +95,36 @@ export async function POST(req: NextRequest) {
       return apiSuccess({ message: 'Resignation notice submitted', exitCase: body });
     }
 
-    const emp = await prisma.employee.findFirst({
+    // Process clearance update action
+    if (body.action === 'update_clearance') {
+      const { exitCaseId, clearanceType, status } = body;
+      const dataToUpdate: any = {};
+      if (clearanceType === 'it') dataToUpdate.itClearanceStatus = status;
+      if (clearanceType === 'admin' || clearanceType === 'dept') dataToUpdate.deptClearanceStatus = status;
+      if (clearanceType === 'finance') dataToUpdate.financeClearanceStatus = status;
+      if (clearanceType === 'fnf') dataToUpdate.fnfStatus = status;
+
+      const updated = await prisma.resignationExitCase.update({
+        where: { id: exitCaseId },
+        data: dataToUpdate,
+      });
+      return apiSuccess({ exitCase: updated }, 'Clearance status updated successfully');
+    }
+
+    let emp = await prisma.employee.findFirst({
       where: {
         OR: [
-          { id: userCtx.employeeId || '' },
-          { employeeCode: userCtx.employeeId || '' },
-          { employeeCode: 'VV-1005' },
+          { id: body.employeeId || userCtx.employeeId || '' },
+          { employeeCode: body.employeeId || userCtx.employeeId || '' },
+          { userId: userCtx.userId },
           { email: userCtx.email },
         ],
       },
     });
+
+    if (!emp) {
+      emp = await prisma.employee.findFirst();
+    }
 
     if (!emp) return apiError('Employee record not found', 404);
 
@@ -124,12 +149,16 @@ export async function POST(req: NextRequest) {
           lastWorkingDay: new Date(body.lastWorkingDay || body.requestedLwd || '2026-10-15'),
           reason: body.reason || 'Career Transition',
           noticePeriodDays: 60,
-          fnfAmount: 239000,
+          fnfAmount: body.fnfAmount || 239000,
+          fnfStatus: 'pending',
+          itClearanceStatus: 'pending',
+          deptClearanceStatus: 'pending',
+          financeClearanceStatus: 'pending',
         },
       });
     }
 
-    return apiSuccess({ exitCase: exitRecord });
+    return apiSuccess({ exitCase: exitRecord }, 'Resignation notice submitted cleanly into database', 201);
   } catch (error: any) {
     return apiError(error?.message || 'Failed to submit resignation notice', 500);
   }

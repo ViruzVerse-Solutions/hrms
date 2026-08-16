@@ -139,6 +139,27 @@ export async function GET(req: NextRequest) {
       }));
     }
 
+    // 7. Pending Disciplinary Cases
+    let pendingDisciplinary: any[] = [];
+    if (['managing_director', 'hr_head', 'internal_audit_head'].includes(role)) {
+      const discCases = await prisma.disciplinaryCase.findMany({
+        where: { currentStage: { in: ['show_cause_notice', 'inquiry_panel'] } },
+        include: { employee: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      pendingDisciplinary = discCases.map((dc) => ({
+        id: dc.id,
+        category: 'disciplinary',
+        categoryTitle: 'Disciplinary Case Review',
+        title: `Disciplinary Review: ${dc.caseNumber} (${dc.violationType.toUpperCase()})`,
+        applicantName: dc.employee ? `${dc.employee.firstName} ${dc.employee.lastName}` : 'Employee',
+        applicantId: dc.employeeId,
+        details: `Severity: ${dc.severity.toUpperCase()} • Reported By: ${dc.reportedBy} • ${dc.description || 'Action Pending'}`,
+        date: dc.createdAt.toISOString(),
+        raw: dc,
+      }));
+    }
+
     const allItems = [
       ...pendingLeaves,
       ...pendingRequisitions,
@@ -146,6 +167,7 @@ export async function GET(req: NextRequest) {
       ...pendingPayrollRuns,
       ...pendingExits,
       ...pendingHolidays,
+      ...pendingDisciplinary,
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     const counts = {
@@ -156,6 +178,7 @@ export async function GET(req: NextRequest) {
       payroll: pendingPayrollRuns.length,
       exits: pendingExits.length,
       holidays: pendingHolidays.length,
+      disciplinary: pendingDisciplinary.length,
     };
 
     return NextResponse.json({
@@ -275,6 +298,19 @@ export async function POST(req: NextRequest) {
       actionDetail = action === 'approve'
         ? `Approved company holiday ${updatedRecord.title}`
         : `Rejected company holiday: ${rejectionReason}`;
+    }
+    // 7. Process Disciplinary Cases
+    else if (category === 'disciplinary') {
+      updatedRecord = await prisma.disciplinaryCase.update({
+        where: { id: itemId },
+        data: {
+          currentStage: action === 'approve' ? 'closed' : 'show_cause_notice',
+          actionTaken: action === 'approve' ? 'written_warning' : 'exonerated',
+        },
+      });
+      actionDetail = action === 'approve'
+        ? `Closed disciplinary case ${updatedRecord.caseNumber} with formal warning`
+        : `Exonerated / cancelled disciplinary notice: ${rejectionReason}`;
     }
 
     // Persist SHA-256 integrity Audit Log entry

@@ -16,8 +16,9 @@ import {
   History,
   Check,
   Lock,
+  AlertOctagon,
 } from 'lucide-react';
-import { formatDate, formatDateTime } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +28,7 @@ import { useAuth } from '@/context/AuthContext';
 
 interface PendingItem {
   id: string;
-  category: 'leaves' | 'requisitions' | 'transfers' | 'payroll' | 'exits' | 'holidays';
+  category: 'leaves' | 'requisitions' | 'transfers' | 'payroll' | 'exits' | 'holidays' | 'disciplinary';
   categoryTitle: string;
   title: string;
   applicantName: string;
@@ -46,7 +47,7 @@ export default function ApprovalsPage() {
 }
 
 function ApprovalsContent() {
-  const { currentRole, roleDetails, auditLogs } = useAuth();
+  const { currentRole, roleDetails } = useAuth();
   const [items, setItems] = useState<PendingItem[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -167,7 +168,7 @@ function ApprovalsContent() {
             </Badge>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Review pending leaves, job requisitions, transfers, payroll runs, and policies for <strong className="text-indigo-600">{roleDetails.title}</strong>
+            Review pending leaves, job requisitions, transfers, payroll runs, exits & disciplinary notices for <strong className="text-indigo-600">{roleDetails.title}</strong>
           </p>
         </div>
 
@@ -234,13 +235,13 @@ function ApprovalsContent() {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between text-slate-500">
-              <span className="text-xs font-semibold uppercase tracking-wider">Holidays & Policies</span>
-              <FileCheck className="h-4 w-4 text-amber-600" />
+              <span className="text-xs font-semibold uppercase tracking-wider">Exits & Disciplinary</span>
+              <AlertOctagon className="h-4 w-4 text-amber-600" />
             </div>
             <div className="text-3xl font-extrabold mt-3 text-amber-600 font-mono">
-              {counts.holidays || 0}
+              {(counts.exits || 0) + (counts.disciplinary || 0)}
             </div>
-            <div className="text-xs text-slate-500 mt-1">Pending Executive Sign-off</div>
+            <div className="text-xs text-slate-500 mt-1">Pending Clearance & Action</div>
           </CardContent>
         </Card>
       </div>
@@ -258,7 +259,7 @@ function ApprovalsContent() {
             Requisitions ({counts.requisitions || 0})
           </TabsTrigger>
           <TabsTrigger value="transfers" className="text-xs px-3 py-1.5">
-            Transfers & Promotions ({counts.transfers || 0})
+            Transfers ({counts.transfers || 0})
           </TabsTrigger>
           <TabsTrigger value="payroll" className="text-xs px-3 py-1.5">
             Payroll Runs ({counts.payroll || 0})
@@ -267,7 +268,10 @@ function ApprovalsContent() {
             Exits & F&F ({counts.exits || 0})
           </TabsTrigger>
           <TabsTrigger value="holidays" className="text-xs px-3 py-1.5">
-            Holidays & Policies ({counts.holidays || 0})
+            Holidays ({counts.holidays || 0})
+          </TabsTrigger>
+          <TabsTrigger value="disciplinary" className="text-xs px-3 py-1.5">
+            Disciplinary ({counts.disciplinary || 0})
           </TabsTrigger>
         </TabsList>
 
@@ -276,7 +280,7 @@ function ApprovalsContent() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base font-bold flex items-center justify-between">
-                <span>Pending Approval Queue</span>
+                <span>Pending Approval Queue (DB Live Stream)</span>
                 <Badge variant="outline" className="text-xs font-mono">
                   {filteredItems.length} Items
                 </Badge>
@@ -284,11 +288,11 @@ function ApprovalsContent() {
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <div className="py-8 text-center text-xs text-slate-500">Syncing approval items from database...</div>
+                <div className="py-8 text-center text-xs text-slate-500">Syncing approval items from PostgreSQL...</div>
               ) : filteredItems.length === 0 ? (
                 <div className="py-8 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
                   <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-                  <span>No pending approval items for your role. You are all caught up!</span>
+                  <span>No pending approval items for your role in the database. You are all caught up!</span>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
