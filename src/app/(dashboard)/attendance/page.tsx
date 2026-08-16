@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 
 import { LoadingState } from '@/components/ui/LoadingState';
-
+import { FieldLoader } from '@/components/ui/skeleton';
 
 export default function AttendancePage() {
   return (
@@ -42,6 +42,7 @@ function AttendanceContent() {
     employees,
     setAttendanceRecords,
     isLoadingData,
+    isHydrated,
   } = useAuth();
 
   const [filterDate, setFilterDate] = useState('');

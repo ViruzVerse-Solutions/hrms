@@ -29,6 +29,7 @@ import Link from 'next/link';
 import { getPersonaAvatar } from '@/lib/constants';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { Skeleton, CardSkeleton } from '@/components/ui/skeleton';
 
 export default function EmployeeDetailPage({
   params,

@@ -19,6 +19,7 @@ import { RBACGuard } from '@/components/layout/RBACGuard';
 import { useAuth } from '@/context/AuthContext';
 import { TrainingProgram } from '@/types';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { FieldLoader } from '@/components/ui/skeleton';
 
 export default function TrainingPage() {
   return (

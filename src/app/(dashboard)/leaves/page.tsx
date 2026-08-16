@@ -464,9 +464,9 @@ function LeavesContent() {
           const approvedCount = visibleLeaves.filter((l) => l.leaveType === type && l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
           const pendingCount = visibleLeaves.filter((l) => l.leaveType === type && l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
 
-          const totalAllocated = alloc ? Number(alloc.totalAllocated || (alloc as any).allocatedDays || defAlloc) : defAlloc;
-          const used = alloc ? Math.max(Number(alloc.used || (alloc as any).usedDays || 0), approvedCount) : approvedCount;
-          const pending = alloc ? Math.max(Number(alloc.pending || (alloc as any).pendingDays || 0), pendingCount) : pendingCount;
+          const totalAllocated = alloc ? Number(alloc.allocatedDays || (alloc as any).totalAllocated || defAlloc) : defAlloc;
+          const used = alloc?.usedDays !== undefined ? Number(alloc.usedDays) : approvedCount;
+          const pending = alloc?.pendingDays !== undefined ? Number(alloc.pendingDays) : pendingCount;
           const balance = Math.max(0, totalAllocated - used);
 
           return { totalAllocated, used, pending, balance };
@@ -517,7 +517,7 @@ function LeavesContent() {
                   <span>Holiday Calendar 2026</span>
                   <FileCheck className="h-4 w-4 text-amber-600" />
                 </div>
-                <div className="text-3xl font-extrabold text-slate-900 mt-2 font-mono">{holidays.length || 7} Days</div>
+                <div className="text-3xl font-extrabold text-slate-900 mt-2 font-mono">{holidays.length} Days</div>
                 <div className="text-xs text-amber-700 mt-1 font-medium flex items-center gap-1">
                   <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
                   <span>Configured & Approved</span>

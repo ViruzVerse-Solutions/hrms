@@ -35,6 +35,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { getPersonaAvatar } from '@/lib/constants';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { FieldLoader } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
   const {
@@ -42,6 +43,7 @@ export default function DashboardPage() {
     currentUser,
     currentEmployee,
     isLoadingData,
+    isHydrated,
     employees,
     leaveRequests,
     leaveAllocations,
@@ -53,7 +55,6 @@ export default function DashboardPage() {
     grievances,
     updateAttendanceCheckin,
     auditLogs,
-    isHydrated,
   } = useAuth();
 
   const [branches, setBranches] = React.useState<Array<{ id: string; name: string }>>([]);
@@ -707,9 +708,9 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {currentRole === 'employee' && (() => {
         const casualAlloc = leaveAllocations.find((a) => a.leaveType === 'casual');
-        const casualBal = casualAlloc ? casualAlloc.balance : (leaveAllocations[0]?.balance ?? 10);
-        const casualUsed = casualAlloc ? casualAlloc.used : (leaveAllocations[0]?.used ?? 0);
-        const casualPend = casualAlloc ? casualAlloc.pending : (leaveAllocations[0]?.pending ?? 0);
+        const casualBal = casualAlloc ? (casualAlloc.balanceDays ?? casualAlloc.balance) : 12;
+        const casualUsed = casualAlloc ? (casualAlloc.usedDays ?? casualAlloc.used) : 0;
+        const casualPend = casualAlloc ? (casualAlloc.pendingDays ?? casualAlloc.pending) : 0;
 
         const myEmpId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
         const latestPs = payslips.find((p) => p.employeeId === myEmpId || p.employeeCode === currentEmployee?.employeeCode) || payslips[0];

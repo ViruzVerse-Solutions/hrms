@@ -19,6 +19,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGri
 import { useAuth } from '@/context/AuthContext';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { FieldLoader } from '@/components/ui/skeleton';
 
 export default function ReportsPage() {
   const { currentRole } = useAuth();

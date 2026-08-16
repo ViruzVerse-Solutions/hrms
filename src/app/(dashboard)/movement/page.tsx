@@ -36,12 +36,12 @@ function MovementContent() {
   const [formData, setFormData] = useState({
     employeeId: '',
     type: 'promotion',
-    currentDepartment: firstEmp?.departmentName || '',
-    newDepartment: firstEmp?.departmentName || '',
-    currentDesignation: firstEmp?.designationTitle || '',
+    currentDepartment: '',
+    newDepartment: '',
+    currentDesignation: '',
     newDesignation: '',
-    currentBranch: firstEmp?.branchName || '',
-    newBranch: firstEmp?.branchName || '',
+    currentBranch: '',
+    newBranch: '',
     effectiveDate: new Date().toISOString().split('T')[0],
   });
 

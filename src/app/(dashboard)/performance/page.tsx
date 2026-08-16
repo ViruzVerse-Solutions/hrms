@@ -31,7 +31,7 @@ export default function PerformancePage() {
 }
 
 function PerformanceContent() {
-  const { performanceReviews, currentRole, logAuditAction, isLoadingData } = useAuth();
+  const { performanceReviews, currentRole, logAuditAction, isLoadingData, isHydrated } = useAuth();
   const [activeTab, setActiveTab] = useState<'appraisals' | 'nine_box' | 'pip'>('appraisals');
   const [reviewsList, setReviewsList] = useState(performanceReviews);
   const [isLoading, setIsLoading] = useState(false);

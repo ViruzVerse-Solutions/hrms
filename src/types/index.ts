@@ -196,6 +196,10 @@ export interface LeaveBalance {
   used: number;
   pending: number;
   balance: number;
+  allocatedDays?: number;
+  usedDays?: number;
+  pendingDays?: number;
+  balanceDays?: number;
 }
 
 export interface SalaryBreakup {

@@ -23,8 +23,8 @@ export async function GET(req: NextRequest) {
       status: r.status || 'active',
       targetDate: r.targetDate,
       justification: `Approved headcount requirement for ${r.title}`,
-      requestedById: userCtx.employeeId || userCtx.userId,
-      requestedByName: userCtx.employeeName || '',
+      requestedById: r.requestedById || userCtx.employeeId || userCtx.userId,
+      requestedByName: r.requestedByName || 'Eleanor Vance (HR Head)',
     }));
 
     const formattedCandidates = data.candidates.map((c: any) => ({

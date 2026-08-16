@@ -195,4 +195,61 @@ export const attendanceService = {
       },
     });
   },
+
+  async getLeaveAllocations(employeeId?: string) {
+    if (!prisma) return [];
+
+    let empId = employeeId;
+    if (empId) {
+      const emp = await prisma.employee.findFirst({
+        where: {
+          OR: [
+            { id: empId },
+            { employeeCode: empId },
+            { employeeCode: { equals: empId, mode: 'insensitive' } },
+          ],
+        },
+      });
+      if (emp) empId = emp.id;
+    }
+
+    if (!empId) {
+      const firstEmp = await prisma.employee.findFirst({ where: { employmentStatus: { not: 'terminated' } } });
+      empId = firstEmp?.id;
+    }
+
+    if (!empId) return [];
+
+    const dbAllocations = await prisma.leaveAllocation.findMany({
+      where: { employeeId: empId, year: new Date().getFullYear() },
+    });
+
+    const requests = await prisma.leaveRequest.findMany({
+      where: { employeeId: empId },
+    });
+
+    const leaveTypes = ['casual', 'sick', 'earned'];
+    return leaveTypes.map((type) => {
+      const alloc = dbAllocations.find((a: any) => a.leaveType === type);
+      const defaultQuota = type === 'casual' ? 12 : type === 'sick' ? 10 : 15;
+      const allocatedDays = alloc ? Number(alloc.allocatedDays) : defaultQuota;
+
+      const typeRequests = requests.filter((r: any) => r.leaveType === type);
+      const usedDays = typeRequests
+        .filter((r: any) => r.status === 'approved')
+        .reduce((sum: number, r: any) => sum + Number(r.daysCount || 0), 0);
+      const pendingDays = typeRequests
+        .filter((r: any) => r.status === 'pending')
+        .reduce((sum: number, r: any) => sum + Number(r.daysCount || 0), 0);
+      const balanceDays = Math.max(0, allocatedDays - usedDays);
+
+      return {
+        leaveType: type,
+        allocatedDays,
+        usedDays,
+        pendingDays,
+        balanceDays,
+      };
+    });
+  },
 };
