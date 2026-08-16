@@ -61,16 +61,36 @@ function RecruitmentContent() {
 
   // New Requisition Form State
   const [reqModalOpen, setReqModalOpen] = useState(false);
+  const targetDateObj = new Date();
+  targetDateObj.setDate(targetDateObj.getDate() + 30);
+  const defaultTargetDate = targetDateObj.toISOString().split('T')[0];
+
   const [reqForm, setReqForm] = useState({
     positionTitle: '',
-    departmentId: 'dept_qc',
-    departmentName: 'Quality Assurance & Analytical Lab',
+    departmentId: '',
+    departmentName: '',
     openingsCount: 1,
     urgency: 'high' as const,
     minExperience: '5+ Years',
-    targetDate: '2026-09-30',
+    targetDate: defaultTargetDate,
     justification: '',
   });
+
+  React.useEffect(() => {
+    fetch('/api/master')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.departments && data.data.departments[0]) {
+          const firstDept = data.data.departments[0];
+          setReqForm((prev) => ({
+            ...prev,
+            departmentId: firstDept.id,
+            departmentName: firstDept.name,
+          }));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const stages: Array<{ keys: string[]; label: string; color: string }> = [
     { keys: ['applied'], label: 'Applied', color: 'border-slate-300 dark:border-slate-700' },

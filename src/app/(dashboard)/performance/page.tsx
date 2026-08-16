@@ -209,7 +209,7 @@ function PerformanceContent() {
                     </Badge>
                   </div>
                   <p className="text-xs text-slate-500">
-                    Cycle: {review.cycleName || 'Annual Appraisal FY 2025-2026'} • Department: {review.department || 'Quality Assurance & Analytical Lab'}
+                    Cycle: {review.cycleName || 'Annual Appraisal FY 2025-2026'} • Department: {review.department || 'Operations & Technical Services'}
                   </p>
                 </div>
 

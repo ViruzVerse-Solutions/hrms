@@ -32,15 +32,16 @@ function MovementContent() {
   const [transfers, setTransfers] = useState<TransferPromotionCase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const firstEmp = employees[0];
   const [formData, setFormData] = useState({
-    employeeId: '',
+    employeeId: firstEmp?.id || '',
     type: 'promotion',
-    currentDepartment: 'Quality Assurance & Analytical Lab',
-    newDepartment: 'Quality Assurance & Analytical Lab',
-    currentDesignation: 'QC Chemist (L3)',
-    newDesignation: 'Senior QC Chemist (L4)',
-    currentBranch: 'Tech Operations Center (HQ)',
-    newBranch: 'Tech Operations Center (HQ)',
+    currentDepartment: firstEmp?.departmentName || 'Operations & Engineering',
+    newDepartment: firstEmp?.departmentName || 'Operations & Engineering',
+    currentDesignation: firstEmp?.designationTitle || 'Quality Engineer',
+    newDesignation: 'Senior ' + (firstEmp?.designationTitle || 'Quality Engineer'),
+    currentBranch: firstEmp?.branchName || 'Headquarters',
+    newBranch: firstEmp?.branchName || 'Headquarters',
     effectiveDate: new Date().toISOString().split('T')[0],
   });
 
@@ -320,7 +321,7 @@ function MovementContent() {
                 <input
                   type="text"
                   required
-                  placeholder="Quality Assurance & Analytical Lab"
+                  placeholder="e.g. Operations & Engineering"
                   className="w-full px-3 py-2 border rounded-lg outline-none"
                   value={formData.newDepartment}
                   onChange={(e) => setFormData({ ...formData, newDepartment: e.target.value })}

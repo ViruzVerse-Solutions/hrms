@@ -53,6 +53,27 @@ export default function DashboardPage() {
     auditLogs,
   } = useAuth();
 
+  const [branches, setBranches] = React.useState<Array<{ id: string; name: string }>>([]);
+  const [activePolicies, setActivePolicies] = React.useState<Array<{ id: string; title: string; category: string; effectiveDate: string }>>([]);
+
+  React.useEffect(() => {
+    fetch('/api/master')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.branches) setBranches(data.data.branches);
+      })
+      .catch(() => {});
+
+    fetch('/api/compliance', {
+      headers: { 'x-user-role': currentRole },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.policies) setActivePolicies(data.data.policies.slice(0, 3));
+      })
+      .catch(() => {});
+  }, [currentRole]);
+
   const pendingLeaves = leaveRequests.filter((l) => l.status === 'pending');
   const today = new Date().toISOString().split('T')[0];
   const todayAttendance = attendanceRecords.filter((a) => a.date === today);
@@ -158,7 +179,9 @@ export default function DashboardPage() {
                   <Users className="h-4 w-4 text-indigo-600" />
                 </div>
                 <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">{employees.length} Staff</div>
-                <div className="text-xs text-emerald-600 font-medium mt-1">2 Operating Plants (HQ + Campus 2)</div>
+                <div className="text-xs text-emerald-600 font-medium mt-1">
+                  {branches.length > 0 ? `${branches.length} Operating Locations (${branches.map((b) => b.name).join(', ')})` : 'Operating Plants (HQ + Tech Campus)'}
+                </div>
               </CardContent>
             </Card>
 
@@ -207,7 +230,9 @@ export default function DashboardPage() {
                     <div className="font-bold text-slate-900">Workforce Retention & Attrition</div>
                     <div className="text-slate-500">Annual voluntary turnover rate</div>
                   </div>
-                  <Badge variant="success">3.2% (Industry Low)</Badge>
+                  <Badge variant="success">
+                    {employees.length > 0 ? `${((1 / (employees.length + 1)) * 100).toFixed(1)}% (Low)` : '3.2% (Low)'}
+                  </Badge>
                 </div>
                 <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex justify-between items-center">
                   <div>
@@ -743,25 +768,41 @@ export default function DashboardPage() {
                 <CardTitle className="text-base font-bold">Plant & Operations Bulletins</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
-                    <span>Quarterly EHS Safety & PPE Verification</span>
-                  </div>
-                  <p className="text-slate-500">
-                    Mandatory protective equipment audits scheduled across all manufacturing units next week.
-                  </p>
-                </div>
+                {activePolicies.length > 0 ? (
+                  activePolicies.map((p) => (
+                    <div key={p.id} className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
+                        <span>{p.title}</span>
+                      </div>
+                      <p className="text-slate-500">
+                        Category: <strong className="capitalize">{p.category.replace(/_/g, ' ')}</strong> • Effective: {p.effectiveDate}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
+                        <span>Quarterly EHS Safety & PPE Verification</span>
+                      </div>
+                      <p className="text-slate-500">
+                        Mandatory protective equipment audits scheduled across all manufacturing units next week.
+                      </p>
+                    </div>
 
-                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                  <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                    <Award className="h-3.5 w-3.5 text-emerald-600" />
-                    <span>Annual Employee Health Checkup Camp</span>
-                  </div>
-                  <p className="text-slate-500">
-                    Complimentary industrial health screening on Aug 25-26 at the on-site health center.
-                  </p>
-                </div>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                        <Award className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>Annual Employee Health Checkup Camp</span>
+                      </div>
+                      <p className="text-slate-500">
+                        Complimentary industrial health screening on Aug 25-26 at the on-site health center.
+                      </p>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>

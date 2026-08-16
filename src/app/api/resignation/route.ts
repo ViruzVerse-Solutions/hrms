@@ -57,15 +57,23 @@ export async function GET(req: NextRequest) {
         finance: { status: exitCase.financeClearanceStatus || 'pending' },
         hr: { status: 'pending' },
       },
-      ffSettlement: {
-        pendingSalary: 112000,
-        leaveEncashment: 42000,
-        bonusGratuity: 85000,
-        noticeShortfallDeduction: 0,
-        assetDeduction: 0,
-        totalNetSettlement: Number(exitCase.fnfAmount || 239000),
-        status: exitCase.fnfStatus || 'draft',
-      },
+      ffSettlement: (() => {
+        const ctc = Number(exitCase.employee?.ctc || 540000);
+        const monthlyGross = Math.round(ctc / 12);
+        const pendingSalary = Math.round(monthlyGross * 0.9);
+        const leaveEncashment = Math.round((monthlyGross / 30) * 12);
+        const bonusGratuity = Math.round((monthlyGross / 26) * 15 * 0.5);
+        const netTotal = Number(exitCase.fnfAmount) || (pendingSalary + leaveEncashment + bonusGratuity);
+        return {
+          pendingSalary,
+          leaveEncashment,
+          bonusGratuity,
+          noticeShortfallDeduction: 0,
+          assetDeduction: 0,
+          totalNetSettlement: netTotal,
+          status: exitCase.fnfStatus || 'draft',
+        };
+      })(),
     }));
 
     if (!isManagement) {

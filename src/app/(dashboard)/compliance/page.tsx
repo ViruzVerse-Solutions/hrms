@@ -70,6 +70,7 @@ function ComplianceContent() {
 
   // PDF Preview & Print Modal
   const [pdfPreviewPolicy, setPdfPreviewPolicy] = useState<PolicyDocument | null>(null);
+  const [registerModal, setRegisterModal] = useState<{ title: string; type: 'form25' | 'formB' | 'posh' } | null>(null);
 
   const canManagePolicies = can('create', 'policy_compliance');
 
@@ -268,7 +269,7 @@ function ComplianceContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => alert('Exporting Statutory Form 25 Muster Roll (PDF)...')}
+              onClick={() => setRegisterModal({ title: 'Statutory Form 25 Muster Roll Register', type: 'form25' })}
               className="w-full gap-1.5 text-xs mt-2 bg-white"
             >
               <Download className="h-3.5 w-3.5" />
@@ -288,7 +289,7 @@ function ComplianceContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => alert('Exporting Statutory Form B Wage Register Sheet...')}
+              onClick={() => setRegisterModal({ title: 'Statutory Form B Wage Register', type: 'formB' })}
               className="w-full gap-1.5 text-xs mt-2 bg-white"
             >
               <Download className="h-3.5 w-3.5" />
@@ -308,7 +309,7 @@ function ComplianceContent() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => alert('Opening POSH Statutory Committee Annual Audit Report...')}
+              onClick={() => setRegisterModal({ title: 'Internal Complaints Committee (POSH)', type: 'posh' })}
               className="w-full gap-1.5 text-xs mt-2 bg-white"
             >
               <BookOpen className="h-3.5 w-3.5" />
@@ -667,6 +668,54 @@ function ComplianceContent() {
               <Badge variant="success" className="font-mono text-xs">
                 Active & Enforced
               </Badge>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic Statutory Register Preview / Export Modal */}
+      {registerModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full p-4 sm:p-6 space-y-5 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div>
+                <h3 className="font-extrabold text-base text-slate-900">{registerModal.title}</h3>
+                <p className="text-xs text-slate-500">Factories Act & Statutory Remuneration Rules</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={() => window.print()} className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
+                  <Printer className="h-3.5 w-3.5" />
+                  <span>Print Register</span>
+                </Button>
+                <button onClick={() => setRegisterModal(null)} className="text-slate-400 hover:text-slate-600 p-1">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 border space-y-3 text-xs">
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-slate-500 font-semibold">Entity Name</span>
+                <span className="font-bold text-slate-900">Viruzverse Solutions Private Limited</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-slate-500 font-semibold">Filing Period</span>
+                <span className="font-mono font-bold text-indigo-600">August 2026 Batch</span>
+              </div>
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-slate-500 font-semibold">Statutory Authority</span>
+                <span className="font-semibold text-slate-800">Ministry of Labour & Employment</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">Verification Audit Status</span>
+                <Badge variant="success" className="text-[10px]">100% Verified & Compliant</Badge>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900">
+              {registerModal.type === 'form25' && 'Form 25 muster roll register automatically compiled from turnstile biometric access logs and web ESS check-in entries.'}
+              {registerModal.type === 'formB' && 'Form B wage register compiled from monthly gross salary calculations, Provident Fund (PF), ESI, and Professional Tax (PT) filings.'}
+              {registerModal.type === 'posh' && 'Internal Complaints Committee (ICC) constitution report in accordance with Sexual Harassment of Women at Workplace Act, 2013.'}
             </div>
           </div>
         </div>
