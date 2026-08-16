@@ -22,12 +22,12 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     chairman: 'V',
     managing_director: 'F',
     hr_head: 'F',
-    internal_audit_head: 'NONE',
+    internal_audit_head: 'V',
     compliance_statutory: 'V',
     employee: 'S',
   },
   recruitment: {
-    chairman: 'V',
+    chairman: 'NONE',
     managing_director: 'A',
     hr_head: 'F',
     internal_audit_head: 'NONE',
@@ -35,7 +35,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     employee: 'NONE',
   },
   onboarding: {
-    chairman: 'V',
+    chairman: 'NONE',
     managing_director: 'V',
     hr_head: 'F',
     internal_audit_head: 'NONE',
@@ -43,7 +43,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     employee: 'S',
   },
   attendance_leave: {
-    chairman: 'V',
+    chairman: 'NONE',
     managing_director: 'A',
     hr_head: 'F',
     internal_audit_head: 'NONE',
@@ -51,7 +51,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     employee: 'S',
   },
   payroll_benefits: {
-    chairman: 'V',
+    chairman: 'NONE',
     managing_director: 'A',
     hr_head: 'F',
     internal_audit_head: 'V',
@@ -67,7 +67,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     employee: 'S',
   },
   training_dev: {
-    chairman: 'V',
+    chairman: 'NONE',
     managing_director: 'V',
     hr_head: 'F',
     internal_audit_head: 'NONE',
@@ -75,7 +75,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     employee: 'S',
   },
   engagement_welfare: {
-    chairman: 'V',
+    chairman: 'NONE',
     managing_director: 'V',
     hr_head: 'F',
     internal_audit_head: 'NONE',
@@ -91,7 +91,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     employee: 'NONE',
   },
   transfer_promotion: {
-    chairman: 'A',
+    chairman: 'NONE',
     managing_director: 'F',
     hr_head: 'F',
     internal_audit_head: 'NONE',
@@ -99,15 +99,15 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     employee: 'NONE',
   },
   disciplinary_actions: {
-    chairman: 'V',
+    chairman: 'NONE',
     managing_director: 'F',
     hr_head: 'F',
-    internal_audit_head: 'F',
+    internal_audit_head: 'V',
     compliance_statutory: 'V',
     employee: 'NONE',
   },
   resignation_exit: {
-    chairman: 'V',
+    chairman: 'NONE',
     managing_director: 'A',
     hr_head: 'F',
     internal_audit_head: 'NONE',
@@ -118,7 +118,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     chairman: 'V',
     managing_director: 'F',
     hr_head: 'F',
-    internal_audit_head: 'F',
+    internal_audit_head: 'V',
     compliance_statutory: 'V',
     employee: 'NONE',
   },
@@ -207,8 +207,8 @@ export interface ApprovalPermissionConfig {
 
 export const APPROVAL_CATEGORY_PERMISSIONS: Record<ApprovalCategory, ApprovalPermissionConfig> = {
   leaves: {
-    canView: ['chairman', 'managing_director', 'hr_head', 'compliance_statutory'],
-    canApprove: ['chairman', 'managing_director', 'hr_head'],
+    canView: ['managing_director', 'hr_head', 'compliance_statutory'],
+    canApprove: ['managing_director', 'hr_head'],
     module: 'attendance_leave',
     label: 'Leave Requests',
   },
@@ -226,13 +226,13 @@ export const APPROVAL_CATEGORY_PERMISSIONS: Record<ApprovalCategory, ApprovalPer
   },
   payroll: {
     canView: ['chairman', 'managing_director', 'hr_head', 'internal_audit_head', 'compliance_statutory'],
-    canApprove: ['chairman', 'managing_director', 'hr_head'],
+    canApprove: ['managing_director', 'hr_head'],
     module: 'payroll_benefits',
     label: 'Payroll Disbursals',
   },
   exits: {
     canView: ['chairman', 'managing_director', 'hr_head', 'compliance_statutory'],
-    canApprove: ['chairman', 'managing_director', 'hr_head'],
+    canApprove: ['managing_director', 'hr_head'],
     module: 'resignation_exit',
     label: 'Exit Clearances',
   },

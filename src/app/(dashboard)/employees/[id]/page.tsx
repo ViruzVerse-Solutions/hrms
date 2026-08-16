@@ -17,14 +17,26 @@ import {
   Award,
 } from 'lucide-react';
 import { formatCurrency, formatDate, calculateSalaryBreakup, getStatusColorBadge } from '@/lib/utils';
-import { LifecycleTimeline } from '@/components/modules/LifecycleTimeline';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import Link from 'next/link';
 import { getPersonaAvatar } from '@/lib/constants';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function EmployeeDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <RBACGuard module="employee_records">
+      <EmployeeDetailContent params={params} />
+    </RBACGuard>
+  );
+}
+
+function EmployeeDetailContent({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -169,9 +181,6 @@ export default function EmployeeDetailPage({
           </div>
         </div>
       </div>
-
-      {/* 17-Stage Simple HR Lifecycle Timeline */}
-      <LifecycleTimeline currentStage={employee.currentLifecycleStage || 'onboarding'} />
 
       {/* Detailed Tabs */}
       <Tabs defaultValue="overview" className="w-full">

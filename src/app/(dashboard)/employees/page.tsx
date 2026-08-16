@@ -25,8 +25,17 @@ import { useRouter } from 'next/navigation';
 import { getPersonaAvatar } from '@/lib/constants';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { RBACGuard } from '@/components/layout/RBACGuard';
 
 export default function EmployeesPage() {
+  return (
+    <RBACGuard module="employee_records">
+      <EmployeesContent />
+    </RBACGuard>
+  );
+}
+
+function EmployeesContent() {
   const router = useRouter();
   const { employees, isSalaryVisible, can, currentRole, currentEmployee, currentUser, logAuditAction } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');

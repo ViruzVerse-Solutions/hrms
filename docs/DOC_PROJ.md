@@ -1,320 +1,363 @@
-# Viruzverse HRMS — Complete System & Role Guide (Plain Language Edition)
+# Viruzverse HRMS — Comprehensive Architecture, RBAC Security, Multi-Persona Workflows & Data Relationships Manual
 
-> **Document Version**: 3.2 (Simple & Easy-to-Understand Edition)  
-> **Who is this for?**: Business Owners, Executives, HR Managers, Auditors, Compliance Officers, and Employees.  
-> **Applicable For**: Any type of business (Factories & Manufacturing, Hospitals & Healthcare, Retail Stores, Logistics & Warehousing, Corporate Offices, and IT Companies).  
+> **Document Version**: 4.0 (Enterprise Architecture & Implementation Edition)  
+> **Target Audience**: Business Owners, CTOs, HR Directors, Compliance Officers, Lead Architects, Developers, and QA Engineers.  
+> **Applicable Domains**: Multi-Plant Manufacturing, Hospitals & Healthcare, Retail Chains, Logistics & Warehousing, Corporate Enterprises, and IT Services.
 
 ---
 
-## 1. What is this System? (In Simple Words)
+## 1. System Overview & Core Architectural Guarantees
 
-**Viruzverse HRMS** is an all-in-one software platform that manages everything related to employees across their entire time with the company—from the day they are interviewed, to daily attendance and monthly salary payouts, all the way to their final retirement or resignation.
+**Viruzverse HRMS** is an enterprise-grade Human Resource Management System engineered to govern the entire employee lifecycle—from initial talent requisition and candidate sourcing to daily shift attendance, payroll processing, statutory compliance, performance calibration, and offboarding clearance.
 
 ```mermaid
 flowchart TD
-    subgraph Leadership ["1. Top Management & Owners"]
-        CH["Chairman (Board & High-Level Oversight)"]
-        MD["Managing Director / CEO (Final Approvals & Business Head)"]
+    subgraph Governance ["1. Executive Governance & Board Oversight"]
+        CH["Chairman (Strategic Oversight, Policy Charter & Board Approvals)"]
+        MD["Managing Director / CEO (Executive Approvals, Payroll Disbursal & Leadership)"]
     end
 
-    subgraph Management ["2. Daily Operations & Compliance"]
-        HR["HR Head (Runs All HR Operations)"]
-        AUD["Internal Auditor (Checks Records for Accuracy & Honesty)"]
-        CMP["Compliance Officer (Handles Labor Laws & Government Filings)"]
+    subgraph Operations ["2. Operations, Audit & Statutory Compliance"]
+        HR["HR Head / Director (Full Operational CRUD across all 16 Modules)"]
+        AUD["Internal Audit Head (Independent Read-Only Audit & Forensic Traceability)"]
+        CMP["Compliance & Statutory Officer (Labor Laws, POSH, PF/ESI & Policy Management)"]
     end
 
-    subgraph Staff ["3. All Employees"]
-        EMP["Staff & Plant Workers (Personal Portal for Leaves & Payslips)"]
+    subgraph SelfService ["3. Workforce Self-Service"]
+        EMP["Staff & Plant Workers (Web Clock-In, Leaves, Payslips, Self-Appraisal & Grievances)"]
     end
 
-    Leadership <--> Management
-    Management <--> Staff
+    Governance <==> Operations
+    Operations <==> SelfService
 ```
 
-### Three Key Guarantees of the System:
-1. **Works for Any Industry**: Handles office staff, factory shift workers, shop assistants, and healthcare staff equally well.
-2. **Strict Privacy & Permissions**: Nobody can see what they are not supposed to see. Regular staff cannot see other people's salaries, and managers cannot bypass company rules.
-3. **Permanent Activity History**: Every time someone creates, edits, approves, or deletes something, the system saves a permanent record that cannot be secretly altered by anyone.
+### Core Architectural Guarantees:
+1. **Strict Principle of Least Privilege (Zero-Trust RBAC)**: Each of the 6 roles has access *only* to their designated screens and functional operations. Unauthorized screen access is blocked at the routing layer (`RBACGuard.tsx`) and API layer (`rbac-guard-api.ts`).
+2. **Strict Separation of Duties**: Auditors cannot edit payroll or candidate data; Compliance officers cannot score performance appraisals; Employees cannot see organizational directories or compensation data; Chairmen do not handle routine operational tasks.
+3. **Forensic Audit Traceability (Tamper-Evident)**: Every write, update, delete, and approval action generates an append-only audit record in PostgreSQL with an SHA-256 integrity hash.
+4. **Field-Level Privacy & Salary Masking**: Sensitive compensation figures, bank account details, and government IDs are masked from unauthorized roles and restricted to authorized personnel and the employee's own self-service portal.
 
 ---
 
-## 2. The 6 Roles & Their Responsibilities (In Plain English)
+## 2. The 6 Roles, Responsibilities & Strict Boundaries
 
 ---
 
 ### Role 1: Chairman of the Board (`chairman`)
-
-* **Who is this person?**: The Head of the Board of Directors or company owner.
-* **Their Job in Simple Words**: They look at the "big picture"—overall workforce growth, total monthly company salary costs, high-level business reports, and long-term company policies. They do not get involved in daily tasks like approving casual sick leaves.
-
-#### What Screens Can the Chairman Access?
-
-| Screen | What it is for | What the Chairman Can Do |
-| :--- | :--- | :--- |
-| **Executive Dashboard** (`/dashboard`) | High-level summary of total staff, total monthly payroll cost, and department headcount. | **View all numbers & graphs** |
-| **Approvals Hub** (`/approvals`) | Review top-level decisions. | **Approve or Reject**: Director appointments, annual company holiday calendars, and executive promotions. |
-| **Company Reports** (`/reports`) | View full business analytics. | **View and download**: Salary budget charts, employee turnover trends, and attendance summaries. |
-| **Staff Directory** (`/employees`) | List of all company employees. | **View list & department charts** (Read-only). |
-| **Company Policies** (`/compliance`) | Official rulebooks and bylaws. | **Create, Edit, and Approve** company rules and code of conduct. |
-| **Performance Review** (`/performance`) | High-level staff rating summaries. | **View** leadership talent ratings and executive succession plans. |
-| **Settings & History** (`/settings`) | System setup and activity log. | **View** organizational settings and audit logs. |
-
-#### What is the Chairman NOT Allowed to Do?
-* Cannot edit daily attendance punches or manage day-to-day employee leaves (that is HR's job).
-* Cannot edit individual payslips or job applicant interviews.
+* **Role Character**: Board Leader & Chief Governance Officer.
+* **Core Mandate**: High-level strategic oversight, executive appointments, board governance, corporate policy charters, and macro workforce budgets.
+* **Primary Responsibilities**:
+  * Review organization-wide headcount, salary cost distribution, and retention analytics on the Executive Dashboard (`/dashboard`) and Reports (`/reports`).
+  * Sign off on executive-level promotions, director appointments, and annual company holiday calendars in the Approvals Hub (`/approvals`).
+  * Create, edit, and authorize corporate governance bylaws and safety charters in Policy & Compliance (`/compliance`).
+  * Review senior leadership succession pipelines and the executive 9-Box talent grid in Performance (`/performance`).
+* **Strict Role Boundaries (What the Chairman MUST NOT DO)**:
+  * ❌ Cannot create, edit, or delete operational employee records, daily attendance punches, or shift rosters.
+  * ❌ Cannot process monthly payroll wage calculations or edit candidate hiring stages.
+  * ❌ Does not undergo routine staff lifecycle tracking (no biometric punch clocks, shift rosters, or tool clearance).
 
 ---
 
 ### Role 2: Managing Director / CEO (`managing_director`)
-
-* **Who is this person?**: The Chief Executive Officer who runs the entire company day-to-day.
-* **Their Job in Simple Words**: The MD gives final sign-offs on hiring new staff, authorizes the monthly salary bank transfers, approves executive transfers between branches/factories, and decides on major disciplinary actions.
-
-#### What Screens Can the Managing Director Access?
-
-| Screen | What it is for | What the MD Can Do |
-| :--- | :--- | :--- |
-| **Executive Dashboard** (`/dashboard`) | Real-time overview of attendance, open job positions, and monthly salary totals. | **Full View** of all live company metrics. |
-| **Approvals Hub** (`/approvals`) | Central place to review pending company requests. | **Final Approver for**: Monthly salary disbursals, new hiring requests, high-level leaves, plant transfers, and resignations. |
-| **Company Reports** (`/reports`) | In-depth company reports. | **View & Export** all workforce, attendance, and financial reports. |
-| **Staff Directory** (`/employees`) | List of all employees across all branches. | **Full View** of all employee profiles and records. |
-| **Hiring & Job Openings** (`/recruitment`) | Job openings and applicants. | **Approve** new job openings and review final candidate offers. |
-| **Attendance & Shifts** (`/attendance`) | Daily attendance and shift compliance. | **View** company-wide attendance and overtime summaries. |
-| **Leave Management** (`/leaves`) | Leave records. | **Approve or Reject** leaves for Department Heads and direct managers. |
-| **Payroll & Salaries** (`/payroll`) | Monthly salary batch calculations. | **Click "Authorize Payroll"** to give final approval for salary bank transfers. |
-| **Performance & Ratings** (`/performance`) | Annual employee rating system. | **Review and approve** company-wide appraisal ratings and annual bonus pools. |
-| **Transfers & Promotions** (`/movement`) | Employee role and branch transfers. | **Approve or reject** promotions, salary hikes, and location transfers. |
-| **Disciplinary Cases** (`/disciplinary`) | Misconduct investigations. | **Review evidence** and sign off on official warnings, suspensions, or terminations. |
-| **Resignations & Exits** (`/resignation`) | Employees leaving the company. | **Approve** notice period waivers and final exit clearances. |
-| **Company Policies** (`/compliance`) | Official rulebooks. | **Approve & Publish** all company policies and safety rules. |
-| **System Settings** (`/settings`) | Company departments and branches. | **Full Access** to configure departments, designations, and view system history. |
+* **Role Character**: Chief Executive Officer & Operational Authority.
+* **Core Mandate**: Enterprise leadership, organizational KPIs, final operational approvals, and executive sign-offs.
+* **Primary Responsibilities**:
+  * Monitor real-time enterprise metrics (attendance, active headcounts, open requisitions) on the Dashboard (`/dashboard`).
+  * Final authorizer for **Monthly Payroll Disbursals** (`/payroll`), transferring calculated batches from *Verified* to *Disbursed*.
+  * Approve new manpower hiring requisitions (`/recruitment`) and review executive candidate offers.
+  * Approve branch transfers, grade promotions, and annual salary revisions in Movements (`/movement`).
+  * Sign off on major disciplinary inquiry sanctions (suspensions/terminations) in Disciplinary (`/disciplinary`).
+  * Authorize executive leave applications and final resignation notice period waivers (`/resignation`).
+* **Strict Role Boundaries (What the MD MUST NOT DO)**:
+  * ❌ Does not perform day-to-day data entry (e.g. typing candidate notes, adjusting manual attendance minutes).
+  * ❌ Does not alter historical audit logs or bypass statutory deduction calculations.
 
 ---
 
 ### Role 3: HR Head / HR Director (`hr_head`)
-
-* **Who is this person?**: The master administrator in charge of all people operations.
-* **Their Job in Simple Words**: The HR Head handles the complete 17-step journey of every employee—posting jobs, hiring candidates, taking care of day-1 joining, tracking daily biometric attendance, calculating monthly salaries, setting up training, resolving complaints, and processing final settlements when someone leaves.
-
-#### What Screens Can the HR Head Access?
-
-| Screen | What it is for | What the HR Head Can Do (Full CRUD) |
-| :--- | :--- | :--- |
-| **HR Operations Dashboard** (`/dashboard`) | Live overview of active staff, today's attendance, and pending HR tasks. | **Full Control**: View and take action on all operational alerts. |
-| **Approvals Hub** (`/approvals`) | Queue of all company requests. | **Process & Approve**: Staff leaves, job requests, transfers, promotions, and exit clearances. |
-| **HR Reports** (`/reports`) | Detailed workforce data. | **Generate & Download**: Overtime reports, salary sheets, leave balances, and training attendance. |
-| **Staff Directory** (`/employees`) | Master list of all staff. | **Add, Edit, Update, and Archive** employee profiles, bank details, and job titles. |
-| **Employee 360 Profile** (`/employees/[id]`) | Detailed profile page for any worker. | **Edit all information**: Personal details, salary breakdown, documents, and 17-stage career progress. |
-| **Hiring & Job Openings** (`/recruitment`) | Job applicant tracker (Kanban board). | **Create job posts**, move candidate cards from "Applied" $\rightarrow$ "Interview" $\rightarrow$ "Offer Letter". |
-| **Attendance & Logs** (`/attendance`) | Daily punch-in/out records. | **Monitor daily clock-ins**, correct missed punches, assign shift schedules. |
-| **Leave Management** (`/leaves`) | Staff leave requests. | **Approve/Reject leaves**, set up annual holiday calendar, manage leave balances. |
-| **Payroll & Benefits** (`/payroll`) | Monthly salary calculation. | **Calculate gross-to-net salaries**, add bonuses, calculate deductions, print official payslips. |
-| **Performance & Ratings** (`/performance`) | Annual appraisal cycles. | **Set up rating questions**, assign reviewers, collect scores, calculate overall ratings. |
-| **Training & Skills** (`/training`) | Staff workshops & courses. | **Create training sessions**, enroll staff, track attendance and feedback scores. |
-| **Welfare & Grievances** (`/engagement`) | Employee surveys & complaints. | **Review employee complaints**, launch surveys, ensure problems are solved within 7 days. |
-| **Transfers & Promotions** (`/movement`) | Promotions & branch transfers. | **Create transfer orders**, change job titles, issue official promotion letters. |
-| **Disciplinary Records** (`/disciplinary`) | Workplace misconduct cases. | **Record rule violations**, issue show-cause letters, document inquiry findings. |
-| **Resignations & Exits** (`/resignation`) | Staff leaving the company. | **Coordinate no-dues clearance** with IT/Admin/Finance, calculate final payout (gratuity/leave balance). |
-| **Company Policies** (`/compliance`) | Policy documents & rulebook. | **Add, Edit, Publish, and Delete** corporate policy documents and upload signed PDF copies. |
-| **System Settings** (`/settings`) | Organization setup. | **Add/Edit** departments, job titles, shift timings, and view system activity logs. |
+* **Role Character**: Master Administrator of People Operations.
+* **Core Mandate**: End-to-end administration and execution across all 16 HR modules.
+* **Primary Responsibilities (Full CRUD)**:
+  * Maintain Master Employee Directory (`/employees`) and manage the 4-tab Employee 360° dossiers (`/employees/[id]`).
+  * Manage the Candidate Hiring Pipeline Kanban board from *Sourced* to *Offer Letter* (`/recruitment`).
+  * Monitor daily attendance logs, correct missed punches, and configure shift rosters (`/attendance`).
+  * Process leave requests, adjust leave entitlements, and manage team calendars (`/leaves`).
+  * Compute monthly gross-to-net salary batches with PF, ESI, PT, and TDS deductions (`/payroll`).
+  * Configure annual performance cycles, manage 9-Box talent grids, and distribute bonus pools (`/performance`).
+  * Schedule technical training programs and monitor employee feedback scores (`/training`).
+  * Investigate workplace complaints and resolve grievances within the mandatory 7-day SLA (`/engagement`).
+  * Coordinate 4-department offboarding clearances (IT, Admin, Finance, HR) and issue official relieving letters (`/resignation`).
+  * Configure organization settings, departments, designations, and branches (`/settings`).
+* **Strict Role Boundaries (What the HR Head MUST NOT DO)**:
+  * ❌ Cannot disburse payroll without MD authorization.
+  * ❌ Cannot delete or tamper with permanent system audit logs.
 
 ---
 
 ### Role 4: Internal Audit Head (`internal_audit_head`)
-
-* **Who is this person?**: The independent auditor who checks the company's records for honesty, accuracy, and fairness.
-* **Their Job in Simple Words**: The auditor acts as a neutral checker. They check that salaries are calculated correctly (no math errors or ghost workers), verify that leaves and promotions follow company rules, and inspect the permanent activity history to ensure nobody has tampered with past records.
-
-#### What Screens Can the Auditor Access?
-
-| Screen | What it is for | What the Auditor Can Do |
-| :--- | :--- | :--- |
-| **Audit Dashboard** (`/dashboard`) | Overview of audit checks and variance indicators. | **View-Only**: Check that monthly figures balance correctly with zero discrepancies. |
-| **Salary & Pay Audit** (`/payroll`) | Monthly salary records. | **Deep Check (Read-Only)**: Verifies that salary math is 100% correct, tax deductions match the law, and there are no unauthorized bonus additions. |
-| **System Activity History** (`/settings`) | Permanent log of every action taken in the system. | **Full View & Search**: Can search who did what, at what time, from what computer, and confirm that no records were secretly changed. |
-| **Policy & Rulebook** (`/compliance`) | Company policies. | **View-Only**: Confirms all policies are up to date and employees have acknowledged them. |
-| **Disciplinary Cases** (`/disciplinary`) | Misconduct records. | **View-Only**: Checks that employee inquiries were handled fairly according to company rules. |
-| **Staff Directory** (`/employees`) | List of all employees. | **View-Only**: Audits that all listed employees are real active workers (prevents ghost-worker fraud). |
-| **Approvals Hub** (`/approvals`) | History of manager approvals. | **View-Only**: Checks that managers approve requests on time without rule violations. |
-
-#### What is the Auditor NOT Allowed to Do?
-* **Cannot create, edit, or delete any employee, salary, or candidate records**. (This ensures complete independence—an auditor must only check work, not do the work).
-* Cannot access the candidate hiring pipeline.
+* **Role Character**: Independent Checker & Forensic Compliance Auditor.
+* **Core Mandate**: Verification of financial integrity, preventing payroll fraud/ghost workers, and validating adherence to company policies.
+* **Primary Responsibilities (Read-Only Forensic Access)**:
+  * Audit monthly payroll batches (`/payroll`) in **Read-Only Audit Mode** to verify zero-variance math, statutory tax deductions, and bank transfer totals.
+  * Search and inspect the permanent, tamper-evident **System Activity Log Stream** (`/settings`) by user, timestamp, and module.
+  * Inspect active staff records (`/employees`) to ensure all individuals on payroll are real, verified employees.
+  * Review disciplinary inquiry proceedings (`/disciplinary`) to ensure procedural fairness.
+  * Inspect past manager approval records (`/approvals`) for policy compliance.
+* **Strict Role Boundaries (What the Auditor MUST NOT DO)**:
+  * ❌ **STRICTLY FORBIDDEN from creating, editing, updating, or deleting any business records** (salaries, employee profiles, job openings, leave approvals).
+  * ❌ Cannot access candidate sourcing pipelines or create company policies.
 
 ---
 
 ### Role 5: Compliance & Statutory Officer (`compliance_statutory`)
-
-* **Who is this person?**: The company's legal and labor law guardian.
-* **Their Job in Simple Words**: This person ensures the company obeys all government labor laws, safety rules (Factories Act), anti-harassment laws (POSH Act), and handles monthly government savings filings (PF, ESI, Tax withholding). They also maintain legal registers required during government labor inspections.
-
-#### What Screens Can the Compliance Officer Access?
-
-| Screen | What it is for | What the Compliance Officer Can Do |
-| :--- | :--- | :--- |
-| **Compliance Dashboard** (`/dashboard`) | Overview of government deadlines, safety status, and POSH cases. | **View** all legal and safety reminders. |
-| **Policy & Statutory Compliance** (`/compliance`) | Company rules, safety manuals & legal documents. | **Full Control (Create, Edit, Update, Delete)**: Publishes policies (Safety, Code of Conduct, Anti-Harassment, IT Security), uploads signed PDF documents, and tracks which employees have signed them. |
-| **Statutory Filings (PF/ESI)** (`/payroll`) | Government deductions in salaries. | **Process & Reconcile**: Verifies Provident Fund (PF), State Insurance (ESI), and Tax deductions before salaries are paid; exports monthly government filing sheets. |
-| **Statutory Attendance (Form 25)** (`/attendance`) | Official government attendance register. | **View & Export**: Generates and downloads legal **Form 25 / Form T Muster Rolls** required during factory/labor inspections. |
-| **Statutory Leave Records** (`/leaves`) | Government-mandated leave registers. | **View & Audit**: Checks that maternity leaves, earned leaves, and festival holidays match state labor laws. |
-| **POSH & Welfare Committee** (`/engagement`) | Prevention of Sexual Harassment (POSH) & worker welfare. | **Process & Manage**: Heads the Anti-Harassment Committee, logs confidential inquiries, ensures worker safety, and drafts annual government reports. |
-| **Safety & Factory Training** (`/training`) | Fire safety and workplace hazard training. | **Schedule & Track**: Ensures workers complete mandatory industrial safety and health training. |
-| **Exit & Gratuity Clearances** (`/resignation`) | Staff leaving the company. | **Audit & Sign-Off**: Verifies that resigning workers receive their legal gratuity, leave payouts, and PF transfer papers before final exit. |
-| **Settings & History** (`/settings`) | System configuration. | **View-Only**: Inspects company settings and compliance audit logs. |
-
-#### What is the Compliance Officer NOT Allowed to Do?
-* Cannot interview or hire job applicants (avoids conflict of interest).
-* Cannot score employee performance appraisals or decide on promotions.
+* **Role Character**: Legal Guardian & Labor Law Administrator.
+* **Core Mandate**: Statutory compliance under the Factories Act, EPF & MP Act, ESI Act, POSH Act, and State Labor Laws.
+* **Primary Responsibilities (Full CRUD on Policies & Statutory Records)**:
+  * Author, publish, update, and manage official company policies, safety manuals, and signed PDF directives (`/compliance`).
+  * Generate and export legal **Form 25 / Form T Muster Rolls** and shift registers (`/attendance`).
+  * Reconcile and audit monthly **PF (12%), ESI (0.75%), and PT** statutory deduction statements prior to salary disbursal (`/payroll`).
+  * Head the **Internal Complaints Committee (ICC)** under the POSH Act, logging confidential cases and generating annual statutory returns (`/engagement`).
+  * Schedule and track mandatory industrial health, fire safety, and EHS hazard training sessions (`/training`).
+  * Audit exit gratuity calculations and verify statutory PF transfer sign-offs during offboarding (`/resignation`).
+* **Strict Role Boundaries (What the Compliance Officer MUST NOT DO)**:
+  * ❌ Cannot conduct technical job interviews or hire recruitment candidates.
+  * ❌ Cannot alter performance appraisal scores or assign employee promotions.
 
 ---
 
-### Role 6: Regular Employee (`employee`) [Self-Service Portal]
-
-* **Who is this person?**: Any employee or plant worker in the company.
-* **Their Job in Simple Words**: Employees use their private self-service portal on their computer or mobile to clock in daily, apply for leaves, download their monthly payslips, see upcoming holidays, submit their yearly self-appraisal, and file confidential questions or complaints.
-
-#### What Screens Can an Employee Access?
-
-| Screen | What it is for | What the Employee Can Do (Personal Self-Service) |
-| :--- | :--- | :--- |
-| **My Employee Dashboard** (`/dashboard`) | Personal home page. | **Click "Web Clock-In"**, view remaining leave balance, see upcoming holidays, and view recent announcements. |
-| **My Profile 360** (`/employees/[myId]`) | Personal employee details. | **View own details**: Job title, manager name, emergency contacts, bank details, and career history. |
-| **Daily Attendance** (`/attendance`) | Personal clock-in history. | **Clock In / Clock Out** each day and view personal monthly working hours. |
-| **My Leave Requests** (`/leaves`) | Leave application. | **Apply for Casual, Sick, or Earned leave** with dates and reason; track when manager approves it. |
-| **My Payslips** (`/payroll`) | Monthly salary slips. | **View and download official monthly PDF payslips** showing basic pay, allowances, and tax deductions. |
-| **My Self-Appraisal** (`/performance`) | Annual performance review. | **Enter self-ratings and achievements** for assigned goals during the annual appraisal review. |
-| **Training Courses** (`/training`) | Company learning programs. | **Enroll** in training sessions and give feedback ratings after attending. |
-| **Submit a Grievance** (`/engagement`) | Private complaint box. | **Submit confidential workplace problems or complaints** directly to HR with a guaranteed 7-day response timer. |
-| **Submit Resignation** (`/resignation`) | Official resignation letter. | **Submit resignation notice** with requested last working day, and monitor clearance status. |
-
-#### What is an Employee NOT Allowed to Do?
-* **Cannot see any other employee's salary, leaves, attendance, or personal details**.
-* Cannot access company settings, manager approval queues, or job applicant resumes.
+### Role 6: Regular Employee (`employee`)
+* **Role Character**: Staff Member & Self-Service Portal User.
+* **Core Mandate**: Manage personal work records, attendance, leaves, and career development through Employee Self-Service (ESS).
+* **Primary Responsibilities (Self-Service Only)**:
+  * Perform daily **Web Clock-In / Clock-Out** and view personal attendance logs (`/attendance`).
+  * Submit leave applications (Casual, Sick, Earned) and track manager approval status (`/leaves`).
+  * View personal 4-tab profile 360 dossier (`/employees/[myId]`) with personal documents and bank info.
+  * Download official monthly PDF payslips showing basic pay, allowances, and statutory deductions (`/payroll`).
+  * Complete annual self-appraisal ratings and achievements (`/performance`).
+  * Enroll in company training workshops and submit post-training feedback (`/training`).
+  * Submit confidential grievances directly to HR/POSH with an automated **7-day resolution SLA timer** (`/engagement`).
+  * Submit official resignation notice and monitor multi-department clearance progress (`/resignation`).
+* **Strict Role Boundaries (What the Employee MUST NOT DO)**:
+  * ❌ **STRICTLY BLOCKED from viewing any other employee's profile, salary, leaves, or documents**.
+  * ❌ Cannot access candidate pipelines, approval queues, company analytics, or system settings.
 
 ---
 
-## 3. Simple Summary Table: Who Can Access What?
+## 3. Master Screen Access & RBAC Capability Matrix
 
-| Section Name | Chairman | Managing Director | HR Head | Internal Auditor | Compliance Officer | Regular Employee |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Dashboard** | Full View | Full View | Full View | View Only | View Only | Personal View Only |
-| **Approvals Hub** | Approve Big Items | Full Approver | Full Approver | View Only | View Only | No Access |
-| **Company Reports** | Full View | Full View | Full View | View Only | View Only | No Access |
-| **Employee Directory**| View List | Full Control | Full Control | View Only | View Only | Own Profile Only |
-| **Job Hiring (ATS)** | View Only | Approve Hires | Full Control | No Access | No Access | No Access |
-| **Attendance & Shifts**| View Only | Approve Overtime| Full Control | No Access | View Form 25 Muster| Personal Clock-In |
-| **Leave Management** | View Only | Approve Execs | Full Control | No Access | View Leave Rules | Apply for Leaves |
-| **Payroll & Salaries**| View Summary | Authorize Disbursal| Full Control | Audit Calculations| Check PF/ESI Filings| View Own Payslips |
-| **Appraisals & Ratings**| View Summary | Approve Bonuses | Full Control | No Access | No Access | Submit Self-Rating |
-| **Training Courses** | View Only | View Only | Full Control | No Access | Schedule Safety | Enroll in Courses |
-| **Welfare & Complaints**| View Only | View Only | Full Control | No Access | Manage POSH Cases | Submit Complaints |
-| **Promotions/Transfers**| Approve Senior | Full Control | Full Control | No Access | No Access | No Access |
-| **Misconduct Cases** | View Only | Final Sanctions| Full Control | Audit Fairness | View Legal Aspects | No Access |
-| **Resignations & Exits**| View Only | Approve Exits | Full Control | No Access | Verify Gratuity Dues | Submit Resignation |
-| **Company Policies** | Full Control | Full Control | Full Control | View Only | Full Control (CRUD) | No Access |
-| **System Settings** | View Only | Full Control | Full Control | Audit History Log | View Settings | No Access |
+The following matrix maps all **16 application screens** across all **6 roles**, defining exact permission levels:
+* **F** = Full Access (Create / Read / Update / Delete / Approve)
+* **E** = Edit / Process designated functional area
+* **A** = Approve / Authorize requests
+* **V** = View / Read-Only access
+* **S** = Self-Service only (Own personal record)
+* **NONE** = Forbidden / Hidden from sidebar navigation and blocked by `RBACGuard`
+
+| Screen Route | Functional Area | Chairman | Managing Director | HR Head | Internal Auditor | Compliance Officer | Regular Employee |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `/dashboard` | Executive / Operational Dashboard | **F** (Macro) | **F** (Enterprise) | **F** (Ops) | **V** (Audit) | **V** (Legal) | **S** (Personal) |
+| `/approvals` | Central Approvals Hub (7 Queues) | **A** (Board) | **A** (Executive) | **A** (Full) | **V** (Audit) | **V** (Legal) | **NONE** |
+| `/reports` | Enterprise BI Analytics & Export | **F** (Macro) | **F** (Detailed) | **F** (Ops) | **V** (Audit) | **V** (Statutory) | **NONE** |
+| `/employees` | Master Staff Directory | **V** | **F** | **F** | **V** (Ghost Check) | **V** | **NONE** |
+| `/employees/[id]`| 4-Tab Employee 360° Dossier | **V** | **V** (Full) | **F** | **V** (Read-Only) | **V** (Statutory) | **S** (Own ID) |
+| `/recruitment` | Job Requisitions & Kanban ATS | **V** | **A** (Hires) | **F** | **NONE** | **NONE** | **NONE** |
+| `/attendance` | Clock-In, Shifts & Form 25 Muster| **V** | **A** (Overtime) | **F** | **NONE** | **V** (Form 25) | **S** (Clock-In) |
+| `/leaves` | Leave Applications & Calendars | **A** (Holidays)| **A** (Execs) | **F** | **NONE** | **V** (Labor Laws) | **S** (Apply) |
+| `/payroll` | Gross-to-Net Salaries & Payslips| **V** (Budget)| **A** (Disbursal) | **F** | **V** (Forensic) | **E** (PF/ESI) | **S** (Payslips) |
+| `/performance` | Appraisals & 9-Box Talent Matrix | **F** (Exec) | **F** (Calib) | **F** | **NONE** | **NONE** | **S** (Self-Rate) |
+| `/training` | Skills Workshops & Safety EHS | **V** | **V** | **F** | **NONE** | **E** (Safety EHS) | **S** (Enroll) |
+| `/engagement` | Grievances (7-Day SLA) & POSH | **V** | **V** | **F** | **NONE** | **E** (POSH Head) | **S** (Grievance) |
+| `/movement` | Transfers & Grade Promotions | **A** (Senior) | **F** | **F** | **NONE** | **NONE** | **NONE** |
+| `/disciplinary`| Misconduct Inquiries & Sanctions| **V** | **A** (Sanctions) | **F** | **V** (Fairness) | **V** (Legal) | **NONE** |
+| `/resignation` | 4-Department Exit Clearance & F&F| **V** | **A** (Exits) | **F** | **NONE** | **E** (Gratuity) | **S** (Resign) |
+| `/compliance` | Corporate Policies & PDF Uploads | **F** (Charter)| **F** (Charter) | **F** | **V** (Rules) | **F** (Full CRUD) | **NONE** |
+| `/settings` | Organization Setup & Audit Logs | **V** | **F** | **F** | **V** (Audit Log) | **V** (Config) | **NONE** |
 
 ---
 
-## 4. How Daily Approvals Work (A Real-Life Example)
+## 4. Relational Data Architecture & Entity Relationships
+
+The PostgreSQL database (managed via Prisma ORM in `prisma/schema.prisma`) enforces strict relational integrity with foreign keys, cascade protections, and unique constraints.
+
+```mermaid
+erDiagram
+    ORGANIZATION ||--o{ BRANCH : "has"
+    ORGANIZATION ||--o{ DEPARTMENT : "has"
+    ORGANIZATION ||--o{ DESIGNATION : "has"
+    ORGANIZATION ||--o{ USER : "maintains"
+    ORGANIZATION ||--o{ EMPLOYEE : "employs"
+    ORGANIZATION ||--o{ COMPANY_POLICY : "publishes"
+    ORGANIZATION ||--o{ AUDIT_LOG : "records"
+
+    USER ||--o| EMPLOYEE : "links (1:1)"
+    USER ||--o{ USER_SESSION : "authorizes"
+    USER ||--o{ NOTIFICATION : "receives"
+
+    DEPARTMENT ||--o{ DESIGNATION : "defines"
+    DEPARTMENT ||--o{ EMPLOYEE : "contains"
+    DEPARTMENT ||--o| EMPLOYEE : "headed by (1:1)"
+
+    EMPLOYEE ||--o| BANK_DETAILS : "has (1:1)"
+    EMPLOYEE ||--o| STATUTORY_INFO : "has (1:1)"
+    EMPLOYEE ||--o{ EMERGENCY_CONTACT : "lists (1:N)"
+    EMPLOYEE ||--o{ ATTENDANCE_RECORD : "clocks (1:N)"
+    EMPLOYEE ||--o{ LEAVE_ALLOCATION : "holds (1:N)"
+    EMPLOYEE ||--o{ LEAVE_REQUEST : "applies (1:N)"
+    EMPLOYEE ||--o{ PAYSLIP : "receives (1:N)"
+    EMPLOYEE ||--o{ PERFORMANCE_REVIEW : "evaluated (1:N)"
+    EMPLOYEE ||--o{ GRIEVANCE_TICKET : "files (1:N)"
+    EMPLOYEE ||--o{ RESIGNATION_EXIT_CASE : "initiates (1:N)"
+    EMPLOYEE ||--o{ TRANSFER_PROMOTION_CASE : "assigned (1:N)"
+    EMPLOYEE ||--o{ DISCIPLINARY_CASE : "subject of (1:N)"
+    EMPLOYEE ||--o{ TRAINING_ENROLLMENT : "attends (N:M)"
+    EMPLOYEE ||--o{ EMPLOYEE : "manages (Self-Ref 1:N)"
+
+    JOB_REQUISITION ||--o{ CANDIDATE : "attracts (1:N)"
+    PAYROLL_RUN ||--o{ PAYSLIP : "generates (1:N)"
+    RESIGNATION_EXIT_CASE ||--o{ DEPARTMENT_CLEARANCE : "requires (1:4)"
+    TRAINING_PROGRAM ||--o{ TRAINING_ENROLLMENT : "enrolls (1:N)"
+```
+
+### Relational Cardinalities & Business Rules:
+1. **User to Employee (`1:1 Optional`)**:
+   * Every operational staff member has a `User` account linked via `employeeId`.
+   * High-level governance entities (e.g. `usr_chairman`) exist in `User` without an operational `Employee` record.
+2. **Employee to Manager (`Self-Referencing 1:N`)**:
+   * `Employee.reportingManagerId` references `Employee.id`, creating the organizational hierarchy.
+3. **Employee to 360 Information Sub-tables (`1:1 & 1:N`)**:
+   * `BankDetails`: 1:1 relation storing encrypted account numbers, IFSC, and PAN.
+   * `StatutoryInfo`: 1:1 relation storing Universal Account Number (UAN), PF ID, and ESI IP Number.
+   * `EmergencyContact`: 1:N relation storing prioritized personal contacts.
+4. **Payroll Run to Payslip (`1:N`)**:
+   * A single monthly `PayrollRun` entity groups all individual employee `Payslip` records for that calendar cycle.
+5. **Resignation to Department Clearances (`1:4 Fixed`)**:
+   * Each `ResignationExitCase` automatically instantiates 4 digital clearance tokens (`IT`, `Admin`, `Finance`, `HR/Statutory`).
+6. **Job Requisition to Candidate (`1:N`)**:
+   * A single approved `JobRequisition` tracks multiple applicant cards across the Kanban stages (`applied`, `shortlisted`, `technical_eval`, `hr_round`, `offered`, `hired`).
+
+---
+
+## 5. End-to-End Multi-Persona Operational Workflows
+
+---
+
+### Workflow 1: Talent Acquisition to Day-1 Onboarding
 
 ```mermaid
 sequenceDiagram
     autonumber
-    actor EMP as Employee (Vishwadharan R)
-    actor HR as HR Head (Eleanor Vance)
-    actor MD as Managing Director (Dr. Vikramaditya Rathore)
-    actor AUD as Internal Auditor (Marcus Chen)
+    actor HR as HR Head
+    actor MD as Managing Director
+    actor CAND as Candidate (External)
+    actor CMP as Compliance Officer
 
-    EMP->>HR: 1. Applies for 3 Days of Annual Leave
-    HR->>HR: 2. Checks leave balance & team schedule
-    HR->>EMP: 3. Approves Leave (Status changes to Approved)
-    
-    Note over HR,MD: At the End of the Month (Payroll Time)
-    HR->>HR: 4. Calculates all employee monthly salaries
-    HR->>AUD: 5. Sends salary sheet to Auditor for verification
-    AUD->>AUD: 6. Checks that math & tax deductions are 100% correct
-    AUD->>MD: 7. Confirms zero errors found
-    MD->>HR: 8. Clicks "Authorize Payroll" for bank transfer
-    HR->>EMP: 9. Payslips released to Employee Self-Service portal
+    HR->>HR: 1. Creates Job Requisition (/recruitment)
+    HR->>MD: 2. Requisition routes to Approvals Hub
+    MD->>MD: 3. Authorizes headcount budget & approves opening
+    HR->>HR: 4. Sources resumes & moves cards on Kanban Board
+    HR->>HR: 5. Conducts technical rounds & issues Offer Letter
+    CAND->>HR: 6. Candidate accepts offer & signs agreement
+    HR->>HR: 7. Converts Candidate -> Employee Dossier (/employees)
+    HR->>HR: 8. Provisions ID card, laptop & official email
+    CMP->>CMP: 9. Verifies Form 11 (PF) & EHS Safety sign-off
+    HR->>HR: 10. Employee confirmed active in Organization Master
 ```
 
 ---
 
-## 5. The 17 Steps in an Employee's Career Journey
+### Workflow 2: Daily Attendance, Leaves & Statutory Muster
 
-Every employee record tracks their progress through 17 standard milestones:
+```mermaid
+sequenceDiagram
+    autonumber
+    actor EMP as Regular Employee
+    actor HR as HR Head / Manager
+    actor CH_MD as Chairman / MD
+    actor CMP as Compliance Officer
 
+    EMP->>EMP: 1. Clicks 'Web Check-In' on Attendance Screen (/attendance)
+    EMP->>EMP: 2. Submits 2-Day Casual Leave Application (/leaves)
+    EMP->>HR: 3. Request routes to Approvals Hub (/approvals)
+    HR->>HR: 4. Validates remaining leave balance & approves
+    HR->>EMP: 5. Leave balance automatically decrements by 2 days
+    HR->>CH_MD: 6. Submits Annual Company Holiday Calendar
+    CH_MD->>CH_MD: 7. Chairman / MD authorizes Holiday Calendar
+    CMP->>CMP: 8. Exports legal Form 25 Attendance Muster Roll for labor inspection
 ```
- [1. Job Requested] ──> [2. Collect Resumes] ──> [3. Screening] ──> [4. Interview] ──> [5. Offer Letter]
-                                                                                              │
- ┌────────────────────────────────────────────────────────────────────────────────────────────┘
- │
- └──> [6. Document Check] ──> [7. Day-1 Joining] ──> [8. Probation] ──> [9. Active Confirmed Staff]
-                                                                                │
- ┌──────────────────────────────────────────────────────────────────────────────┘
- │
- └──> [10. Yearly Appraisal] ──> [11. Training] ──> [12. Promotion] ──> [13. Welfare & Surveys]
-                                                                             │
- ┌───────────────────────────────────────────────────────────────────────────┘
- │
- └──> [14. Disciplinary if any] ──> [15. Resignation] ──> [16. No-Dues Clearance] ──> [17. Final Settlement]
+
+---
+
+### Workflow 3: Monthly Payroll Calculation, Forensic Audit & Disbursal
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor HR as HR Head
+    actor CMP as Compliance Officer
+    actor AUD as Internal Auditor
+    actor MD as Managing Director
+    actor EMP as Regular Employee
+
+    HR->>HR: 1. Computes monthly gross-to-net salary batch (/payroll)
+    CMP->>CMP: 2. Reconciles EPF (12%), ESIC (0.75%), PT & TDS deductions
+    HR->>AUD: 3. Submits calculated batch for forensic review
+    AUD->>AUD: 4. Inspects wage records in Read-Only Audit Mode (Zero Discrepancy Check)
+    AUD->>MD: 5. Signs off on mathematical & statutory accuracy
+    MD->>MD: 6. Clicks 'Authorize Payroll Disbursal' (/payroll)
+    MD->>HR: 7. Batch status transitions to 'Disbursed'
+    HR->>EMP: 8. Official printable PDF Payslips unlocked in Employee Self-Service
 ```
 
-1. **Job Requested**: Department manager asks for a new hire.
-2. **Collect Resumes**: Resumes received from job boards or referrals.
-3. **Screening**: HR calls candidate to check suitability.
-4. **Interview**: Candidate interviewed by technical and HR managers.
-5. **Offer Letter**: Candidate receives and signs the job offer.
-6. **Document Check**: Background check, ID cards, and bank account verified.
-7. **Day-1 Joining**: Employee arrives, receives ID card, laptop, and email.
-8. **Probation**: First 3 to 6 months of supervised work.
-9. **Active Confirmed Staff**: Fully confirmed permanent staff member.
-10. **Yearly Appraisal**: Annual performance review and rating.
-11. **Training**: Attending workshops, safety drills, and skill upgrades.
-12. **Promotion**: Moving up in grade, designation, or transferring to another branch.
-13. **Welfare & Surveys**: Participating in company surveys and welfare programs.
-14. **Disciplinary (if any)**: Investigation and warning in case of rule violation.
-15. **Resignation**: Employee submits notice when deciding to leave.
-16. **No-Dues Clearance**: Returning laptop, ID card, and clearing loan balances.
-17. **Final Settlement**: Getting gratuity, unused leave payment, and relieving letter.
+---
+
+### Workflow 4: Confidential Grievance & POSH Resolution (Strict 7-Day SLA)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor EMP as Regular Employee
+    actor HR_CMP as HR Head / Compliance (POSH)
+    actor AUD as Internal Auditor
+
+    EMP->>EMP: 1. Submits Confidential Grievance ticket (/engagement)
+    Note over EMP,HR_CMP: System starts automatic 7-Day SLA Countdown Timer
+    HR_CMP->>HR_CMP: 2. Logs confidential inquiry & investigates case
+    HR_CMP->>HR_CMP: 3. Implements corrective action & marks 'Resolved'
+    Note over HR_CMP: Timer locks resolution within 7 days
+    AUD->>AUD: 4. Audits permanent activity log for SLA compliance
+```
 
 ---
 
-## 6. Project Status: What is Finished vs. What is Next?
+### Workflow 5: Resignation, 4-Department Clearance & Final Settlement (F&F)
 
-### A. What is 100% Finished and Working Today:
-* **All 6 User Roles & Switcher**: Fully functional live switching in the header between Chairman, MD, HR Head, Auditor, Compliance Officer, and Employee.
-* **All 16 UI Screens**: All pages, buttons, modals, and tables are 100% built and styled.
-* **Policy Management (Full CRUD)**: Compliance Officer and HR can create, edit, upload signed PDF files, and delete corporate policies.
-* **Attendance & Web Clock-In**: Live clock-in button with instant status updates.
-* **Leave Applications & Approvals**: Working leave balance deduction and manager approval queue.
-* **Salary Calculation & Payslips**: Working gross-to-net salary math with printable payslip popup.
-* **Applicant Kanban Board**: Drag-and-drop style candidate hiring pipeline.
-* **Permanent Activity Log**: Every change is securely saved and searchable by the Auditor.
-* **Full Code Health**: Verified with **0 TypeScript errors** (`npx tsc --noEmit`).
+```mermaid
+sequenceDiagram
+    autonumber
+    actor EMP as Regular Employee
+    actor MD as Managing Director
+    actor HR as HR Head
+    actor CMP as Compliance Officer
 
-### B. Optional Future Add-Ons (Planned for Future Versions):
-* **Physical Thumb-Scanner Hardware Connection**: Directly connecting factory turnstile fingerprint/facial machines to the system.
-* **WhatsApp & SMS Alerts**: Automatically sending leave approval and payslip notifications to employee mobile phones.
-* **AI Resume Reader**: Automatically reading PDF resumes and scoring applicants.
-* **Mobile App**: Smartphone app for factory workers with GPS location check-in.
-
----
-
-## 7. How to Test the System in 2 Minutes
-
-1. Make sure the system is running (`npm run dev`) and open `http://localhost:3000` in your web browser.
-2. In the top-right corner, click on the **"Role" dropdown** button.
-3. Select **"Employee (Self-Service)"**:
-   - Notice the sidebar changes to simple employee items (Clock-In, Leaves, Payslips).
-   - Click **"Web Check-In"** and apply for a 2-day leave.
-4. Now switch the role to **"HR Head / Director"**:
-   - Notice the full system opens up.
-   - Go to **"Approvals Hub"** and click **"Approve"** on the leave request you just submitted.
-   - Go to **"Policy & Compliance"** and try publishing a new company policy.
-5. Switch to **"Internal Audit Head"**:
-   - Go to **"System Activity Logs"** to see the permanent record of the leave approval and policy creation you just did.
+    EMP->>EMP: 1. Submits Resignation Notice with Last Working Day (/resignation)
+    MD->>MD: 2. Reviews notice period terms & approves exit in Approvals Hub
+    Note over HR: 4-Department Digital Clearance Initialized
+    HR->>HR: 3. IT Dept clears hardware & account access
+    HR->>HR: 4. Admin Dept clears ID badge & facility access
+    HR->>HR: 5. Finance Dept clears travel advances & loan dues
+    CMP->>CMP: 6. HR & Compliance verify Gratuity & PF transfer forms
+    HR->>HR: 7. Generates Full & Final (F&F) settlement statement
+    HR->>EMP: 8. Issues Official Relieving & Experience Certificate
+```
 
 ---
-*End of Plain Language Master Guide — Ready for Reading, Sharing, and Clean PDF Printing.*
+
+## 6. Code Health & Verification Standards
+
+* **TypeScript Compilation**: The system must compile with **0 errors** at all times (`npx tsc --noEmit`).
+* **Database Synchronicity**: Prisma schema must be in 100% alignment with PostgreSQL (`npm run db:push`).
+* **Seed Data Integrity**: Seed scripts (`npm run db:seed`) must populate all 6 core personas, departments, designations, branches, and sample records.
+* **Security Guarding**: Direct URL access to forbidden screens must return **HTTP 403 Forbidden** via `RBACGuard`.
+
+---
+*End of Comprehensive Architecture & Multi-Persona Manual — Viruzverse HRMS v4.0.*

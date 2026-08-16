@@ -124,7 +124,8 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-5">
         {NAV_GROUPS.map((group) => {
           const visibleItems = group.items.filter((item) => {
-            if ((currentRole === 'employee' || currentRole === 'internal_audit_head') && item.href === '/reports') return false;
+            if (currentRole === 'employee' && (item.href === '/reports' || item.href === '/approvals')) return false;
+            if (currentRole === 'internal_audit_head' && item.href === '/reports') return false;
             return hasAccess(item.module);
           });
           if (visibleItems.length === 0) return null;
@@ -137,6 +138,21 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
               {visibleItems.map((item) => {
                 let targetHref = item.href;
                 let displayTitle = item.title;
+
+                // Customize nav item titles for Chairman
+                if (currentRole === 'chairman') {
+                  if (item.href === '/dashboard') displayTitle = 'Executive Board Dashboard';
+                  else if (item.href === '/compliance') displayTitle = 'HR Policy Repository';
+                  else if (item.href === '/performance') displayTitle = 'Executive KRAs & 9-Box Grid';
+                }
+
+                // Customize nav item titles for Managing Director
+                if (currentRole === 'managing_director') {
+                  if (item.href === '/dashboard') displayTitle = 'Executive Dashboard';
+                  else if (item.href === '/recruitment') displayTitle = 'Recruitment Approvals';
+                  else if (item.href === '/payroll') displayTitle = 'Payroll Disbursal';
+                  else if (item.href === '/movement') displayTitle = 'Promotions & Transfers';
+                }
 
                 // Customize nav item titles for Internal Audit Head
                 if (currentRole === 'internal_audit_head') {
@@ -163,14 +179,14 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                 // Customize nav item titles and direct Profile 360 link for Employee (ESS) view
                 if (currentRole === 'employee') {
                   if (item.href === '/employees') {
-                    displayTitle = 'Profile 360 (My Profile)';
+                    displayTitle = 'My Profile 360 (Self)';
                     targetHref = `/employees/${currentUser?.employeeId || employees[0]?.id || ''}`;
                   } else if (item.href === '/attendance') displayTitle = 'Attendance Check-In';
-                  else if (item.href === '/leaves') displayTitle = 'Leave Requests';
-                  else if (item.href === '/payroll') displayTitle = 'Payslips';
-                  else if (item.href === '/performance') displayTitle = 'Self-Appraisals';
-                  else if (item.href === '/training') displayTitle = 'Training Enrolment';
-                  else if (item.href === '/engagement') displayTitle = 'Grievance Filing';
+                  else if (item.href === '/leaves') displayTitle = 'My Leaves';
+                  else if (item.href === '/payroll') displayTitle = 'My Payslips';
+                  else if (item.href === '/performance') displayTitle = 'My Self-Appraisal';
+                  else if (item.href === '/training') displayTitle = 'Training Enrollment';
+                  else if (item.href === '/engagement') displayTitle = 'Grievance Box';
                   else if (item.href === '/resignation') displayTitle = 'Resignation Notice';
                 }
 
@@ -204,21 +220,6 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
             </div>
           );
         })}
-      </div>
-
-      {/* Footer Lifecycle Indicator */}
-      <div className="p-3 border-t border-slate-200 bg-slate-50/80">
-        <Link
-          href={hasAccess('employee_records') ? '/employees' : '/dashboard'}
-          onClick={onCloseMobile}
-          className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200 hover:border-indigo-300 transition-all shadow-2xs group"
-        >
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <div className="text-xs font-bold text-slate-800">17-Stage HR Lifecycle</div>
-          </div>
-          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
-        </Link>
       </div>
     </div>
   );

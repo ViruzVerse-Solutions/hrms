@@ -15,6 +15,9 @@ import {
   ArrowRight,
   RefreshCw,
   AlertTriangle,
+  Briefcase,
+  LogOut,
+  HeartHandshake,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -185,59 +188,215 @@ function ApprovalsContent() {
         ) : null
       )}
 
-      {/* Overview Metric Cards */}
+      {/* Dynamic Role-Based Overview Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between text-slate-500">
-              <span className="text-[11px] font-semibold uppercase tracking-wider">Leaves</span>
-              <Clock className="h-4 w-4 text-emerald-600" />
-            </div>
-            <div className="text-2xl font-extrabold mt-2 text-emerald-600 font-mono">
-              {counts.leaves || 0}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Pending Review</div>
-          </CardContent>
-        </Card>
+        {(() => {
+          let roleCards: { title: string; value: string | number; subtitle: string; icon: any; color: string }[] = [
+            {
+              title: 'Operational Leaves',
+              value: counts.leaves || 0,
+              subtitle: 'Pending Team Review',
+              icon: Clock,
+              color: 'text-emerald-600',
+            },
+            {
+              title: 'Hiring & Transfers',
+              value: (counts.requisitions || 0) + (counts.transfers || 0),
+              subtitle: 'Active Sanctions',
+              icon: GitPullRequest,
+              color: 'text-purple-600',
+            },
+            {
+              title: 'Payroll Disbursals',
+              value: counts.payroll || 0,
+              subtitle: 'Pending Authorization',
+              icon: Wallet,
+              color: 'text-teal-600',
+            },
+            {
+              title: 'Exits & Disciplinary',
+              value: (counts.exits || 0) + (counts.disciplinary || 0),
+              subtitle: 'Pending Clearances',
+              icon: AlertOctagon,
+              color: 'text-rose-600',
+            },
+          ];
 
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between text-slate-500">
-              <span className="text-[11px] font-semibold uppercase tracking-wider">Hiring & Transfers</span>
-              <GitPullRequest className="h-4 w-4 text-purple-600" />
-            </div>
-            <div className="text-2xl font-extrabold mt-2 text-purple-600 font-mono">
-              {(counts.requisitions || 0) + (counts.transfers || 0)}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Pending Sanction</div>
-          </CardContent>
-        </Card>
+          if (currentRole === 'chairman') {
+            roleCards = [
+              {
+                title: 'Strategic Requisitions',
+                value: counts.requisitions || 0,
+                subtitle: 'Leadership & Expansions',
+                icon: Briefcase,
+                color: 'text-blue-600',
+              },
+              {
+                title: 'Board Promotions',
+                value: counts.transfers || 0,
+                subtitle: 'Director & Plant Mobility',
+                icon: GitPullRequest,
+                color: 'text-purple-600',
+              },
+              {
+                title: 'Holiday Calendars',
+                value: counts.holidays || 0,
+                subtitle: 'Annual Plant Calendars',
+                icon: Building,
+                color: 'text-amber-600',
+              },
+              {
+                title: 'Governance Cases',
+                value: counts.disciplinary || 0,
+                subtitle: 'Board Review Required',
+                icon: AlertTriangle,
+                color: 'text-rose-600',
+              },
+            ];
+          } else if (currentRole === 'managing_director') {
+            roleCards = [
+              {
+                title: 'Executive Leaves',
+                value: counts.leaves || 0,
+                subtitle: 'Dept Heads & Execs',
+                icon: Clock,
+                color: 'text-emerald-600',
+              },
+              {
+                title: 'Manpower Requisitions',
+                value: counts.requisitions || 0,
+                subtitle: 'Budget Sanctions',
+                icon: Briefcase,
+                color: 'text-blue-600',
+              },
+              {
+                title: 'Payroll Disbursals',
+                value: counts.payroll || 0,
+                subtitle: 'Bank Release Authorization',
+                icon: Wallet,
+                color: 'text-teal-600',
+              },
+              {
+                title: 'Clearances & Sanctions',
+                value: (counts.exits || 0) + (counts.disciplinary || 0),
+                subtitle: 'Exits, Waivers & Inquiry Sign-off',
+                icon: AlertOctagon,
+                color: 'text-rose-600',
+              },
+            ];
+          } else if (currentRole === 'internal_audit_head') {
+            roleCards = [
+              {
+                title: 'Salary & Wage Audits',
+                value: counts.payroll || 0,
+                subtitle: 'Gross-to-Net Verification',
+                icon: Wallet,
+                color: 'text-teal-600',
+              },
+              {
+                title: 'Disciplinary Audits',
+                value: counts.disciplinary || 0,
+                subtitle: 'Procedural Fairness Checks',
+                icon: AlertTriangle,
+                color: 'text-amber-600',
+              },
+              {
+                title: 'Total Audited Actions',
+                value: counts.all || 0,
+                subtitle: 'All Decisions & Logs',
+                icon: ShieldCheck,
+                color: 'text-indigo-600',
+              },
+              {
+                title: 'Variance Status',
+                value: '0 Errors',
+                subtitle: '100% Reconciled',
+                icon: CheckCircle2,
+                color: 'text-emerald-600',
+              },
+            ];
+          } else if (currentRole === 'compliance_statutory') {
+            roleCards = [
+              {
+                title: 'Statutory Leaves',
+                value: counts.leaves || 0,
+                subtitle: 'Maternity, ESI & Sabbatical',
+                icon: Clock,
+                color: 'text-emerald-600',
+              },
+              {
+                title: 'Statutory Filings',
+                value: counts.payroll || 0,
+                subtitle: 'EPF / ESI / TDS Remittances',
+                icon: Wallet,
+                color: 'text-teal-600',
+              },
+              {
+                title: 'Gazette Calendars',
+                value: counts.holidays || 0,
+                subtitle: 'Factory Act Holiday Lists',
+                icon: Building,
+                color: 'text-amber-600',
+              },
+              {
+                title: 'Exit Gratuity Clearances',
+                value: counts.exits || 0,
+                subtitle: 'Statutory Full & Final',
+                icon: AlertOctagon,
+                color: 'text-purple-600',
+              },
+            ];
+          } else if (currentRole === 'employee') {
+            roleCards = [
+              {
+                title: 'My Pending Leaves',
+                value: counts.leaves || 0,
+                subtitle: 'Awaiting Manager Review',
+                icon: Clock,
+                color: 'text-emerald-600',
+              },
+              {
+                title: 'Exit / Clearance Requests',
+                value: counts.exits || 0,
+                subtitle: 'Department Sign-offs',
+                icon: LogOut,
+                color: 'text-amber-600',
+              },
+              {
+                title: 'Grievance Cases',
+                value: counts.disciplinary || 0,
+                subtitle: '7-Day SLA Track',
+                icon: HeartHandshake,
+                color: 'text-purple-600',
+              },
+              {
+                title: 'Approval Status',
+                value: (counts.all || 0) === 0 ? 'Up to Date' : `${counts.all} Active`,
+                subtitle: 'Self-Service Tracking',
+                icon: CheckCircle2,
+                color: 'text-indigo-600',
+              },
+            ];
+          }
 
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between text-slate-500">
-              <span className="text-[11px] font-semibold uppercase tracking-wider">Payroll Disbursals</span>
-              <Wallet className="h-4 w-4 text-teal-600" />
-            </div>
-            <div className="text-2xl font-extrabold mt-2 text-teal-600 font-mono">
-              {counts.payroll || 0}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Pending Authorization</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between text-slate-500">
-              <span className="text-[11px] font-semibold uppercase tracking-wider">Exits & Actions</span>
-              <AlertOctagon className="h-4 w-4 text-rose-600" />
-            </div>
-            <div className="text-2xl font-extrabold mt-2 text-rose-600 font-mono">
-              {(counts.exits || 0) + (counts.disciplinary || 0)}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-0.5">Pending Clearance</div>
-          </CardContent>
-        </Card>
+          return roleCards.map((card, idx) => {
+            const Icon = card.icon;
+            return (
+              <Card key={idx} className="shadow-2xs border-slate-200">
+                <CardContent className="p-5">
+                  <div className="flex items-center justify-between text-slate-500">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider">{card.title}</span>
+                    <Icon className={`h-4 w-4 ${card.color}`} />
+                  </div>
+                  <div className={`text-2xl font-extrabold mt-2 ${card.color} font-mono`}>
+                    {card.value}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">{card.subtitle}</div>
+                </CardContent>
+              </Card>
+            );
+          });
+        })()}
       </div>
 
       {/* Main Tabs */}
