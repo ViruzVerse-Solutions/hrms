@@ -61,6 +61,10 @@ export default function DashboardPage() {
     ? attendanceRecords.some((a) => a.employeeId === currentEmployee.id && a.date === today)
     : false;
 
+  const totalAnnualPayroll = employees.reduce((acc, emp) => acc + (emp.ctc || 540000), 0);
+  const monthlyDisbursal = payrollRuns[0] ? Number((payrollRuns[0] as any).totalNetPay || payrollRuns[0].totalGrossPay || 0) : Math.round(totalAnnualPayroll / 12);
+  const totalPendingApprovals = pendingLeaves.length + requisitions.filter((r) => r.status === 'pending_approval' || r.status === 'in_progress').length;
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Welcome Banner */}
@@ -164,7 +168,7 @@ export default function DashboardPage() {
                   <span className="text-xs font-semibold uppercase tracking-wider">Annual Payroll Budget</span>
                   <Wallet className="h-4 w-4 text-emerald-600" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-emerald-600">{formatCurrency(83280000)}</div>
+                <div className="text-3xl font-extrabold mt-3 text-emerald-600">{formatCurrency(totalAnnualPayroll)}</div>
                 <div className="text-xs text-slate-500 font-medium mt-1">On-budget & compliant</div>
               </CardContent>
             </Card>
@@ -281,7 +285,7 @@ export default function DashboardPage() {
                   <span className="text-xs font-semibold uppercase tracking-wider">Pending Approvals</span>
                   <Clock className="h-4 w-4 text-amber-500" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900">{pendingLeaves.length + 1}</div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900">{totalPendingApprovals}</div>
                 <div className="text-xs text-amber-600 font-medium mt-1">Leaves, promotions & payroll sign-off</div>
               </CardContent>
             </Card>
@@ -292,7 +296,7 @@ export default function DashboardPage() {
                   <span className="text-xs font-semibold uppercase tracking-wider">Payroll Disbursal</span>
                   <Wallet className="h-4 w-4 text-emerald-600" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-emerald-600">{formatCurrency(6940000)}</div>
+                <div className="text-3xl font-extrabold mt-3 text-emerald-600">{formatCurrency(monthlyDisbursal)}</div>
                 <div className="text-xs text-slate-500 font-medium mt-1">August 2026 Batch Ready</div>
               </CardContent>
             </Card>

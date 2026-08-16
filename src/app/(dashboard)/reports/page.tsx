@@ -56,8 +56,34 @@ export default function ReportsPage() {
 }
 
 function ReportsContent() {
-  const { isSalaryVisible } = useAuth();
-  const canSeePayroll = isSalaryVisible(false);
+  const { currentRole, isSalaryVisible } = useAuth();
+  const [reportsData, setReportsData] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch('/api/reports', {
+      headers: { 'x-user-role': currentRole },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data) {
+          setReportsData(data.data);
+        }
+      })
+      .catch((err) => console.error('Failed to load reports API data:', err))
+      .finally(() => setLoading(false));
+  }, [currentRole]);
+
+  const metrics = reportsData?.metrics || {
+    attritionRate: 6.2,
+    costPerHire: 48500,
+    trainingScore: 4.8,
+    leaveUtilization: 68.4,
+  };
+
+  const payrollTrend = reportsData?.payrollTrend || PAYROLL_TREND_DATA;
+  const headcountGrowth = reportsData?.headcountGrowth || HEADCOUNT_GROWTH_DATA;
+
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -92,7 +118,7 @@ function ReportsContent() {
         <Card>
           <CardContent className="p-6">
             <span className="text-xs font-semibold text-slate-500">Annualized Attrition Rate</span>
-            <div className="text-3xl font-extrabold text-emerald-600 mt-2">6.2%</div>
+            <div className="text-3xl font-extrabold text-emerald-600 mt-2">{metrics.attritionRate}%</div>
             <div className="text-xs text-emerald-600 font-medium mt-1">Well below industry 14% benchmark</div>
           </CardContent>
         </Card>
@@ -100,7 +126,7 @@ function ReportsContent() {
         <Card>
           <CardContent className="p-6">
             <span className="text-xs font-semibold text-slate-500">Avg. Cost Per Hire</span>
-            <div className="text-3xl font-extrabold text-indigo-600 mt-2 font-mono">₹48,500</div>
+            <div className="text-3xl font-extrabold text-indigo-600 mt-2 font-mono">{formatCurrency(metrics.costPerHire)}</div>
             <div className="text-xs text-slate-400 mt-1">Time to fill: 24 Days</div>
           </CardContent>
         </Card>
@@ -108,7 +134,7 @@ function ReportsContent() {
         <Card>
           <CardContent className="p-6">
             <span className="text-xs font-semibold text-slate-500">Training ROI / Satisfaction</span>
-            <div className="text-3xl font-extrabold text-purple-600 mt-2">4.8 / 5.0</div>
+            <div className="text-3xl font-extrabold text-purple-600 mt-2">{metrics.trainingScore} / 5.0</div>
             <div className="text-xs text-purple-600 font-medium mt-1">94% skill applicability rate</div>
           </CardContent>
         </Card>
@@ -116,7 +142,7 @@ function ReportsContent() {
         <Card>
           <CardContent className="p-6">
             <span className="text-xs font-semibold text-slate-500">Leave Utilization</span>
-            <div className="text-3xl font-extrabold text-slate-900 dark:text-white mt-2">68.4%</div>
+            <div className="text-3xl font-extrabold text-slate-900 dark:text-white mt-2">{metrics.leaveUtilization}%</div>
             <div className="text-xs text-slate-400 mt-1">Healthy work-life balance</div>
           </CardContent>
         </Card>
@@ -135,7 +161,7 @@ function ReportsContent() {
           <CardContent>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={PAYROLL_TREND_DATA}>
+                <BarChart data={payrollTrend}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                   <XAxis dataKey="month" fontSize={11} />
                   <YAxis
@@ -165,7 +191,7 @@ function ReportsContent() {
           <CardContent>
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={HEADCOUNT_GROWTH_DATA}>
+                <LineChart data={headcountGrowth}>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
                   <XAxis dataKey="month" fontSize={11} />
                   <YAxis fontSize={11} domain={[80, 115]} />
