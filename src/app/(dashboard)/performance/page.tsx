@@ -19,6 +19,7 @@ import { formatDate } from '@/lib/utils';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function PerformancePage() {
   return (
@@ -29,16 +30,32 @@ export default function PerformancePage() {
 }
 
 function PerformanceContent() {
-  const { performanceReviews, currentRole, logAuditAction } = useAuth();
+  const { performanceReviews, currentRole, logAuditAction, isLoadingData } = useAuth();
   const [activeTab, setActiveTab] = useState<'appraisals' | 'nine_box' | 'pip'>('appraisals');
   const [reviewsList, setReviewsList] = useState(performanceReviews);
+  const [isLoading, setIsLoading] = useState(false);
   const [selfAppraisalModalOpen, setSelfAppraisalModalOpen] = useState(false);
   const [selfRating, setSelfRating] = useState('4.8');
   const [achievements, setAchievements] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState('');
 
+  React.useEffect(() => {
+    setIsLoading(true);
+    fetch('/api/performance', {
+      headers: { 'x-user-role': currentRole },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data?.performanceReviews) {
+          setReviewsList(data.data.performanceReviews);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  }, [currentRole]);
+
   const isEmployee = currentRole === 'employee';
-  const review = reviewsList[0] || performanceReviews[0];
+  const review = reviewsList[0] || null;
 
   const handleSubmitSelfAppraisal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +88,14 @@ function PerformanceContent() {
       console.error('Failed to submit self-appraisal:', err);
     }
   };
+
+  if (isLoading || isLoadingData) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="dashboard" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">

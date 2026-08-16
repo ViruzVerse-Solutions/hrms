@@ -49,6 +49,7 @@ interface AuthContextType {
   grievances: GrievanceTicket[];
   auditLogs: AuditLogItem[];
   notifications: SystemNotification[];
+  isLoadingData: boolean;
   setAttendanceRecords: React.Dispatch<React.SetStateAction<AttendanceRecord[]>>;
   setLeaveAllocations: React.Dispatch<React.SetStateAction<LeaveBalance[]>>;
   refreshLeaves: () => Promise<void>;
@@ -89,14 +90,6 @@ const getInitialRole = (initialRole?: UserRole): UserRole => {
   return 'hr_head';
 };
 
-const getInitialUser = (role: UserRole): User => {
-  return (
-    CORE_PERSONAS.find((u) => u.activeRole === role) ||
-    CORE_PERSONAS.find((u) => u.roles.includes(role)) ||
-    CORE_PERSONAS[2]
-  );
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({
@@ -106,45 +99,27 @@ export function AuthProvider({
   children: React.ReactNode;
   initialRole?: UserRole;
 }) {
-  const activeRole = getInitialRole(initialRole);
-  const [currentRole, setCurrentRole] = useState<UserRole>(activeRole);
-  const [currentUser, setCurrentUser] = useState<User>(() => getInitialUser(activeRole));
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => getInitialRole(initialRole));
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    const role = getInitialRole(initialRole);
+    const matching =
+      CORE_PERSONAS.find((u) => u.activeRole === role) ||
+      CORE_PERSONAS.find((u) => u.roles.includes(role)) ||
+      CORE_PERSONAS[0];
+    return { ...matching, activeRole: role };
+  });
 
-  // Sync cookies/localStorage on initial client mount
-  useEffect(() => {
-    try {
-      const savedRole = localStorage.getItem('hrms_active_role') as UserRole | null;
-      if (savedRole && VALID_ROLES.includes(savedRole)) {
-        document.cookie = `hrms_active_role=${savedRole}; path=/; max-age=31536000; SameSite=Lax`;
-        if (savedRole !== currentRole) {
-          setCurrentRole(savedRole);
-          const matchingUser = getInitialUser(savedRole);
-          setCurrentUser({
-            ...matchingUser,
-            activeRole: savedRole,
-          });
-        }
-      } else if (currentRole) {
-        localStorage.setItem('hrms_active_role', currentRole);
-        document.cookie = `hrms_active_role=${currentRole}; path=/; max-age=31536000; SameSite=Lax`;
-      }
-    } catch {}
-  }, []);
-
-  // Multi-tab sync
+  // Sync role changes across browser tabs & cookies
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'hrms_active_role' && e.newValue) {
+      if (e.key === 'hrms_active_role' && e.newValue && VALID_ROLES.includes(e.newValue as UserRole)) {
         const newRole = e.newValue as UserRole;
-        if (VALID_ROLES.includes(newRole)) {
-          document.cookie = `hrms_active_role=${newRole}; path=/; max-age=31536000; SameSite=Lax`;
-          setCurrentRole(newRole);
-          const matchingUser = getInitialUser(newRole);
-          setCurrentUser({
-            ...matchingUser,
-            activeRole: newRole,
-          });
-        }
+        setCurrentRole(newRole);
+        const matching =
+          CORE_PERSONAS.find((u) => u.activeRole === newRole) ||
+          CORE_PERSONAS.find((u) => u.roles.includes(newRole)) ||
+          CORE_PERSONAS[0];
+        setCurrentUser({ ...matching, activeRole: newRole });
       }
     };
     window.addEventListener('storage', handleStorage);
@@ -152,13 +127,10 @@ export function AuthProvider({
   }, []);
 
   // Fast Reactive Data stores (100% DB Driven)
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-  const [leaveAllocations, setLeaveAllocations] = useState<LeaveBalance[]>([
-    { employeeId: 'emp_005', leaveType: 'casual', totalAllocated: 12, used: 2, pending: 0, balance: 10 },
-    { employeeId: 'emp_005', leaveType: 'sick', totalAllocated: 12, used: 1, pending: 0, balance: 11 },
-    { employeeId: 'emp_005', leaveType: 'earned', totalAllocated: 15, used: 0, pending: 0, balance: 15 },
-  ]);
+  const [leaveAllocations, setLeaveAllocations] = useState<LeaveBalance[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
@@ -167,21 +139,11 @@ export function AuthProvider({
   const [performanceReviews, setPerformanceReviews] = useState<PerformanceReview[]>([]);
   const [grievances, setGrievances] = useState<GrievanceTicket[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
-  const [notifications, setNotifications] = useState<SystemNotification[]>([
-    {
-      id: 'notif_1',
-      title: 'Database Connected',
-      message: 'HRMS enterprise platform is connected and synchronized with PostgreSQL',
-      type: 'success',
-      module: 'reports_dashboard',
-      createdAt: new Date().toISOString(),
-      read: false,
-      link: '/dashboard',
-    },
-  ]);
+  const [notifications, setNotifications] = useState<SystemNotification[]>([]);
 
   // Single-pass high-speed database hydration on mount & role switch (<30ms)
   useEffect(() => {
+    setIsLoadingData(true);
     fetch('/api/dashboard/summary', {
       headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
     })
@@ -199,7 +161,10 @@ export function AuthProvider({
           if (d.auditLogs) setAuditLogs(d.auditLogs);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        setIsLoadingData(false);
+      });
   }, [currentRole, currentUser.employeeId]);
 
   const handleSetRole = (newRole: UserRole) => {
@@ -456,6 +421,7 @@ export function AuthProvider({
         can,
         isSalaryVisible,
         roleDetails,
+        isLoadingData,
         employees,
         leaveRequests,
         leaveAllocations,

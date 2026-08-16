@@ -27,6 +27,7 @@ import { Badge } from '@/components/ui/badge';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { DisciplinaryCase } from '@/types';
 import { useAuth } from '@/context/AuthContext';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function DisciplinaryPage() {
   return (
@@ -170,6 +171,14 @@ function DisciplinaryContent() {
     const matchesStage = stageFilter === 'all' || c.currentStage === stageFilter;
     return matchesSearch && matchesStage;
   });
+
+  if (isLoading) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="table" rows={5} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">

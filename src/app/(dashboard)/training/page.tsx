@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { useAuth } from '@/context/AuthContext';
 import { TrainingProgram } from '@/types';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function TrainingPage() {
   return (
@@ -48,6 +49,14 @@ function TrainingContent() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [currentRole]);
+
+  if (loading) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="dashboard" />
+      </div>
+    );
+  }
 
   const upcomingCount = trainings.filter((t) => t.status === 'upcoming').length;
   const totalEnrolled = trainings.reduce((acc, t) => acc + (t.enrolledCount || 0), 0);

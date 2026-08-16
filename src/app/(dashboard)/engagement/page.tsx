@@ -21,6 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { GrievanceTicket } from '@/types';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function EngagementPage() {
   return (
@@ -37,6 +38,7 @@ function EngagementContent() {
     currentUser,
     currentEmployee,
     can,
+    isLoadingData,
   } = useAuth();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -68,6 +70,14 @@ function EngagementContent() {
       priority: 'medium',
     });
   };
+
+  if (isLoadingData) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="table" rows={4} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">

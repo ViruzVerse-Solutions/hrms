@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function AttendancePage() {
   return (
@@ -38,6 +39,7 @@ function AttendanceContent() {
     currentUser,
     employees,
     setAttendanceRecords,
+    isLoadingData,
   } = useAuth();
 
   const [filterDate, setFilterDate] = useState('');
@@ -45,7 +47,7 @@ function AttendanceContent() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState('Just now');
 
-  const empId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
+  const empId = currentEmployee?.id || currentUser?.employeeId || '';
   const isEmployee = currentRole === 'employee';
 
   const syncBiometricData = () => {
@@ -85,6 +87,14 @@ function AttendanceContent() {
     const matchesSource = sourceFilter === 'all' || rec.source === sourceFilter;
     return matchesDate && matchesSource;
   });
+
+  if (isLoadingData) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="table" rows={6} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">

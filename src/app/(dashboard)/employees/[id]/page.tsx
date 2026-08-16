@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import Link from 'next/link';
 import { getPersonaAvatar } from '@/lib/constants';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function EmployeeDetailPage({
   params,
@@ -47,19 +48,18 @@ function EmployeeDetailContent({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const { employees, addEmployee, refreshEmployees, isSalaryVisible, currentUser, currentRole, can } = useAuth();
+  const { employees, addEmployee, refreshEmployees, isSalaryVisible, currentUser, currentRole, can, isLoadingData } = useAuth();
   
   const initialEmployee =
     employees.find(
       (e) =>
         e.id === resolvedParams.id ||
         e.employeeCode === resolvedParams.id ||
-        e.employeeCode?.toLowerCase() === resolvedParams.id?.toLowerCase() ||
-        (resolvedParams.id?.includes('emp_') && e.employeeCode?.includes('1005'))
-    ) || employees[0] || null;
+        e.employeeCode?.toLowerCase() === resolvedParams.id?.toLowerCase()
+    ) || null;
 
   const [employee, setEmployee] = useState<Employee | null>(initialEmployee);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!initialEmployee);
 
   // Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -277,6 +277,29 @@ function EmployeeDetailContent({
       setNewDoc({ title: '', category: 'Identity Proof' });
     }, 1000);
   };
+
+  if (loading && !employee) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="dossier" />
+      </div>
+    );
+  }
+
+  if (!employee) {
+    return (
+      <div className="p-12 max-w-xl mx-auto text-center space-y-4">
+        <div className="h-16 w-16 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+          <AlertCircle className="h-8 w-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Employee Profile Not Found</h2>
+        <p className="text-xs text-slate-500">The requested employee identifier does not exist or has been removed from database.</p>
+        <Button asChild variant="outline" className="text-xs">
+          <Link href="/employees">Back to Employee Directory</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-8 max-w-7xl mx-auto">

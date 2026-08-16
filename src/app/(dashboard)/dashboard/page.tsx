@@ -34,12 +34,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { getPersonaAvatar } from '@/lib/constants';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function DashboardPage() {
   const {
     currentRole,
     currentUser,
     currentEmployee,
+    isLoadingData,
     employees,
     leaveRequests,
     leaveAllocations,
@@ -74,6 +76,14 @@ export default function DashboardPage() {
       .catch(() => {});
   }, [currentRole]);
 
+  if (isLoadingData) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="dashboard" />
+      </div>
+    );
+  }
+
   const pendingLeaves = leaveRequests.filter((l) => l.status === 'pending');
   const today = new Date().toISOString().split('T')[0];
   const todayAttendance = attendanceRecords.filter((a) => a.date === today);
@@ -82,7 +92,7 @@ export default function DashboardPage() {
     ? attendanceRecords.some((a) => a.employeeId === currentEmployee.id && a.date === today)
     : false;
 
-  const totalAnnualPayroll = employees.reduce((acc, emp) => acc + (emp.ctc || 540000), 0);
+  const totalAnnualPayroll = employees.reduce((acc, emp) => acc + (emp.ctc || 0), 0);
   const monthlyDisbursal = payrollRuns[0] ? Number((payrollRuns[0] as any).totalNetPay || payrollRuns[0].totalGrossPay || 0) : Math.round(totalAnnualPayroll / 12);
   const totalPendingApprovals = pendingLeaves.length + requisitions.filter((r) => r.status === 'pending_approval' || r.status === 'in_progress').length;
 

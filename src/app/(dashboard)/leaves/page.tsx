@@ -30,6 +30,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface CompanyHolidayItem {
   id: string;
@@ -49,7 +50,7 @@ interface CompanyHolidayItem {
 export default function LeavesPage() {
   return (
     <RBACGuard module="attendance_leave">
-      <Suspense fallback={<div className="p-8 text-xs text-slate-400">Loading leave management...</div>}>
+      <Suspense fallback={<div className="p-8 max-w-7xl mx-auto"><LoadingState variant="table" rows={6} /></div>}>
         <LeavesContent />
       </Suspense>
     </RBACGuard>
@@ -76,6 +77,7 @@ function LeavesContent() {
     currentRole,
     employees,
     can,
+    isLoadingData,
   } = useAuth();
 
   const todayStr = new Date().toISOString().split('T')[0];
