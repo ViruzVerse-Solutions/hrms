@@ -110,3 +110,39 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const authResult = await authenticateApiRequest(req, 'transfer_promotion', 'approve');
+    if (!authResult.authorized) {
+      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.status });
+    }
+
+    const body = await req.json();
+    const { transferId, action } = body; // action: "approve" | "reject"
+
+    if (!transferId) {
+      return NextResponse.json({ success: false, error: 'Missing transferId' }, { status: 400 });
+    }
+
+    const updated = await prisma.transferPromotionCase.update({
+      where: { id: transferId },
+      data: {
+        status: action === 'approve' ? 'approved' : 'rejected',
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: `Transfer/Promotion case marked as ${updated.status}`,
+      data: { transfer: updated },
+    });
+  } catch (error: any) {
+    console.error('Error updating transfer status:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to update transfer status' },
+      { status: 500 }
+    );
+  }
+}
+

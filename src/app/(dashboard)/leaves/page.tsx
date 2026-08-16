@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Calendar,
   CalendarDays,
@@ -48,12 +49,22 @@ interface CompanyHolidayItem {
 export default function LeavesPage() {
   return (
     <RBACGuard module="attendance_leave">
-      <LeavesContent />
+      <Suspense fallback={<div className="p-8 text-xs text-slate-400">Loading leave management...</div>}>
+        <LeavesContent />
+      </Suspense>
     </RBACGuard>
   );
 }
 
 function LeavesContent() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(tabParam === 'holidays' ? 'holidays' : 'applications');
+
+  useEffect(() => {
+    if (tabParam === 'holidays') setActiveTab('holidays');
+    else if (tabParam === 'applications') setActiveTab('applications');
+  }, [tabParam]);
   const {
     leaveRequests,
     leaveAllocations,
@@ -229,6 +240,25 @@ function LeavesContent() {
       }
     } catch (err) {
       console.error('Failed to approve holiday:', err);
+    }
+  };
+
+  const handleRejectHoliday = async (holidayId: string) => {
+    try {
+      const res = await fetch('/api/holidays', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': currentRole,
+        },
+        body: JSON.stringify({ holidayId, action: 'reject' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchHolidays();
+      }
+    } catch (err) {
+      console.error('Failed to reject holiday:', err);
     }
   };
 
@@ -497,7 +527,7 @@ function LeavesContent() {
       })()}
 
       {/* Navigation Tabs for Leave Applications & Holiday Calendar */}
-      <Tabs defaultValue="applications" className="w-full">
+      <Tabs defaultValue="applications" value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid grid-cols-2 max-w-md">
           <TabsTrigger value="applications">Leave Applications</TabsTrigger>
           <TabsTrigger value="holidays">Company Holiday Calendar ({holidays.length})</TabsTrigger>
@@ -621,7 +651,7 @@ function LeavesContent() {
                           <Badge variant="outline" className="text-[10px] font-mono capitalize">
                             {h.category.replace(/_/g, ' ')}
                           </Badge>
-                          <Badge variant={h.status === 'approved' ? 'success' : 'warning'} className="text-[10px] uppercase">
+                          <Badge variant={h.status === 'approved' ? 'success' : h.status === 'pending_approval' ? 'warning' : 'destructive'} className="text-[10px] uppercase">
                             {h.status}
                           </Badge>
                         </div>
@@ -643,14 +673,25 @@ function LeavesContent() {
                         </div>
 
                         {h.status === 'pending_approval' && canApproveHoliday && (
-                          <Button
-                            size="sm"
-                            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                            onClick={() => handleApproveHoliday(h.id)}
-                          >
-                            <Check className="h-3.5 w-3.5" />
-                            <span>Approve & Publish</span>
-                          </Button>
+                          <div className="flex items-center gap-1.5">
+                            <Button
+                              size="sm"
+                              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                              onClick={() => handleApproveHoliday(h.id)}
+                            >
+                              <Check className="h-3.5 w-3.5" />
+                              <span>Approve & Publish</span>
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              className="h-8 text-xs gap-1"
+                              onClick={() => handleRejectHoliday(h.id)}
+                            >
+                              <X className="h-3.5 w-3.5" />
+                              <span>Reject</span>
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </div>

@@ -9,6 +9,7 @@ import {
   Plus,
   X,
   Lock,
+  Check,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -43,8 +44,6 @@ function MovementContent() {
     effectiveDate: new Date().toISOString().split('T')[0],
   });
 
-  const canInitiate = can('create', 'transfer_promotion');
-
   const fetchTransfers = async () => {
     try {
       setIsLoading(true);
@@ -65,6 +64,25 @@ function MovementContent() {
   useEffect(() => {
     fetchTransfers();
   }, [currentRole]);
+
+  const handleActionTransfer = async (transferId: string, action: 'approve' | 'reject') => {
+    try {
+      const res = await fetch('/api/movement', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': currentRole,
+        },
+        body: JSON.stringify({ transferId, action }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchTransfers();
+      }
+    } catch (err) {
+      console.error('Failed to update transfer action:', err);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,6 +108,9 @@ function MovementContent() {
       console.error('Failed to submit transfer case:', err);
     }
   };
+
+  const canInitiate = can('create', 'transfer_promotion');
+  const canApprove = ['managing_director', 'chairman', 'hr_head'].includes(currentRole);
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">
@@ -151,13 +172,13 @@ function MovementContent() {
         <Card className="border-emerald-500/20 bg-emerald-50/20">
           <CardContent className="p-6 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-500">Approved Executions</span>
+              <span className="text-xs font-semibold text-slate-500">Approved Cases</span>
               <Users className="h-4 w-4 text-emerald-600" />
             </div>
             <div className="font-bold text-2xl text-slate-900">
-              {transfers.filter((t) => t.status === 'approved').length} Processed
+              {transfers.filter((t) => t.status === 'approved').length} Cases
             </div>
-            <p className="text-xs text-slate-500">Completed transition & updated organizational chart</p>
+            <p className="text-xs text-slate-500">Mobility cases fully authorized</p>
           </CardContent>
         </Card>
       </div>
@@ -185,7 +206,7 @@ function MovementContent() {
                       <Badge variant={t.type === 'promotion' ? 'default' : 'secondary'} className="text-[10px] uppercase">
                         {t.type}
                       </Badge>
-                      <Badge variant={t.status === 'approved' ? 'success' : 'warning'} className="text-[10px] uppercase">
+                      <Badge variant={t.status === 'approved' ? 'success' : t.status === 'pending' ? 'warning' : 'destructive'} className="text-[10px] uppercase">
                         {t.status}
                       </Badge>
                     </div>
@@ -195,9 +216,33 @@ function MovementContent() {
                     </div>
                   </div>
 
-                  <div className="text-xs text-slate-500">
-                    <div>Initiated by: <strong className="text-slate-700">{t.initiatedBy}</strong></div>
-                    <div className="text-[10px] text-slate-400">Approval chain: {t.approvalChain?.join(' → ') || 'Pending'}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-xs text-slate-500 text-right">
+                      <div>Initiated by: <strong className="text-slate-700">{t.initiatedBy}</strong></div>
+                      <div className="text-[10px] text-slate-400">Approval chain: {t.approvalChain?.join(' → ') || 'Pending'}</div>
+                    </div>
+
+                    {t.status === 'pending' && canApprove && (
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+                          onClick={() => handleActionTransfer(t.id, 'approve')}
+                        >
+                          <Check className="h-3.5 w-3.5" />
+                          <span>Approve</span>
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="h-8 text-xs gap-1"
+                          onClick={() => handleActionTransfer(t.id, 'reject')}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                          <span>Reject</span>
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

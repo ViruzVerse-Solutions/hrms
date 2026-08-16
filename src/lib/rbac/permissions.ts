@@ -188,3 +188,72 @@ export function canViewSensitiveSalary(role: UserRole, isOwnProfile = false): bo
 export function canViewDisciplinaryCases(role: UserRole): boolean {
   return ['chairman', 'managing_director', 'hr_head', 'internal_audit_head', 'compliance_statutory'].includes(role);
 }
+
+export type ApprovalCategory =
+  | 'leaves'
+  | 'requisitions'
+  | 'transfers'
+  | 'payroll'
+  | 'exits'
+  | 'holidays'
+  | 'disciplinary';
+
+export interface ApprovalPermissionConfig {
+  canView: UserRole[];
+  canApprove: UserRole[];
+  module: ModuleKey;
+  label: string;
+}
+
+export const APPROVAL_CATEGORY_PERMISSIONS: Record<ApprovalCategory, ApprovalPermissionConfig> = {
+  leaves: {
+    canView: ['chairman', 'managing_director', 'hr_head', 'compliance_statutory'],
+    canApprove: ['chairman', 'managing_director', 'hr_head'],
+    module: 'attendance_leave',
+    label: 'Leave Requests',
+  },
+  requisitions: {
+    canView: ['chairman', 'managing_director', 'hr_head'],
+    canApprove: ['chairman', 'managing_director', 'hr_head'],
+    module: 'recruitment',
+    label: 'Job Requisitions',
+  },
+  transfers: {
+    canView: ['chairman', 'managing_director', 'hr_head'],
+    canApprove: ['chairman', 'managing_director', 'hr_head'],
+    module: 'transfer_promotion',
+    label: 'Transfers & Promotions',
+  },
+  payroll: {
+    canView: ['chairman', 'managing_director', 'hr_head', 'internal_audit_head', 'compliance_statutory'],
+    canApprove: ['chairman', 'managing_director', 'hr_head'],
+    module: 'payroll_benefits',
+    label: 'Payroll Disbursals',
+  },
+  exits: {
+    canView: ['chairman', 'managing_director', 'hr_head', 'compliance_statutory'],
+    canApprove: ['chairman', 'managing_director', 'hr_head'],
+    module: 'resignation_exit',
+    label: 'Exit Clearances',
+  },
+  holidays: {
+    canView: ['chairman', 'managing_director', 'hr_head', 'compliance_statutory'],
+    canApprove: ['chairman', 'managing_director'],
+    module: 'attendance_leave',
+    label: 'Holiday Calendar',
+  },
+  disciplinary: {
+    canView: ['chairman', 'managing_director', 'hr_head', 'internal_audit_head', 'compliance_statutory'],
+    canApprove: ['managing_director', 'hr_head', 'internal_audit_head'],
+    module: 'disciplinary_actions',
+    label: 'Disciplinary Cases',
+  },
+};
+
+export function canUserApproveCategory(role: UserRole, category: ApprovalCategory): boolean {
+  return APPROVAL_CATEGORY_PERMISSIONS[category]?.canApprove.includes(role) || false;
+}
+
+export function canUserViewApprovalCategory(role: UserRole, category: ApprovalCategory): boolean {
+  return APPROVAL_CATEGORY_PERMISSIONS[category]?.canView.includes(role) || false;
+}
