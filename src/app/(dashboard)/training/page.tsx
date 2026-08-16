@@ -35,6 +35,7 @@ function TrainingContent() {
 
   const [trainings, setTrainings] = useState<TrainingProgram[]>([]);
   const [loading, setLoading] = useState(true);
+  const [enrolledMap, setEnrolledMap] = useState<Record<string, boolean>>({});
 
   React.useEffect(() => {
     fetch('/api/training', {
@@ -60,8 +61,6 @@ function TrainingContent() {
 
   const upcomingCount = trainings.filter((t) => t.status === 'upcoming').length;
   const totalEnrolled = trainings.reduce((acc, t) => acc + (t.enrolledCount || 0), 0);
-
-  const [enrolledMap, setEnrolledMap] = useState<Record<string, boolean>>({});
 
   const handleEnroll = async (trainingId: string) => {
     try {

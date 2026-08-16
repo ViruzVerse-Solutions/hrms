@@ -44,57 +44,115 @@ export const attendanceService = {
     }));
   },
 
-  async checkIn(employeeId: string, status: 'present' | 'half_day' = 'present') {
+  async syncExcelAttendance(records: Array<{
+    employeeCode: string;
+    date: string;
+    inTime?: string;
+    outTime?: string;
+    totalHours?: number;
+    status?: 'present' | 'absent' | 'half_day' | 'on_leave';
+    machineId?: string;
+  }>) {
     if (!prisma) throw new Error('Database unavailable');
 
-    let emp = await prisma.employee.findFirst({
-      where: {
-        OR: [
-          { id: employeeId },
-          { employeeCode: employeeId },
-          { email: { contains: employeeId } },
-        ],
-        employmentStatus: { not: 'terminated' },
-      },
-    });
-
-    if (!emp) {
-      emp = await prisma.employee.findFirst({ where: { employmentStatus: { not: 'terminated' } } });
-    }
-
-    if (!emp) throw new Error('Employee not found');
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const now = new Date();
     const org = await prisma.organization.findFirst();
-    const organizationId = org?.id || emp.organizationId;
+    const organizationId = org?.id;
     if (!organizationId) throw new Error('Organization not found');
 
-    const record = await prisma.attendanceRecord.upsert({
-      where: {
-        employeeId_date: {
-          employeeId: emp.id,
-          date: today,
-        },
-      },
-      create: {
-        organizationId,
-        employeeId: emp.id,
-        date: today,
-        inTime: now,
-        status: status as any,
-        source: 'web_checkin' as any,
-        totalHours: 9.0,
-      } as any,
-      update: {
-        outTime: now,
-        status: status as any,
-      },
+    const employees = await prisma.employee.findMany({
+      select: { id: true, employeeCode: true },
     });
 
-    return record;
+    const empCodeMap = new Map<string, string>();
+    for (const emp of employees) {
+      if (emp.employeeCode) {
+        empCodeMap.set(emp.employeeCode.trim().toUpperCase(), emp.id);
+      }
+    }
+
+    const syncedResults: any[] = [];
+    const errors: string[] = [];
+
+    for (const row of records) {
+      const code = (row.employeeCode || '').trim().toUpperCase();
+      const employeeId = empCodeMap.get(code);
+      if (!employeeId) {
+        errors.push(`Employee code '${row.employeeCode}' not found`);
+        continue;
+      }
+
+      const recordDate = new Date(row.date);
+      recordDate.setHours(0, 0, 0, 0);
+
+      let inDateTime: Date | null = null;
+      if (row.inTime) {
+        const parts = row.inTime.split(':').map(Number);
+        if (!isNaN(parts[0]) && !isNaN(parts[1])) {
+          inDateTime = new Date(recordDate);
+          inDateTime.setHours(parts[0], parts[1], 0, 0);
+        }
+      }
+
+      let outDateTime: Date | null = null;
+      if (row.outTime) {
+        const parts = row.outTime.split(':').map(Number);
+        if (!isNaN(parts[0]) && !isNaN(parts[1])) {
+          outDateTime = new Date(recordDate);
+          outDateTime.setHours(parts[0], parts[1], 0, 0);
+        }
+      }
+
+      let hours = row.totalHours;
+      if (hours === undefined || isNaN(hours)) {
+        if (inDateTime && outDateTime) {
+          const diffMs = outDateTime.getTime() - inDateTime.getTime();
+          hours = Number((Math.max(0, diffMs) / (1000 * 60 * 60)).toFixed(2));
+        } else if (row.status === 'present') {
+          hours = 8.5;
+        } else if (row.status === 'half_day') {
+          hours = 4.5;
+        } else {
+          hours = 0;
+        }
+      }
+
+      const status = row.status || (hours >= 8 ? 'present' : hours >= 4 ? 'half_day' : 'absent');
+
+      const saved = await prisma.attendanceRecord.upsert({
+        where: {
+          employeeId_date: {
+            employeeId,
+            date: recordDate,
+          },
+        },
+        create: {
+          organizationId,
+          employeeId,
+          date: recordDate,
+          inTime: inDateTime || (status === 'present' ? new Date(recordDate.getTime() + 9 * 3600000) : null),
+          outTime: outDateTime || (status === 'present' ? new Date(recordDate.getTime() + 18 * 3600000) : null),
+          totalHours: hours,
+          status: status as any,
+          source: 'biometric' as any,
+        } as any,
+        update: {
+          inTime: inDateTime || undefined,
+          outTime: outDateTime || undefined,
+          totalHours: hours,
+          status: status as any,
+          source: 'biometric' as any,
+        },
+      });
+
+      syncedResults.push(saved);
+    }
+
+    return {
+      syncedCount: syncedResults.length,
+      errorsCount: errors.length,
+      errors,
+      records: syncedResults,
+    };
   },
 
   async getLeaves(role: UserRole, employeeId?: string) {

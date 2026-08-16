@@ -51,7 +51,6 @@ export default function DashboardPage() {
     candidates,
     requisitions,
     grievances,
-    updateAttendanceCheckin,
     auditLogs,
   } = useAuth();
 
@@ -115,21 +114,18 @@ export default function DashboardPage() {
               {currentRole === 'hr_head' && 'Full operational authority across all 17 lifecycle stages: headcount requisitions, attendance & leave queues, payroll processing, and calibrations.'}
               {currentRole === 'internal_audit_head' && 'Internal audit & inspection: check company activity history, verify salary and attendance accuracy, and ensure government compliance.'}
               {currentRole === 'compliance_statutory' && 'Statutory & regulatory governance: Factory Act registers, PF/ESI/TDS remittance filings, POSH compliance, and EHS safety audits.'}
-              {currentRole === 'employee' && 'Self-service portal: manage your daily check-in, review leave balances, download salary payslips, and check company announcements.'}
+              {currentRole === 'employee' && 'Self-service portal: review your biometric attendance punches, check leave balances, download salary payslips, and check company announcements.'}
             </p>
           </div>
 
           {/* Quick Action Button based on Role */}
           <div className="flex items-center gap-3 shrink-0">
             {currentRole === 'employee' && (
-              <Button
-                variant={isCheckedInToday ? 'outline' : 'default'}
-                className={isCheckedInToday ? 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400' : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm'}
-                disabled={isCheckedInToday}
-                onClick={() => updateAttendanceCheckin('present')}
-              >
-                <Clock className="h-4 w-4 mr-2" />
-                {isCheckedInToday ? 'Shift Logged (Present)' : 'Web Check-In (Present)'}
+              <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
+                <Link href="/attendance">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Biometric Logs
+                </Link>
               </Button>
             )}
             {currentRole === 'hr_head' && (

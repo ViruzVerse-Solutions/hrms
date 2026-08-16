@@ -279,9 +279,9 @@ function ApprovalsContent() {
                 color: 'text-blue-600',
               },
               {
-                title: 'Payroll Disbursals',
+                title: 'Payroll & CTC Approvals',
                 value: counts.payroll || 0,
-                subtitle: 'Bank Release Authorization',
+                subtitle: 'Salary Disbursal & Band Sanctions',
                 icon: Wallet,
                 color: 'text-teal-600',
               },

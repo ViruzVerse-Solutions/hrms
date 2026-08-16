@@ -59,11 +59,11 @@ export const apiClient = {
         headers: role ? { 'x-user-role': role } : {},
       });
     },
-    checkIn: (role?: string, status: 'present' | 'half_day' = 'present') =>
-      fetchApi('/api/attendance/checkin', {
+    syncExcel: (records: any[], role?: string) =>
+      fetchApi('/api/attendance', {
         method: 'POST',
         headers: role ? { 'x-user-role': role } : {},
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ records }),
       }),
   },
 

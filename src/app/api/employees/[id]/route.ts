@@ -67,30 +67,19 @@ export async function PUT(
     const userCtx = getApiUserContext(req);
     const isOwnProfile = userCtx.employeeId === id || userCtx.employeeCode === id;
     
-    // RBAC: HR Head & MD have full administrative update rights; Employee has self-service update rights on own profile
+    // RBAC: Only HR Head, MD, or authorized administrators can update employee details
     const hasAdminPerm = canPerformAction(userCtx.role, 'employee_records', 'update');
-    const hasSelfPerm = userCtx.role === 'employee' && isOwnProfile;
-
-    if (!hasAdminPerm && !hasSelfPerm) {
-      return apiForbidden(`Role '${userCtx.role}' does not have permission to update this employee profile`);
+    if (!hasAdminPerm || userCtx.role === 'employee') {
+      return apiForbidden(`Employees are not permitted to edit profile details. Contact HR Administration for record updates.`);
     }
 
     const body = await req.json();
-
-    // If regular employee, only allow updating personal contact details
-    const updatePayload = hasAdminPerm
-      ? body
-      : {
-          phone: body.phone,
-          emergencyContactName: body.emergencyContactName,
-          emergencyContactPhone: body.emergencyContactPhone,
-          emergencyContactRelation: body.emergencyContactRelation,
-        };
+    const updatePayload = body;
 
     const updated = await employeeService.update(id, updatePayload);
 
     await auditService.logAction({
-      userName: userCtx.employeeName || (hasSelfPerm ? 'Employee Self' : 'HR Officer'),
+      userName: userCtx.employeeName || 'HR Officer',
       userRole: userCtx.role,
       action: 'EMPLOYEE_UPDATED',
       module: 'employee_records',

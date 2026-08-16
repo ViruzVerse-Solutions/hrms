@@ -113,13 +113,6 @@ export const employeeService = {
       }
     }
 
-    if (!emp) {
-      emp = await prisma.employee.findFirst({
-        where: { employmentStatus: { not: 'terminated' } },
-        include: includeRelations,
-      });
-    }
-
     if (!emp) return null;
 
     const isOwnProfile = requestingEmployeeId === emp.id || requestingEmployeeId === emp.employeeCode;
