@@ -35,13 +35,13 @@ export async function GET(req: NextRequest) {
       departmentId: r.departmentId,
       departmentName: r.department?.name || 'Department',
       openingsCount: r.headcount,
-      urgency: r.status === 'active' ? 'high' : 'medium',
+      urgency: r.status === 'approved' ? 'high' : 'medium',
       minExperience: `${r.experienceMin}-${r.experienceMax} Years`,
-      status: r.status,
+      status: r.status || 'pending_approval',
       targetDate: r.updatedAt ? r.updatedAt.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
       justification: `Approved headcount requirement for ${r.title}`,
       requestedById: userCtx.employeeId || userCtx.userId,
-      requestedByName: 'HR Administrator',
+      requestedByName: 'Eleanor Vance (HR Head)',
     }));
 
     const formattedCandidates = candidates.map((c: any) => ({
@@ -90,11 +90,25 @@ export async function POST(req: NextRequest) {
       return apiSuccess({ candidateId, stage }, 'Candidate stage updated successfully');
     }
 
-    // Default: Create new Job Requisition
+    if (body.action === 'approve_requisition') {
+      const { requisitionId } = body;
+      if (prisma) {
+        await prisma.jobRequisition.update({
+          where: { id: requisitionId },
+          data: { status: 'approved' },
+        });
+      }
+      return apiSuccess({ requisitionId, status: 'approved' }, 'Requisition approved by Executive Management');
+    }
+
+    // Default: Create new Job Requisition in pending_approval status
     let newReq: any = null;
     if (prisma) {
       const defaultDept = await prisma.department.findFirst();
       const defaultDesig = await prisma.designation.findFirst();
+
+      const isExecutive = ['managing_director', 'chairman'].includes(userCtx.role);
+      const status = isExecutive ? 'approved' : 'pending_approval';
 
       newReq = await prisma.jobRequisition.create({
         data: {
@@ -103,14 +117,20 @@ export async function POST(req: NextRequest) {
           designationId: defaultDesig?.id,
           title: body.positionTitle || 'New Position',
           headcount: body.openingsCount || 1,
-          status: 'active',
+          status,
           budgetMin: 800000,
           budgetMax: 1500000,
         },
       });
     }
 
-    return apiSuccess({ requisition: newReq }, 'Job requisition created successfully', 201);
+    return apiSuccess(
+      { requisition: newReq },
+      userCtx.role === 'hr_head'
+        ? 'Job requisition created and submitted to Managing Director for budget approval'
+        : 'Job requisition created and approved',
+      201
+    );
   } catch (error: any) {
     return apiError(error?.message || 'Failed to process recruitment action', 500);
   }
