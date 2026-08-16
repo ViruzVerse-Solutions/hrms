@@ -15,7 +15,7 @@ import {
   Sparkles,
   RefreshCw,
 } from 'lucide-react';
-import { formatDate } from '@/lib/utils';
+import { formatDate, formatTime } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,7 +61,7 @@ function AttendanceContent() {
         if (data?.data?.attendanceRecords) {
           setAttendanceRecords(data.data.attendanceRecords);
         }
-        setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        setLastSyncTime(formatTime(new Date(), true));
       })
       .catch(() => {})
       .finally(() => setIsSyncing(false));

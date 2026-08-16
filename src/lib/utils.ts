@@ -14,35 +14,61 @@ export function formatCurrency(amount: number | undefined | null): string {
   }).format(amount);
 }
 
-export function formatDate(dateString: string | undefined | null): string {
-  if (!dateString) return "—";
+export function formatDate(dateInput: string | Date | undefined | null, shortYear = false): string {
+  if (!dateInput) return "—";
   try {
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return dateString;
-    return d.toLocaleDateString("en-GB", {
+    let d: Date;
+    if (typeof dateInput === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
+      const [year, month, day] = dateInput.trim().split("-").map(Number);
+      d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+    } else {
+      d = new Date(dateInput);
+    }
+    if (isNaN(d.getTime())) return String(dateInput);
+    return d.toLocaleDateString("en-IN", {
+      timeZone: "Asia/Kolkata",
       day: "2-digit",
-      month: "short",
-      year: "numeric",
+      month: "2-digit",
+      year: shortYear ? "2-digit" : "numeric",
     });
   } catch {
-    return dateString;
+    return String(dateInput);
   }
 }
 
-export function formatDateTime(dateString: string | undefined | null): string {
-  if (!dateString) return "—";
+export function formatDateTime(dateInput: string | Date | undefined | null): string {
+  if (!dateInput) return "—";
   try {
-    const d = new Date(dateString);
-    if (isNaN(d.getTime())) return dateString;
-    return d.toLocaleString("en-GB", {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return String(dateInput);
+    return d.toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
       day: "2-digit",
-      month: "short",
+      month: "2-digit",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: true,
     });
   } catch {
-    return dateString;
+    return String(dateInput);
+  }
+}
+
+export function formatTime(dateInput: string | Date | undefined | null, includeSeconds = false): string {
+  if (!dateInput) return "—";
+  try {
+    const d = new Date(dateInput);
+    if (isNaN(d.getTime())) return String(dateInput);
+    return d.toLocaleTimeString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      hour: "2-digit",
+      minute: "2-digit",
+      ...(includeSeconds && { second: "2-digit" }),
+      hour12: true,
+    });
+  } catch {
+    return String(dateInput);
   }
 }
 
