@@ -41,6 +41,7 @@ function ResignationContent() {
   const [lastWorkingDay, setLastWorkingDay] = useState(defaultLwd);
   const [exitCase, setExitCase] = useState<ResignationCase | null>(null);
   const [loading, setLoading] = useState(true);
+  const [relievingModalOpen, setRelievingModalOpen] = useState(false);
 
   const empName = currentEmployee ? `${currentEmployee.firstName} ${currentEmployee.lastName}` : currentUser.name;
 
@@ -69,8 +70,6 @@ function ResignationContent() {
       </div>
     );
   }
-
-  const [relievingModalOpen, setRelievingModalOpen] = useState(false);
 
   const handleSubmitNotice = (e: React.FormEvent) => {
     e.preventDefault();

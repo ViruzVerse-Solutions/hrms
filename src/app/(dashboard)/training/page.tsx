@@ -36,6 +36,7 @@ function TrainingContent() {
 
   const [trainings, setTrainings] = useState<TrainingProgram[]>([]);
   const [loading, setLoading] = useState(true);
+  const [enrolledMap, setEnrolledMap] = useState<Record<string, boolean>>({});
 
   React.useEffect(() => {
     fetch('/api/training', {
@@ -65,8 +66,6 @@ function TrainingContent() {
   const avgRatingVal = ratedTrainings.length > 0
     ? (ratedTrainings.reduce((acc, t) => acc + Number((t as any).rating || (t as any).feedbackScore || 0), 0) / ratedTrainings.length).toFixed(1)
     : (trainings.length > 0 ? '4.8' : 'N/A');
-
-  const [enrolledMap, setEnrolledMap] = useState<Record<string, boolean>>({});
 
   const handleEnroll = async (trainingId: string) => {
     try {

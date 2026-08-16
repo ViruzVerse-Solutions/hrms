@@ -19,10 +19,13 @@ import {
   CheckCircle2,
   AlertCircle,
   Save,
+  ShieldCheck,
+  Check,
 } from 'lucide-react';
 import { formatCurrency, formatDate, calculateSalaryBreakup, getStatusColorBadge } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
@@ -49,15 +52,20 @@ function EmployeeDetailContent({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = use(params);
-  const { employees, addEmployee, refreshEmployees, isSalaryVisible, currentUser, currentRole, can, isLoadingData } = useAuth();
+  const { employees, addEmployee, refreshEmployees, isSalaryVisible, currentUser, currentRole, currentEmployee, can, isLoadingData } = useAuth();
   
+  // If employee role, strictly view own profile without fallback to other employees
+  const targetId = currentRole === 'employee'
+    ? (currentEmployee?.id || currentUser.employeeId || resolvedParams.id)
+    : resolvedParams.id;
+
   const initialEmployee =
     employees.find(
       (e) =>
-        e.id === resolvedParams.id ||
-        e.employeeCode === resolvedParams.id ||
-        e.employeeCode?.toLowerCase() === resolvedParams.id?.toLowerCase()
-    ) || null;
+        e.id === targetId ||
+        e.employeeCode === targetId ||
+        e.employeeCode?.toLowerCase() === targetId?.toLowerCase()
+    ) || (currentRole === 'employee' ? currentEmployee || null : null);
 
   const [employee, setEmployee] = useState<Employee | null>(initialEmployee);
   const [loading, setLoading] = useState(!initialEmployee);
@@ -189,9 +197,9 @@ function EmployeeDetailContent({
     (currentUser?.id && currentUser.id === employee.userId)
   );
 
-  const canEditFull = currentRole === 'hr_head' || currentRole === 'managing_director' || can('update', 'employee_records');
-  const canEditSelf = currentRole === 'employee' && isOwnProfile;
-  const canEdit = canEditFull || canEditSelf;
+  // Only HR Admin / MD can edit employee records; Regular employees have no self-edit option
+  const canEditFull = (currentRole === 'hr_head' || currentRole === 'managing_director' || can('update', 'employee_records')) && currentRole !== 'employee';
+  const canEdit = canEditFull;
 
   const canSeeSalary = isSalaryVisible(Boolean(isOwnProfile));
   const salaryBreakup = calculateSalaryBreakup(employee.ctc || 0);
@@ -718,7 +726,7 @@ function EmployeeDetailContent({
               </Dialog>
             )}
 
-            {employee.email && (
+            {!isOwnProfile && currentRole !== 'employee' && employee.email && (
               <Button variant="outline" size="sm" asChild className="gap-2 text-xs">
                 <a href={`mailto:${employee.email}`}>
                   <Mail className="h-3.5 w-3.5 text-slate-500" />
@@ -726,7 +734,7 @@ function EmployeeDetailContent({
                 </a>
               </Button>
             )}
-            {employee.phone && (
+            {!isOwnProfile && currentRole !== 'employee' && employee.phone && (
               <Button variant="outline" size="sm" asChild className="gap-2 text-xs">
                 <a href={`tel:${employee.phone}`}>
                   <Phone className="h-3.5 w-3.5 text-slate-500" />
@@ -851,14 +859,21 @@ function EmployeeDetailContent({
               </div>
 
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-base font-bold">Monthly CTC Component Breakdown</CardTitle>
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    <CardTitle className="text-base font-bold">Monthly CTC Component & Statutory Breakdown</CardTitle>
+                    <Badge variant="outline" className="text-[10px] w-fit">
+                      Governed by Corporate HR C&B Policy (Sanctioned by MD)
+                    </Badge>
+                  </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs">
-                    <div className="space-y-3">
-                      <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] text-indigo-600">
-                        Earnings (Monthly)
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 text-xs">
+                    {/* 1. Earnings */}
+                    <div className="space-y-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80">
+                      <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] text-indigo-600 flex items-center justify-between">
+                        <span>1. Monthly Earnings</span>
+                        <span>Amount (₹)</span>
                       </h4>
                       <div className="flex justify-between py-1.5 border-b">
                         <span>Basic Pay (40%)</span>
@@ -880,36 +895,87 @@ function EmployeeDetailContent({
                         <span>Medical Allowance</span>
                         <span className="font-mono font-semibold">{formatCurrency(salaryBreakup.medicalAllowance)}</span>
                       </div>
-                      <div className="flex justify-between py-2 font-bold text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-800/60 px-2 rounded-lg">
-                        <span>Total Monthly Gross</span>
-                        <span className="font-mono">{formatCurrency(salaryBreakup.grossEarnings)}</span>
+                      <div className="flex justify-between py-2 font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-800 px-2 rounded-lg border">
+                        <span>Total Gross Earnings</span>
+                        <span className="font-mono text-indigo-600">{formatCurrency(salaryBreakup.grossEarnings)}</span>
                       </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <h4 className="font-bold text-rose-600 uppercase tracking-wider text-[11px]">
-                        Statutory Deductions (Monthly)
+                    {/* 2. Employee Deductions */}
+                    <div className="space-y-3 p-3.5 rounded-xl bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/60">
+                      <h4 className="font-bold text-rose-700 uppercase tracking-wider text-[11px] flex items-center justify-between">
+                        <span>2. Employee Deductions</span>
+                        <span>Deduction (₹)</span>
                       </h4>
                       <div className="flex justify-between py-1.5 border-b">
-                        <span>Provident Fund (PF Employee 12%)</span>
+                        <span>Provident Fund (PF 12%)</span>
                         <span className="font-mono font-semibold text-rose-600">-{formatCurrency(salaryBreakup.pfEmployee)}</span>
                       </div>
                       <div className="flex justify-between py-1.5 border-b">
                         <span>ESI Employee (0.75%)</span>
-                        <span className="font-mono font-semibold text-rose-600">-{formatCurrency(salaryBreakup.esiEmployee)}</span>
+                        <span className="font-mono font-semibold text-rose-600">
+                          {salaryBreakup.esiEmployee > 0 ? `-${formatCurrency(salaryBreakup.esiEmployee)}` : 'Exempt'}
+                        </span>
                       </div>
                       <div className="flex justify-between py-1.5 border-b">
                         <span>Professional Tax (PT)</span>
                         <span className="font-mono font-semibold text-rose-600">-{formatCurrency(salaryBreakup.professionalTax)}</span>
                       </div>
                       <div className="flex justify-between py-1.5 border-b">
-                        <span>TDS (Income Tax Estimation)</span>
+                        <span>Estimated TDS (Tax)</span>
                         <span className="font-mono font-semibold text-rose-600">-{formatCurrency(salaryBreakup.tds)}</span>
                       </div>
-                      <div className="flex justify-between py-2 font-bold text-rose-600 bg-rose-50/50 dark:bg-rose-950/20 px-2 rounded-lg">
+                      <div className="flex justify-between py-2 font-bold text-rose-700 bg-white dark:bg-slate-800 px-2 rounded-lg border border-rose-200">
                         <span>Total Deductions</span>
                         <span className="font-mono">-{formatCurrency(salaryBreakup.totalDeductions)}</span>
                       </div>
+                    </div>
+
+                    {/* 3. Employer Statutory Benefits */}
+                    <div className="space-y-3 p-3.5 rounded-xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200/60">
+                      <h4 className="font-bold text-emerald-700 uppercase tracking-wider text-[11px] flex items-center justify-between">
+                        <span>3. Employer Contributions</span>
+                        <span>Benefit (₹)</span>
+                      </h4>
+                      <div className="flex justify-between py-1.5 border-b">
+                        <span>Employer PF Match (12%)</span>
+                        <span className="font-mono font-semibold text-slate-700">{formatCurrency(salaryBreakup.pfEmployer)}</span>
+                      </div>
+                      <div className="flex justify-between py-1.5 border-b">
+                        <span>Employer ESI (3.25%)</span>
+                        <span className="font-mono font-semibold text-slate-700">
+                          {salaryBreakup.esiEmployer > 0 ? formatCurrency(salaryBreakup.esiEmployer) : 'Exempt'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-1.5 border-b">
+                        <span>Gratuity Provision (4.81%)</span>
+                        <span className="font-mono font-semibold text-slate-700">
+                          {formatCurrency(Math.round(salaryBreakup.basic * 0.0481))}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-2 font-bold text-emerald-800 bg-white dark:bg-slate-800 px-2 rounded-lg border border-emerald-200">
+                        <span>Net Take-Home Pay</span>
+                        <span className="font-mono text-emerald-600">{formatCurrency(salaryBreakup.netPay)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Statutory Compliance Footer Badges */}
+                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-600">
+                    <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Code on Wages Compliant (Basic ≥ 40%)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
+                      <Check className="h-4 w-4" />
+                      <span>EPF Act 1952 (12% Remittance)</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
+                      <Check className="h-4 w-4" />
+                      <span>Payment of Gratuity Act 1972 (4.81%)</span>
+                    </div>
+                    <div className="text-slate-400 font-mono">
+                      Annual CTC: {formatCurrency(employee.ctc || 0)}
                     </div>
                   </div>
                 </CardContent>

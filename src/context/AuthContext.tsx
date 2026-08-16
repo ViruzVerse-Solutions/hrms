@@ -58,7 +58,6 @@ interface AuthContextType {
   addEmployee: (emp: Employee) => void;
   addLeaveRequest: (req: Omit<LeaveRequest, 'id' | 'appliedAt' | 'status'>) => void;
   updateLeaveStatus: (id: string, status: 'approved' | 'rejected', comment?: string) => void;
-  updateAttendanceCheckin: (status: 'present' | 'half_day') => void;
   approvePayrollRun: (id: string) => void;
   updateCandidateStage: (id: string, stage: Candidate['currentStage']) => void;
   addRequisition: (req: Omit<ManpowerRequisition, 'id' | 'createdAt' | 'status'>) => void;
@@ -292,40 +291,7 @@ export function AuthProvider({
     } catch {}
   };
 
-  // 3. Optimistic Attendance Check-In (0ms UI update + DB Sync)
-  const updateAttendanceCheckin = async (status: 'present' | 'half_day') => {
-    const empId = currentUser.employeeId || 'emp_005';
-    const today = new Date().toISOString().split('T')[0];
-    const existing = attendanceRecords.find((a) => (a.employeeId === empId || a.employeeId === currentUser.id) && a.date === today);
-
-    if (existing) return;
-
-    const tempId = `att_${Date.now()}`;
-    const newRecord: AttendanceRecord = {
-      id: tempId,
-      employeeId: empId,
-      employeeName: currentUser.name,
-      date: today,
-      inTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      totalHours: status === 'half_day' ? 4.5 : 9.0,
-      status,
-      source: 'web_checkin',
-    };
-    setAttendanceRecords((prev) => [newRecord, ...prev]);
-    logAuditAction('WEB_CHECKIN', 'attendance_leave', newRecord.id, `Punch-in recorded for ${today}`);
-
-    try {
-      const res = await apiClient.attendance.checkIn(currentRole, status);
-      if (res?.data?.record) {
-        const realId = res.data.record.id;
-        setAttendanceRecords((prev) =>
-          prev.map((ar) => (ar.id === tempId ? { ...ar, id: realId } : ar))
-        );
-      }
-    } catch {}
-  };
-
-  // 4. Optimistic Payroll Run Approval (0ms UI update + DB Sync)
+  // 3. Optimistic Payroll Run Approval (0ms UI update + DB Sync)
   const approvePayrollRun = async (id: string) => {
     setPayrollRuns((prev) =>
       prev.map((pr) => (pr.id === id ? { ...pr, status: 'approved', approvedBy: currentUser.name } : pr))
@@ -460,7 +426,6 @@ export function AuthProvider({
         addEmployee,
         addLeaveRequest,
         updateLeaveStatus,
-        updateAttendanceCheckin,
         approvePayrollRun,
         updateCandidateStage,
         addRequisition,

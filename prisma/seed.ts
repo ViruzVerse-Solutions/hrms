@@ -316,6 +316,7 @@ async function main() {
 
         await prisma.attendanceRecord.create({
           data: {
+            organizationId: org.id,
             employeeId: emp.id,
             date: d,
             inTime: new Date(new Date(d).setHours(9, 0, 0)),
@@ -323,7 +324,7 @@ async function main() {
             totalHours: 9.0,
             overtimeHours: 0,
             status: AttendanceStatus.present,
-            source: AttendanceSource.web_checkin,
+            source: AttendanceSource.biometric,
           },
         }).catch(() => {});
       }
