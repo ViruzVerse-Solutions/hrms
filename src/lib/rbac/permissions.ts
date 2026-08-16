@@ -86,7 +86,7 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     chairman: 'F',
     managing_director: 'F',
     hr_head: 'F',
-    internal_audit_head: 'F',
+    internal_audit_head: 'V',
     compliance_statutory: 'F',
     employee: 'NONE',
   },
