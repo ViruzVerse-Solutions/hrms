@@ -14,7 +14,12 @@ export async function GET(req: NextRequest) {
     if (prisma) {
       [departments, designations, branches] = await Promise.all([
         prisma.department.findMany({
-          include: { employees: true },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            _count: { select: { employees: true } },
+          },
           orderBy: { name: 'asc' },
         }).catch(() => []),
         prisma.designation.findMany({
@@ -30,7 +35,7 @@ export async function GET(req: NextRequest) {
       id: d.id,
       name: d.name,
       code: d.code,
-      employeeCount: d.employees?.length || 0,
+      employeeCount: d._count?.employees || 0,
     }));
 
     return apiSuccess({
