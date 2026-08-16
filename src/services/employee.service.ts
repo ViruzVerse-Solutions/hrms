@@ -13,7 +13,7 @@ export const employeeService = {
     if (!prisma) return [];
 
     const where: any = {
-      deletedAt: null, // Soft-delete filter
+      employmentStatus: { not: 'terminated' },
     };
     if (filters?.departmentId && filters.departmentId !== 'all') {
       where.departmentId = filters.departmentId;
@@ -57,41 +57,42 @@ export const employeeService = {
   async getById(id: string, role: UserRole, requestingEmployeeId?: string) {
     if (!prisma) return null;
 
-    let emp = await prisma.employee.findFirst({
+    const includeRelations = {
+      department: true,
+      designation: true,
+      branch: true,
+      statutoryInfo: true,
+      emergencyContacts: true,
+      reportingManager: {
+        select: { id: true, firstName: true, lastName: true, employeeCode: true },
+      },
+      subordinates: {
+        select: { id: true, firstName: true, lastName: true, employeeCode: true, designation: true },
+      },
+      attendanceRecords: {
+        take: 7,
+        orderBy: { date: 'desc' as const },
+      },
+      leaveRequests: {
+        take: 5,
+        orderBy: { fromDate: 'desc' as const },
+      },
+      payslips: {
+        take: 6,
+        orderBy: { createdAt: 'desc' as const },
+      },
+    };
+
+    let emp: any = await prisma.employee.findFirst({
       where: {
         OR: [
           { id },
           { employeeCode: id },
           { employeeCode: { equals: id, mode: 'insensitive' } },
         ],
-        deletedAt: null,
+        employmentStatus: { not: 'terminated' },
       },
-      include: {
-        department: true,
-        designation: true,
-        branch: true,
-        bankDetails: true,
-        statutoryInfo: true,
-        emergencyContacts: true,
-        reportingManager: {
-          select: { id: true, firstName: true, lastName: true, employeeCode: true },
-        },
-        subordinates: {
-          select: { id: true, firstName: true, lastName: true, employeeCode: true, designation: true },
-        },
-        attendanceRecords: {
-          take: 7,
-          orderBy: { date: 'desc' },
-        },
-        leaveRequests: {
-          take: 5,
-          orderBy: { fromDate: 'desc' },
-        },
-        payslips: {
-          take: 6,
-          orderBy: { createdAt: 'desc' },
-        },
-      },
+      include: includeRelations,
     });
 
     if (!emp) {
@@ -105,49 +106,17 @@ export const employeeService = {
               { employeeCode: `VV-00${parseInt(numStr, 10)}` },
               { employeeCode: { contains: numStr } },
             ],
-            deletedAt: null,
+            employmentStatus: { not: 'terminated' },
           },
-          include: {
-            department: true,
-            designation: true,
-            branch: true,
-            bankDetails: true,
-            statutoryInfo: true,
-            emergencyContacts: true,
-            reportingManager: {
-              select: { id: true, firstName: true, lastName: true, employeeCode: true },
-            },
-            subordinates: {
-              select: { id: true, firstName: true, lastName: true, employeeCode: true, designation: true },
-            },
-            attendanceRecords: { take: 7, orderBy: { date: 'desc' } },
-            leaveRequests: { take: 5, orderBy: { fromDate: 'desc' } },
-            payslips: { take: 6, orderBy: { createdAt: 'desc' } },
-          },
+          include: includeRelations,
         });
       }
     }
 
     if (!emp) {
       emp = await prisma.employee.findFirst({
-        where: { deletedAt: null },
-        include: {
-          department: true,
-          designation: true,
-          branch: true,
-          bankDetails: true,
-          statutoryInfo: true,
-          emergencyContacts: true,
-          reportingManager: {
-            select: { id: true, firstName: true, lastName: true, employeeCode: true },
-          },
-          subordinates: {
-            select: { id: true, firstName: true, lastName: true, employeeCode: true, designation: true },
-          },
-          attendanceRecords: { take: 7, orderBy: { date: 'desc' } },
-          leaveRequests: { take: 5, orderBy: { fromDate: 'desc' } },
-          payslips: { take: 6, orderBy: { createdAt: 'desc' } },
-        },
+        where: { employmentStatus: { not: 'terminated' } },
+        include: includeRelations,
       });
     }
 
@@ -202,8 +171,8 @@ export const employeeService = {
       },
     });
 
-    if (data.accountNumber && data.pan) {
-      await prisma.bankDetails.create({
+    if (data.accountNumber && data.pan && (prisma as any).bankDetails) {
+      await (prisma as any).bankDetails.create({
         data: {
           organizationId: org.id,
           employeeId: newEmp.id,
@@ -252,7 +221,7 @@ export const employeeService = {
 
     return prisma.employee.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: { employmentStatus: 'terminated' },
     });
   },
 };

@@ -147,7 +147,7 @@ function ResignationContent() {
               <div className="space-y-1">
                 <label className="font-semibold text-slate-700 dark:text-slate-300">Employee Details</label>
                 <div className="p-3 rounded-xl bg-white dark:bg-slate-800 border font-semibold">
-                  {empName} ({currentEmployee?.employeeCode || 'VV-1005'}) — {currentEmployee?.designationTitle || 'Senior Analytical Chemist & QC Specialist'}
+                  {empName} ({currentEmployee?.employeeCode || 'Employee'}) — {currentEmployee?.designationTitle || 'Staff'}
                 </div>
               </div>
 
@@ -340,7 +340,7 @@ function ResignationContent() {
             </div>
 
             <div className="text-right font-sans text-slate-500 text-[11px]">
-              Date: 20th August 2026
+              Date: {formatDate(new Date())}
             </div>
 
             <h3 className="text-center font-bold text-sm font-sans tracking-wide">
@@ -348,7 +348,7 @@ function ResignationContent() {
             </h3>
 
             <p>
-              This is to certify that <strong>Sneha Kulkarni</strong> was employed with Viruzverse Solutions as a <strong>Quality Control Specialist</strong> from 15th January 2023 to 20th August 2026.
+              This is to certify that <strong>{exitCase?.employeeName || empName}</strong> was employed with Viruzverse Solutions as a <strong>{currentEmployee?.designationTitle || 'Operations Specialist'}</strong>.
             </p>
 
             <p>

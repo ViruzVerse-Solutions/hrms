@@ -112,7 +112,7 @@ function TrainingContent() {
               <Calendar className="h-4 w-4 text-indigo-600" />
             </div>
             <div className="font-bold text-2xl text-slate-900">{upcomingCount} Programs</div>
-            <p className="text-xs text-slate-500">Scheduled for August 2026</p>
+            <p className="text-xs text-slate-500">Scheduled for Active Operations</p>
           </CardContent>
         </Card>
 

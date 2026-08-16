@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
     if (permError) return permError;
 
     const body = await req.json().catch(() => ({}));
-    const monthYear = body.monthYear || 'August 2026';
+    const currentYearMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const monthYear = body.monthYear || currentYearMonth;
 
     const run = await payrollService.calculateRun(monthYear, userCtx.employeeName || 'HR Officer');
 

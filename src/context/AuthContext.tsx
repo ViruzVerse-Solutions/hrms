@@ -250,19 +250,28 @@ export function AuthProvider({
     setAuditLogs((prev) => [newLog, ...prev]);
   };
 
-  // 1. Optimistic Leave Apply (0ms UI update)
-  const addLeaveRequest = (req: Omit<LeaveRequest, 'id' | 'appliedAt' | 'status'>) => {
+  // 1. Optimistic Leave Apply (0ms UI update + DB ID sync)
+  const addLeaveRequest = async (req: Omit<LeaveRequest, 'id' | 'appliedAt' | 'status'>) => {
+    const tempId = `lr_${Date.now()}`;
     const newLeave: LeaveRequest = {
       ...req,
-      id: `lr_${Date.now()}`,
+      id: tempId,
       appliedAt: new Date().toISOString(),
       status: 'pending',
     };
     setLeaveRequests((prev) => [newLeave, ...prev]);
     logAuditAction('APPLIED_LEAVE', 'attendance_leave', newLeave.id, `Applied for ${req.daysCount} days ${req.leaveType} leave`);
 
-    // Async background persistence
-    apiClient.leaves.apply(req, currentRole).catch(() => {});
+    // Async background persistence with real DB ID synchronization
+    try {
+      const res = await apiClient.leaves.apply(req, currentRole);
+      if (res?.data?.leaveRequest) {
+        const realId = res.data.leaveRequest.id;
+        setLeaveRequests((prev) =>
+          prev.map((lr) => (lr.id === tempId ? { ...lr, id: realId } : lr))
+        );
+      }
+    } catch {}
 
     // Notification
     const newNotif: SystemNotification = {
@@ -278,31 +287,33 @@ export function AuthProvider({
     setNotifications((prev) => [newNotif, ...prev]);
   };
 
-  // 2. Optimistic Leave Status (0ms UI update)
-  const updateLeaveStatus = (id: string, status: 'approved' | 'rejected', comment?: string) => {
+  // 2. Optimistic Leave Status (0ms UI update + DB Sync)
+  const updateLeaveStatus = async (id: string, status: 'approved' | 'rejected', comment?: string) => {
     setLeaveRequests((prev) =>
       prev.map((lr) => (lr.id === id ? { ...lr, status, approverComment: comment } : lr))
     );
     logAuditAction(`LEAVE_${status.toUpperCase()}`, 'attendance_leave', id, `Leave marked as ${status}`);
 
-    // Async background persistence
-    fetch(`/api/leaves/${id}/action`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-      body: JSON.stringify({ status, comment }),
-    }).catch(() => {});
+    try {
+      await fetch(`/api/leaves/${id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify({ status, comment }),
+      });
+    } catch {}
   };
 
-  // 3. Optimistic Attendance Check-In (0ms UI update)
-  const updateAttendanceCheckin = (status: 'present' | 'half_day') => {
+  // 3. Optimistic Attendance Check-In (0ms UI update + DB Sync)
+  const updateAttendanceCheckin = async (status: 'present' | 'half_day') => {
     const empId = currentUser.employeeId || 'emp_005';
     const today = new Date().toISOString().split('T')[0];
     const existing = attendanceRecords.find((a) => (a.employeeId === empId || a.employeeId === currentUser.id) && a.date === today);
 
     if (existing) return;
 
+    const tempId = `att_${Date.now()}`;
     const newRecord: AttendanceRecord = {
-      id: `att_${Date.now()}`,
+      id: tempId,
       employeeId: empId,
       employeeName: currentUser.name,
       date: today,
@@ -314,53 +325,74 @@ export function AuthProvider({
     setAttendanceRecords((prev) => [newRecord, ...prev]);
     logAuditAction('WEB_CHECKIN', 'attendance_leave', newRecord.id, `Punch-in recorded for ${today}`);
 
-    // Async background persistence
-    apiClient.attendance.checkIn(currentRole, status).catch(() => {});
+    try {
+      const res = await apiClient.attendance.checkIn(currentRole, status);
+      if (res?.data?.record) {
+        const realId = res.data.record.id;
+        setAttendanceRecords((prev) =>
+          prev.map((ar) => (ar.id === tempId ? { ...ar, id: realId } : ar))
+        );
+      }
+    } catch {}
   };
 
-  // 4. Optimistic Payroll Run Approval (0ms UI update)
-  const approvePayrollRun = (id: string) => {
+  // 4. Optimistic Payroll Run Approval (0ms UI update + DB Sync)
+  const approvePayrollRun = async (id: string) => {
     setPayrollRuns((prev) =>
       prev.map((pr) => (pr.id === id ? { ...pr, status: 'approved', approvedBy: currentUser.name } : pr))
     );
     logAuditAction('PAYROLL_APPROVED', 'payroll_benefits', id, `Payroll cycle approved by ${currentUser.name}`);
 
-    fetch(`/api/payroll/runs/${id}/action`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-      body: JSON.stringify({ action: 'approve' }),
-    }).catch(() => {});
+    try {
+      await fetch(`/api/payroll/runs/${id}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify({ action: 'approve' }),
+      });
+    } catch {}
   };
 
-  // 5. Optimistic Candidate Stage Update (0ms UI update)
-  const updateCandidateStage = (id: string, stage: Candidate['currentStage']) => {
+  // 5. Optimistic Candidate Stage Update (0ms UI update + DB Sync)
+  const updateCandidateStage = async (id: string, stage: Candidate['currentStage']) => {
     setCandidates((prev) =>
       prev.map((c) => (c.id === id ? { ...c, currentStage: stage } : c))
     );
     logAuditAction('CANDIDATE_STAGE_CHANGED', 'recruitment', id, `Candidate moved to ${stage}`);
 
-    apiClient.recruitment.updateCandidateStage(id, stage, currentRole).catch(() => {});
+    try {
+      await apiClient.recruitment.updateCandidateStage(id, stage, currentRole);
+    } catch {}
   };
 
-  // 6. Optimistic Requisition Creation (0ms UI update)
-  const addRequisition = (req: Omit<ManpowerRequisition, 'id' | 'createdAt' | 'status'>) => {
+  // 6. Optimistic Requisition Creation (0ms UI update + DB Sync)
+  const addRequisition = async (req: Omit<ManpowerRequisition, 'id' | 'createdAt' | 'status'>) => {
+    const tempId = `req_${Date.now()}`;
     const newReq: ManpowerRequisition = {
       ...req,
-      id: `req_${Date.now()}`,
+      id: tempId,
       status: 'in_progress',
       createdAt: new Date().toISOString(),
     };
     setRequisitions((prev) => [newReq, ...prev]);
     logAuditAction('CREATED_REQUISITION', 'recruitment', newReq.id, `Created job opening for ${req.positionTitle}`);
 
-    apiClient.recruitment.createRequisition(req, currentRole).catch(() => {});
+    try {
+      const res = await apiClient.recruitment.createRequisition(req, currentRole);
+      if (res?.data?.requisition) {
+        const realId = res.data.requisition.id;
+        setRequisitions((prev) =>
+          prev.map((r) => (r.id === tempId ? { ...r, id: realId } : r))
+        );
+      }
+    } catch {}
   };
 
-  // 7. Optimistic Grievance Submission (0ms UI update)
-  const submitGrievance = (grv: Omit<GrievanceTicket, 'id' | 'ticketNumber' | 'createdAt' | 'status' | 'slaDeadline'>) => {
+  // 7. Optimistic Grievance Submission (0ms UI update + DB Sync)
+  const submitGrievance = async (grv: Omit<GrievanceTicket, 'id' | 'ticketNumber' | 'createdAt' | 'status' | 'slaDeadline'>) => {
+    const tempId = `grv_${Date.now()}`;
     const newGrv: GrievanceTicket = {
       ...grv,
-      id: `grv_${Date.now()}`,
+      id: tempId,
       ticketNumber: `GRV-2026-${Math.floor(100 + Math.random() * 900)}`,
       status: 'submitted',
       createdAt: new Date().toISOString(),
@@ -369,11 +401,20 @@ export function AuthProvider({
     setGrievances((prev) => [newGrv, ...prev]);
     logAuditAction('FILED_GRIEVANCE', 'engagement_welfare', newGrv.id, `Grievance ticket filed under ${grv.category}`);
 
-    fetch('/api/grievances', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-      body: JSON.stringify(grv),
-    }).catch(() => {});
+    try {
+      const res = await fetch('/api/grievances', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+        body: JSON.stringify(grv),
+      });
+      const data = await res.json().catch(() => null);
+      if (data?.data?.grievance?.id) {
+        const realId = data.data.grievance.id;
+        setGrievances((prev) =>
+          prev.map((g) => (g.id === tempId ? { ...g, id: realId } : g))
+        );
+      }
+    } catch {}
   };
 
   const markNotificationRead = (id: string) => {

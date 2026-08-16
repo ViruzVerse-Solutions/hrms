@@ -79,21 +79,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Organization not found' }, { status: 404 });
     }
 
+    const depts = await prisma.department.findMany();
+    const desigs = await prisma.designation.findMany();
+    const branches = await prisma.branch.findMany();
+    const user = await prisma.user.findFirst();
+
+    const currDeptId = depts.find((d: any) => d.name === currentDepartment || d.id === currentDepartment)?.id || depts[0]?.id || '';
+    const newDeptId = depts.find((d: any) => d.name === newDepartment || d.id === newDepartment)?.id || depts[0]?.id || '';
+    const currDesigId = desigs.find((d: any) => d.title === currentDesignation || d.id === currentDesignation)?.id || desigs[0]?.id || '';
+    const newDesigId = desigs.find((d: any) => d.title === newDesignation || d.id === newDesignation)?.id || desigs[0]?.id || '';
+    const currBranchId = branches.find((b: any) => b.name === currentBranch || b.id === currentBranch)?.id || branches[0]?.id || '';
+    const newBranchId = branches.find((b: any) => b.name === newBranch || b.id === newBranch)?.id || currBranchId;
+
     const newCase = await prisma.transferPromotionCase.create({
       data: {
         organizationId: org.id,
         employeeId,
         type: type || 'promotion',
-        currentDepartment: currentDepartment || 'Quality Assurance',
-        newDepartment,
-        currentDesignation: currentDesignation || 'Chemist',
-        newDesignation,
-        currentBranch: currentBranch || 'HQ',
-        newBranch: newBranch || currentBranch || 'HQ',
+        currentDepartmentId: currDeptId,
+        newDepartmentId: newDeptId,
+        currentDesignationId: currDesigId,
+        newDesignationId: newDesigId,
+        currentBranchId: currBranchId,
+        newBranchId: newBranchId,
         effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date(),
-        initiatedBy: authResult.userCtx.employeeName || 'HR Operations',
+        initiatedById: authResult.userCtx.userId || user?.id || '',
         status: 'pending',
-        approvalChain: [authResult.userCtx.employeeName || 'HR Head', 'Managing Director'],
       },
     });
 

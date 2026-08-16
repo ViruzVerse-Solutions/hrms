@@ -73,17 +73,20 @@ export async function POST(req: NextRequest) {
         if (emp) empId = emp.id;
       }
 
+      const org = await prisma.organization.findFirst();
+      if (!org) return apiError('Organization not found', 404);
+
       newTicket = await prisma.grievanceTicket.create({
         data: {
-          employeeId: body.isAnonymous ? null : empId,
+          organization: { connect: { id: org.id } },
+          employee: (!body.isAnonymous && empId) ? { connect: { id: empId } } : undefined,
           category: body.category || 'work_environment',
           subject: body.subject || body.title || (body.description ? body.description.slice(0, 50) : 'Workplace Grievance Ticket'),
           description: body.description || 'No description provided.',
           isAnonymous: Boolean(body.isAnonymous),
-          priority: body.priority || 'medium',
+          priority: (body.priority as any) || 'medium',
           status: 'open',
-          assignedTo: 'HR Operations Committee',
-        },
+        } as any,
       });
     }
 

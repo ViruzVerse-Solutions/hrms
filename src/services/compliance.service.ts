@@ -3,15 +3,16 @@ import { UserRole } from '@/types';
 
 export const complianceService = {
   async getPolicies() {
-    if (!prisma) return { policies: [], totalEmployees: 110 };
+    if (!prisma) return { policies: [], totalEmployees: 0 };
 
-    const policies = await prisma.companyPolicy.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const totalEmployees = await prisma.employee.count({
-      where: { employmentStatus: { in: ['active', 'probation'] } },
-    });
+    const [policies, totalEmployees] = await Promise.all([
+      prisma.companyPolicy.findMany({
+        orderBy: { createdAt: 'desc' },
+      }).catch(() => []),
+      prisma.employee.count({
+        where: { employmentStatus: { in: ['active', 'probation'] } },
+      }).catch(() => 0),
+    ]);
 
     return {
       policies: policies.map((p: any) => ({
@@ -21,14 +22,14 @@ export const complianceService = {
         version: p.version,
         effectiveDate: p.effectiveDate.toISOString().split('T')[0],
         acknowledgedCount: p.acknowledgedCount,
-        totalEmployees: totalEmployees || 110,
+        totalEmployees: totalEmployees,
         status: p.status,
         content: p.content || '',
         fileUrl: p.fileUrl || '',
         createdByName: p.createdByName,
         createdByRole: p.createdByRole,
       })),
-      totalEmployees: totalEmployees || 110,
+      totalEmployees: totalEmployees,
     };
   },
 

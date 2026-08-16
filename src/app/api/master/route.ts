@@ -12,16 +12,18 @@ export async function GET(req: NextRequest) {
     let branches: any[] = [];
 
     if (prisma) {
-      departments = await prisma.department.findMany({
-        include: { employees: true },
-        orderBy: { name: 'asc' },
-      });
-      designations = await prisma.designation.findMany({
-        orderBy: { title: 'asc' },
-      });
-      branches = await prisma.branch.findMany({
-        orderBy: { name: 'asc' },
-      });
+      [departments, designations, branches] = await Promise.all([
+        prisma.department.findMany({
+          include: { employees: true },
+          orderBy: { name: 'asc' },
+        }).catch(() => []),
+        prisma.designation.findMany({
+          orderBy: { title: 'asc' },
+        }).catch(() => []),
+        prisma.branch.findMany({
+          orderBy: { name: 'asc' },
+        }).catch(() => []),
+      ]);
     }
 
     const formattedDepartments = departments.map((d) => ({

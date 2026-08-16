@@ -1,15 +1,11 @@
-// Prisma database client wrapper
-// Falls back gracefully if @prisma/client is initializing
-let prismaInstance: any = null;
+import { PrismaClient } from '@prisma/client';
 
-try {
-  const { PrismaClient } = require('@prisma/client');
-  const globalForPrisma = globalThis as unknown as { prisma: any };
-  prismaInstance = globalForPrisma.prisma || new PrismaClient();
-  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prismaInstance;
-} catch (e) {
-  // Graceful fallback during initial setup
-  prismaInstance = null;
-}
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
 
-export const prisma = prismaInstance;
+export const prisma =
+  globalForPrisma.prisma ??
+  new PrismaClient({
+    log: ['error'],
+  });
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

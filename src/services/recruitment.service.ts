@@ -63,13 +63,29 @@ export const recruitmentService = {
     const org = await prisma.organization.findFirst();
     if (!org) throw new Error('Organization not found');
 
+    let deptId = data.departmentId;
+    if (!deptId) {
+      const dept = await prisma.department.findFirst({
+        where: data.departmentName ? { name: { contains: data.departmentName, mode: 'insensitive' } } : undefined,
+      });
+      deptId = dept?.id || (await prisma.department.findFirst())?.id;
+    }
+
+    let desId = data.designationId;
+    if (!desId) {
+      const des = await prisma.designation.findFirst({
+        where: data.positionTitle ? { title: { contains: data.positionTitle, mode: 'insensitive' } } : undefined,
+      });
+      desId = des?.id || (await prisma.designation.findFirst())?.id;
+    }
+
     return prisma.jobRequisition.create({
       data: {
         organizationId: org.id,
-        departmentId: data.departmentId,
-        designationId: data.designationId,
-        title: data.title,
-        headcount: data.headcount || 1,
+        departmentId: deptId,
+        designationId: desId,
+        title: data.title || data.positionTitle || 'Open Position',
+        headcount: data.headcount || data.openingsCount || 1,
         budgetMin: data.budgetMin || 500000,
         budgetMax: data.budgetMax || 1000000,
         experienceMin: data.experienceMin || 2,

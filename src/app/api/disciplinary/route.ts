@@ -105,11 +105,11 @@ export async function POST(req: NextRequest) {
         employeeId,
         violationType,
         incidentDate: incidentDate ? new Date(incidentDate) : new Date(),
-        reportedBy: authResult.userCtx.employeeName || 'Supervisor',
+        reportedById: authResult.userCtx.userId || (await prisma.user.findFirst())?.id || '',
         severity: severity || 'medium',
         currentStage: 'show_cause_notice',
         description: description || '',
-      },
+      } as any,
     });
 
     return NextResponse.json({

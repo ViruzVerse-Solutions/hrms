@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
     const { selfRating, achievements, kraScores, cycleName } = body;
 
     if (!prisma) {
-      return apiSuccess({ message: 'Self-appraisal saved in mock context' }, 'Saved', 200);
+      return apiError('Database unavailable', 503);
     }
 
     // Find employee
@@ -101,6 +101,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    const org = await prisma.organization.findFirst();
+    const orgId = org?.id || emp.organizationId;
+
     let review;
     if (existingReview) {
       review = await prisma.performanceReview.update({
@@ -113,6 +116,7 @@ export async function POST(req: NextRequest) {
     } else {
       review = await prisma.performanceReview.create({
         data: {
+          organizationId: orgId,
           employeeId: emp.id,
           cycleName: cycle,
           selfRating: selfRating || 4.5,
@@ -127,19 +131,21 @@ export async function POST(req: NextRequest) {
 
     // Create Audit Log
     try {
-      await prisma.auditLog.create({
-        data: {
-          organizationId: emp.organizationId,
-          userId: userCtx.userId,
-          userName: userCtx.employeeName || `${emp.firstName} ${emp.lastName}`,
-          userRole: userCtx.role,
-          action: 'SUBMITTED_SELF_APPRAISAL',
-          module: 'performance_mgmt',
-          resourceId: review.id,
-          payloadAfter: { selfRating, achievements, cycleName: cycle },
-          integrityHash: `hash_${Date.now()}`,
-        },
-      });
+      if (orgId) {
+        await prisma.auditLog.create({
+          data: {
+            organizationId: orgId,
+            userId: userCtx.userId,
+            userName: userCtx.employeeName || `${emp.firstName} ${emp.lastName}`,
+            userRole: userCtx.role,
+            action: 'SUBMITTED_SELF_APPRAISAL',
+            module: 'performance_mgmt',
+            resourceId: review.id,
+            payloadAfter: { selfRating, achievements, cycleName: cycle },
+            integrityHash: `hash_${Date.now()}`,
+          },
+        });
+      }
     } catch {}
 
     return apiSuccess({ review }, 'Self-appraisal submitted successfully', 200);
