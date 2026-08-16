@@ -52,6 +52,8 @@ interface AuthContextType {
   setAttendanceRecords: React.Dispatch<React.SetStateAction<AttendanceRecord[]>>;
   setLeaveAllocations: React.Dispatch<React.SetStateAction<LeaveBalance[]>>;
   refreshLeaves: () => Promise<void>;
+  refreshEmployees: () => Promise<void>;
+  addEmployee: (emp: Employee) => void;
   addLeaveRequest: (req: Omit<LeaveRequest, 'id' | 'appliedAt' | 'status'>) => void;
   updateLeaveStatus: (id: string, status: 'approved' | 'rejected', comment?: string) => void;
   updateAttendanceCheckin: (status: 'present' | 'half_day') => void;
@@ -225,6 +227,26 @@ export function AuthProvider({
     canPerformAction(currentRole, module, action);
   const isSalaryVisible = (isOwnProfile = false) => canViewSensitiveSalary(currentRole, isOwnProfile);
   const roleDetails = ROLE_LABELS[currentRole];
+
+  const refreshEmployees = useCallback(async () => {
+    try {
+      const res = await fetch('/api/employees', {
+        headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
+      });
+      const data = await res.json();
+      if (data?.data?.employees) {
+        setEmployees(data.data.employees);
+      }
+    } catch {}
+  }, [currentRole, currentUser.employeeId]);
+
+  const addEmployee = (newEmp: Employee) => {
+    setEmployees((prev) => {
+      const exists = prev.some((e) => e.id === newEmp.id || e.employeeCode === newEmp.employeeCode);
+      if (exists) return prev.map((e) => (e.id === newEmp.id ? { ...e, ...newEmp } : e));
+      return [newEmp, ...prev];
+    });
+  };
 
   const refreshLeaves = useCallback(async () => {
     try {
@@ -449,6 +471,8 @@ export function AuthProvider({
         setAttendanceRecords,
         setLeaveAllocations,
         refreshLeaves,
+        refreshEmployees,
+        addEmployee,
         addLeaveRequest,
         updateLeaveStatus,
         updateAttendanceCheckin,
