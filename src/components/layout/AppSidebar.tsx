@@ -147,6 +147,19 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                   else if (item.href === '/settings') displayTitle = 'System Activity Logs';
                 }
 
+                // Customize nav item titles for Compliance & Statutory Officer
+                if (currentRole === 'compliance_statutory') {
+                  if (item.href === '/dashboard') displayTitle = 'Compliance Dashboard';
+                  else if (item.href === '/compliance') displayTitle = 'Policy & Statutory Compliance';
+                  else if (item.href === '/payroll') displayTitle = 'Statutory Filings (PF/ESI)';
+                  else if (item.href === '/attendance') displayTitle = 'Statutory Muster (Form 25)';
+                  else if (item.href === '/leaves') displayTitle = 'Statutory Leave Registers';
+                  else if (item.href === '/engagement') displayTitle = 'POSH & Welfare Committee';
+                  else if (item.href === '/training') displayTitle = 'Safety & EHS Training';
+                  else if (item.href === '/resignation') displayTitle = 'Exit Clearances & Gratuity';
+                  else if (item.href === '/settings') displayTitle = 'Compliance Audit Config';
+                }
+
                 // Customize nav item titles and direct Profile 360 link for Employee (ESS) view
                 if (currentRole === 'employee') {
                   if (item.href === '/employees') {
