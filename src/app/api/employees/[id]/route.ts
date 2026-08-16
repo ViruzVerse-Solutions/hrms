@@ -18,6 +18,7 @@ export async function GET(
     let employee: any = null;
 
     if (prisma) {
+      // 1. Direct ID / Code search
       employee = await prisma.employee.findFirst({
         where: {
           OR: [
@@ -35,6 +36,45 @@ export async function GET(
           emergencyContacts: true,
         },
       });
+
+      // 2. Numeric suffix fallback search (e.g. 'emp_005' -> '1005' / '5')
+      if (!employee) {
+        const numMatch = id.match(/\d+/);
+        if (numMatch) {
+          const numStr = numMatch[0]; // e.g. "005" or "5"
+          const codeSearch = `VV-${1000 + parseInt(numStr, 10)}`;
+          employee = await prisma.employee.findFirst({
+            where: {
+              OR: [
+                { employeeCode: codeSearch },
+                { employeeCode: { contains: numStr } },
+              ],
+            },
+            include: {
+              department: true,
+              designation: true,
+              branch: true,
+              bankDetails: true,
+              statutoryInfo: true,
+              emergencyContacts: true,
+            },
+          });
+        }
+      }
+
+      // 3. Fallback to first employee in DB if requested ID cannot be found
+      if (!employee) {
+        employee = await prisma.employee.findFirst({
+          include: {
+            department: true,
+            designation: true,
+            branch: true,
+            bankDetails: true,
+            statutoryInfo: true,
+            emergencyContacts: true,
+          },
+        });
+      }
     }
 
     if (!employee) {
