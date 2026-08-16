@@ -728,7 +728,7 @@ async function main() {
         deptClearanceStatus: 'cleared',
         financeClearanceStatus: 'pending',
         fnfAmount: 239000,
-        fnfStatus: 'draft',
+        fnfStatus: 'pending',
       },
     });
     console.log('✅ Resignation exit cases seeded');
@@ -789,22 +789,39 @@ async function main() {
     console.log('✅ Company policies seeded');
 
     // 15. Seed Transfer & Promotion Cases
-    await prisma.transferPromotionCase.create({
-      data: {
-        organizationId: org.id,
-        employeeId: empObjMap['VV-1005'].id,
-        type: 'promotion',
-        currentDepartment: 'Quality Assurance & Analytical Lab',
-        newDepartment: 'Quality Assurance & Analytical Lab',
-        currentDesignation: 'QC Chemist (L3)',
-        newDesignation: 'Senior QC Chemist (L4)',
-        currentBranch: 'Tech Operations Center (HQ)',
-        newBranch: 'Tech Operations Center (HQ)',
-        effectiveDate: new Date('2026-09-01'),
-        initiatedBy: 'Dr. Vikramaditya Rathore',
-        status: 'approved',
-        approvalChain: ['Dr. Vikramaditya Rathore', 'Eleanor Vance'],
-      },
+    await prisma.transferPromotionCase.createMany({
+      data: [
+        {
+          organizationId: org.id,
+          employeeId: empObjMap['VV-1005'].id,
+          type: 'promotion',
+          currentDepartment: 'Quality Assurance & Analytical Lab',
+          newDepartment: 'Quality Assurance & Analytical Lab',
+          currentDesignation: 'QC Chemist (L3)',
+          newDesignation: 'Senior QC Chemist (L4)',
+          currentBranch: 'Tech Operations Center (HQ)',
+          newBranch: 'Tech Operations Center (HQ)',
+          effectiveDate: new Date('2026-09-01'),
+          initiatedBy: 'Dr. Vikramaditya Rathore',
+          status: 'pending',
+          approvalChain: ['Dr. Vikramaditya Rathore', 'Eleanor Vance'],
+        },
+        {
+          organizationId: org.id,
+          employeeId: empObjMap['VV-1002'].id,
+          type: 'transfer',
+          currentDepartment: 'Statutory Compliance & EHS',
+          newDepartment: 'Statutory Compliance & EHS',
+          currentDesignation: 'Head of Compliance & Statutory Affairs',
+          newDesignation: 'Regional Director - Compliance & Plant EHS',
+          currentBranch: 'Tech Operations Center (HQ)',
+          newBranch: 'Central Manufacturing Complex (Campus 2)',
+          effectiveDate: new Date('2026-09-15'),
+          initiatedBy: 'Eleanor Vance',
+          status: 'pending',
+          approvalChain: ['Eleanor Vance', 'Dr. Vikramaditya Rathore'],
+        },
+      ],
     });
     console.log('✅ Transfer & promotion cases seeded');
 
@@ -822,6 +839,17 @@ async function main() {
           currentStage: 'inquiry_panel',
           description: 'Procedural deviation during batch quality testing cycle.',
         },
+        {
+          organizationId: org.id,
+          caseNumber: 'DC-2026-008',
+          employeeId: empObjMap['VV-1005'].id,
+          violationType: 'absenteeism',
+          incidentDate: new Date('2026-08-11'),
+          reportedBy: 'Dept Head - QA',
+          severity: 'medium',
+          currentStage: 'show_cause_notice',
+          description: 'Unscheduled absence during priority audit inspection window.',
+        },
       ],
     });
     console.log('✅ Disciplinary cases seeded');
@@ -829,6 +857,28 @@ async function main() {
     // 17. Seed Official Company Holiday Calendar (2026)
     await prisma.companyHoliday.createMany({
       data: [
+        {
+          organizationId: org.id,
+          title: 'Corporate Founder Day',
+          date: new Date('2026-11-20'),
+          dayOfWeek: 'Friday',
+          category: 'mandatory',
+          status: 'pending_approval',
+          createdByName: 'Eleanor Vance',
+          createdByRole: 'hr_head',
+          year: 2026,
+        },
+        {
+          organizationId: org.id,
+          title: 'Regional State Foundation Day',
+          date: new Date('2026-11-01'),
+          dayOfWeek: 'Sunday',
+          category: 'regional',
+          status: 'pending_approval',
+          createdByName: 'Kavita Menon',
+          createdByRole: 'compliance_statutory',
+          year: 2026,
+        },
         {
           organizationId: org.id,
           title: 'New Year\'s Day',

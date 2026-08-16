@@ -24,6 +24,15 @@ export type ModuleKey =
   | 'system_settings'
   | 'reports_dashboard';
 
+export type ApprovalCategory =
+  | 'leaves'
+  | 'requisitions'
+  | 'transfers'
+  | 'payroll'
+  | 'exits'
+  | 'holidays'
+  | 'disciplinary';
+
 export interface User {
   id: string;
   email: string;

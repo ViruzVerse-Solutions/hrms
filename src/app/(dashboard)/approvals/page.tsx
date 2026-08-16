@@ -1,22 +1,20 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   CheckCircle2,
-  XCircle,
   Clock,
   ShieldCheck,
-  AlertTriangle,
-  FileCheck,
   Building,
   GitPullRequest,
   Wallet,
   Users,
-  X,
-  History,
-  Check,
   Lock,
   AlertOctagon,
+  ArrowRight,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -25,18 +23,39 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { useAuth } from '@/context/AuthContext';
+import {
+  ApprovalCategory,
+  canUserApproveCategory,
+  canUserViewApprovalCategory,
+} from '@/lib/rbac';
 
 interface PendingItem {
   id: string;
-  category: 'leaves' | 'requisitions' | 'transfers' | 'payroll' | 'exits' | 'holidays' | 'disciplinary';
+  category: ApprovalCategory;
   categoryTitle: string;
   title: string;
   applicantName: string;
   applicantId: string;
   details: string;
   date: string;
+  targetUrl?: string;
+  canApprove?: boolean;
+  meta?: Record<string, any>;
   raw: any;
 }
+
+const CATEGORY_STYLES: Record<ApprovalCategory, { bg: string; text: string; border: string; icon: React.ElementType }> = {
+  leaves: { bg: 'bg-emerald-50 text-emerald-700', text: 'text-emerald-700', border: 'border-emerald-200', icon: Clock },
+  requisitions: { bg: 'bg-purple-50 text-purple-700', text: 'text-purple-700', border: 'border-purple-200', icon: GitPullRequest },
+  transfers: { bg: 'bg-blue-50 text-blue-700', text: 'text-blue-700', border: 'border-blue-200', icon: Users },
+  payroll: { bg: 'bg-teal-50 text-teal-700', text: 'text-teal-700', border: 'border-teal-200', icon: Wallet },
+  exits: { bg: 'bg-rose-50 text-rose-700', text: 'text-rose-700', border: 'border-rose-200', icon: AlertOctagon },
+  holidays: { bg: 'bg-amber-50 text-amber-700', text: 'text-amber-700', border: 'border-amber-200', icon: Building },
+  disciplinary: { bg: 'bg-red-50 text-red-700', text: 'text-red-700', border: 'border-red-200', icon: AlertTriangle },
+};
+
+// In-memory cache for instant screen navigation
+let cachedApprovals: { role: string; data: { items: PendingItem[]; counts: Record<string, number> }; timestamp: number } | null = null;
 
 export default function ApprovalsPage() {
   return (
@@ -47,28 +66,34 @@ export default function ApprovalsPage() {
 }
 
 function ApprovalsContent() {
+  const router = useRouter();
   const { currentRole, roleDetails } = useAuth();
-  const [items, setItems] = useState<PendingItem[]>([]);
-  const [counts, setCounts] = useState<Record<string, number>>({});
-  const [isLoading, setIsLoading] = useState(true);
+
+  const isCacheValid = cachedApprovals && cachedApprovals.role === currentRole && (Date.now() - cachedApprovals.timestamp < 60000);
+  const [items, setItems] = useState<PendingItem[]>(isCacheValid ? cachedApprovals!.data.items : []);
+  const [counts, setCounts] = useState<Record<string, number>>(isCacheValid ? cachedApprovals!.data.counts : {});
+  const [isLoading, setIsLoading] = useState(!isCacheValid);
   const [activeTab, setActiveTab] = useState('all');
 
-  // Rejection modal state
-  const [rejectingItem, setRejectingItem] = useState<PendingItem | null>(null);
-  const [rejectionReason, setRejectionReason] = useState('');
-  const [rejectionError, setRejectionError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fetchApprovals = async (force = false) => {
+    if (!force && isCacheValid) return;
 
-  const fetchApprovals = async () => {
     try {
-      setIsLoading(true);
+      if (items.length === 0) setIsLoading(true);
       const res = await fetch('/api/approvals', {
         headers: { 'x-user-role': currentRole },
       });
-      const data = await res.json();
+      if (!res.ok) {
+        console.error('Failed to fetch approval queue, status:', res.status);
+        return;
+      }
+      const data = await res.json().catch(() => null);
       if (data?.data) {
-        setItems(data.data.items || []);
-        setCounts(data.data.counts || {});
+        const newItems = data.data.items || [];
+        const newCounts = data.data.counts || {};
+        setItems(newItems);
+        setCounts(newCounts);
+        cachedApprovals = { role: currentRole, data: { items: newItems, counts: newCounts }, timestamp: Date.now() };
       }
     } catch (err) {
       console.error('Failed to fetch approval queue:', err);
@@ -78,339 +103,244 @@ function ApprovalsContent() {
   };
 
   useEffect(() => {
-    fetchApprovals();
+    fetchApprovals(false);
   }, [currentRole]);
 
-  const handleApprove = async (item: PendingItem) => {
-    try {
-      setIsSubmitting(true);
-      const res = await fetch('/api/approvals', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': currentRole,
-        },
-        body: JSON.stringify({
-          itemId: item.id,
-          category: item.category,
-          action: 'approve',
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        fetchApprovals();
-      }
-    } catch (err) {
-      console.error('Failed to approve request:', err);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleConfirmReject = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rejectingItem) return;
-
-    if (!rejectionReason.trim()) {
-      setRejectionError('A mandatory rejection description / reason is required.');
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      setRejectionError('');
-      const res = await fetch('/api/approvals', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': currentRole,
-        },
-        body: JSON.stringify({
-          itemId: rejectingItem.id,
-          category: rejectingItem.category,
-          action: 'reject',
-          rejectionReason,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setRejectingItem(null);
-        setRejectionReason('');
-        fetchApprovals();
-      } else {
-        setRejectionError(data.error || 'Failed to reject request');
-      }
-    } catch (err) {
-      console.error('Failed to reject request:', err);
-      setRejectionError('An unexpected error occurred.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const isManagementRole = ['managing_director', 'chairman', 'hr_head', 'compliance_statutory', 'internal_audit_head'].includes(currentRole);
+
+  const availableTabs: { key: string; label: string; count: number }[] = [
+    { key: 'all', label: 'All Pending', count: counts.all || 0 },
+    ...(canUserViewApprovalCategory(currentRole, 'leaves') ? [{ key: 'leaves', label: 'Leaves', count: counts.leaves || 0 }] : []),
+    ...(canUserViewApprovalCategory(currentRole, 'requisitions') ? [{ key: 'requisitions', label: 'Requisitions', count: counts.requisitions || 0 }] : []),
+    ...(canUserViewApprovalCategory(currentRole, 'transfers') ? [{ key: 'transfers', label: 'Transfers', count: counts.transfers || 0 }] : []),
+    ...(canUserViewApprovalCategory(currentRole, 'payroll') ? [{ key: 'payroll', label: 'Payroll Runs', count: counts.payroll || 0 }] : []),
+    ...(canUserViewApprovalCategory(currentRole, 'exits') ? [{ key: 'exits', label: 'Exits & F&F', count: counts.exits || 0 }] : []),
+    ...(canUserViewApprovalCategory(currentRole, 'holidays') ? [{ key: 'holidays', label: 'Holidays', count: counts.holidays || 0 }] : []),
+    ...(canUserViewApprovalCategory(currentRole, 'disciplinary') ? [{ key: 'disciplinary', label: 'Disciplinary', count: counts.disciplinary || 0 }] : []),
+  ];
 
   const filteredItems = activeTab === 'all'
     ? items
     : items.filter((i) => i.category === activeTab);
 
+  const handleNavigateToScreen = (targetUrl?: string) => {
+    if (targetUrl) {
+      router.push(targetUrl);
+    }
+  };
+
   return (
-    <div className="p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-            <span>Executive Approvals & Audit Hub</span>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            <span>Approvals Hub</span>
             <Badge variant="purple" className="text-xs">
-              Role-Scoped Governance
+              {roleDetails.title}
             </Badge>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Review pending leaves, job requisitions, transfers, payroll runs, exits & disciplinary notices for <strong className="text-indigo-600">{roleDetails.title}</strong>
+            Centralized queue. Click any request to open its primary screen and perform review & approval actions.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="px-3 py-1.5 text-xs font-mono font-bold bg-white">
-            {counts.all || 0} Pending Approvals
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchApprovals(true)}
+            className="h-8 px-2.5 text-xs text-slate-600 gap-1.5 shadow-2xs"
+            title="Refresh list"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>Refresh</span>
+          </Button>
+          <Badge variant="outline" className="px-3 py-1.5 text-xs font-mono font-bold bg-white shadow-2xs">
+            {counts.all || 0} Pending
           </Badge>
         </div>
       </div>
 
       {/* Role Notice Banner */}
-      {!isManagementRole && (
+      {!isManagementRole ? (
         <Card className="border-amber-200 bg-amber-50/40">
           <CardContent className="p-4 flex items-center gap-3 text-xs text-amber-800">
             <Lock className="h-4 w-4 text-amber-600 shrink-0" />
             <span>
-              Standard employees only view personal self-service requests. Executive approval tools are restricted to Management Roles.
+              Standard employees view personal self-service requests. Approval actions are reserved for managers and executive roles.
             </span>
           </CardContent>
         </Card>
+      ) : (
+        currentRole === 'internal_audit_head' || currentRole === 'compliance_statutory' ? (
+          <Card className="border-blue-200 bg-blue-50/40">
+            <CardContent className="p-4 flex items-center gap-3 text-xs text-blue-800">
+              <ShieldCheck className="h-4 w-4 text-blue-600 shrink-0" />
+              <span>
+                <strong>{roleDetails.title} Audit Oversight:</strong> Review verified items across departments with segregated audit access.
+              </span>
+            </CardContent>
+          </Card>
+        ) : null
       )}
 
       {/* Overview Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-5">
             <div className="flex items-center justify-between text-slate-500">
-              <span className="text-xs font-semibold uppercase tracking-wider">Leave Applications</span>
-              <Clock className="h-4 w-4 text-indigo-600" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider">Leaves</span>
+              <Clock className="h-4 w-4 text-emerald-600" />
             </div>
-            <div className="text-3xl font-extrabold mt-3 text-indigo-600 font-mono">
+            <div className="text-2xl font-extrabold mt-2 text-emerald-600 font-mono">
               {counts.leaves || 0}
             </div>
-            <div className="text-xs text-slate-500 mt-1">Pending HR & Manager Review</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Pending Review</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-5">
             <div className="flex items-center justify-between text-slate-500">
-              <span className="text-xs font-semibold uppercase tracking-wider">Requisitions & Transfers</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wider">Hiring & Transfers</span>
               <GitPullRequest className="h-4 w-4 text-purple-600" />
             </div>
-            <div className="text-3xl font-extrabold mt-3 text-purple-600 font-mono">
+            <div className="text-2xl font-extrabold mt-2 text-purple-600 font-mono">
               {(counts.requisitions || 0) + (counts.transfers || 0)}
             </div>
-            <div className="text-xs text-slate-500 mt-1">Pending MD / Board Sanction</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Pending Sanction</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-5">
             <div className="flex items-center justify-between text-slate-500">
-              <span className="text-xs font-semibold uppercase tracking-wider">Payroll Disbursals</span>
-              <Wallet className="h-4 w-4 text-emerald-600" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider">Payroll Disbursals</span>
+              <Wallet className="h-4 w-4 text-teal-600" />
             </div>
-            <div className="text-3xl font-extrabold mt-3 text-emerald-600 font-mono">
+            <div className="text-2xl font-extrabold mt-2 text-teal-600 font-mono">
               {counts.payroll || 0}
             </div>
-            <div className="text-xs text-slate-500 mt-1">Pending Disbursal Authorization</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Pending Authorization</div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardContent className="p-6">
+          <CardContent className="p-5">
             <div className="flex items-center justify-between text-slate-500">
-              <span className="text-xs font-semibold uppercase tracking-wider">Exits & Disciplinary</span>
-              <AlertOctagon className="h-4 w-4 text-amber-600" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider">Exits & Actions</span>
+              <AlertOctagon className="h-4 w-4 text-rose-600" />
             </div>
-            <div className="text-3xl font-extrabold mt-3 text-amber-600 font-mono">
+            <div className="text-2xl font-extrabold mt-2 text-rose-600 font-mono">
               {(counts.exits || 0) + (counts.disciplinary || 0)}
             </div>
-            <div className="text-xs text-slate-500 mt-1">Pending Clearance & Action</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">Pending Clearance</div>
           </CardContent>
         </Card>
       </div>
 
       {/* Main Tabs */}
-      <Tabs defaultValue="all" onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex flex-wrap h-auto p-1 gap-1 max-w-full overflow-x-auto">
-          <TabsTrigger value="all" className="text-xs px-3 py-1.5">
-            All Pending ({counts.all || 0})
-          </TabsTrigger>
-          <TabsTrigger value="leaves" className="text-xs px-3 py-1.5">
-            Leaves ({counts.leaves || 0})
-          </TabsTrigger>
-          <TabsTrigger value="requisitions" className="text-xs px-3 py-1.5">
-            Requisitions ({counts.requisitions || 0})
-          </TabsTrigger>
-          <TabsTrigger value="transfers" className="text-xs px-3 py-1.5">
-            Transfers ({counts.transfers || 0})
-          </TabsTrigger>
-          <TabsTrigger value="payroll" className="text-xs px-3 py-1.5">
-            Payroll Runs ({counts.payroll || 0})
-          </TabsTrigger>
-          <TabsTrigger value="exits" className="text-xs px-3 py-1.5">
-            Exits & F&F ({counts.exits || 0})
-          </TabsTrigger>
-          <TabsTrigger value="holidays" className="text-xs px-3 py-1.5">
-            Holidays ({counts.holidays || 0})
-          </TabsTrigger>
-          <TabsTrigger value="disciplinary" className="text-xs px-3 py-1.5">
-            Disciplinary ({counts.disciplinary || 0})
-          </TabsTrigger>
+      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="flex flex-wrap h-auto p-1 gap-1 max-w-full overflow-x-auto bg-slate-100/90 rounded-xl border">
+          {availableTabs.map((tab) => (
+            <TabsTrigger key={tab.key} value={tab.key} className="text-xs px-3 py-1.5 rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-xs font-semibold">
+              {tab.label} ({tab.count})
+            </TabsTrigger>
+          ))}
         </TabsList>
 
         {/* Tab Content Queue */}
         <TabsContent value={activeTab} className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base font-bold flex items-center justify-between">
-                <span>Pending Approval Queue (DB Live Stream)</span>
-                <Badge variant="outline" className="text-xs font-mono">
+          <Card className="shadow-xs border-slate-200">
+            <CardHeader className="border-b bg-slate-50/50 py-3.5 px-5">
+              <CardTitle className="text-sm font-bold flex items-center justify-between">
+                <span>Pending Approval Queue</span>
+                <Badge variant="outline" className="text-xs font-mono bg-white">
                   {filteredItems.length} Items
                 </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               {isLoading ? (
-                <div className="py-8 text-center text-xs text-slate-500">Syncing approval items from PostgreSQL...</div>
+                <div className="py-12 text-center text-xs text-slate-400">Loading queue...</div>
               ) : filteredItems.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
+                <div className="py-12 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
                   <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-                  <span>No pending approval items for your role in the database. You are all caught up!</span>
+                  <span className="font-semibold text-slate-800">No pending approval items.</span>
+                  <span>You are all caught up!</span>
                 </div>
               ) : (
                 <div className="divide-y divide-slate-100">
-                  {filteredItems.map((item) => (
-                    <div key={item.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="text-[10px] uppercase font-mono">
-                            {item.categoryTitle}
-                          </Badge>
-                          <span className="font-bold text-sm text-slate-900">{item.title}</span>
-                        </div>
-                        <div className="text-xs text-slate-600 flex flex-wrap items-center gap-4">
-                          <span>Applicant: <strong className="text-slate-900">{item.applicantName}</strong></span>
-                          <span>Submitted: {formatDate(item.date)}</span>
-                        </div>
-                        <p className="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200/60 font-mono">
-                          {item.details}
-                        </p>
-                      </div>
+                  {filteredItems.map((item) => {
+                    const canApprove = item.canApprove ?? canUserApproveCategory(currentRole, item.category);
+                    const categoryStyle = CATEGORY_STYLES[item.category] || CATEGORY_STYLES.leaves;
+                    const CategoryIcon = categoryStyle.icon;
 
-                      {/* Action Buttons */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Button
-                          disabled={isSubmitting}
-                          onClick={() => handleApprove(item)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-9 px-3 gap-1.5 shadow-sm"
-                        >
-                          <Check className="h-4 w-4" />
-                          <span>Approve</span>
-                        </Button>
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => handleNavigateToScreen(item.targetUrl)}
+                        className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-slate-50/80 cursor-pointer transition-colors group"
+                      >
+                        {/* Left Info Column */}
+                        <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                          <div className={`p-2.5 rounded-xl ${categoryStyle.bg} border ${categoryStyle.border} shrink-0 mt-0.5 shadow-2xs`}>
+                            <CategoryIcon className="h-4 w-4" />
+                          </div>
 
-                        <Button
-                          disabled={isSubmitting}
-                          onClick={() => {
-                            setRejectingItem(item);
-                            setRejectionReason('');
-                            setRejectionError('');
-                          }}
-                          variant="destructive"
-                          className="text-xs h-9 px-3 gap-1.5 shadow-sm"
-                        >
-                          <X className="h-4 w-4" />
-                          <span>Reject / Cancel</span>
-                        </Button>
+                          <div className="space-y-1 flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="outline" className={`text-[10px] uppercase font-mono font-bold ${categoryStyle.bg} ${categoryStyle.border}`}>
+                                {item.categoryTitle}
+                              </Badge>
+                              <span className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">
+                                {item.title}
+                              </span>
+                            </div>
+
+                            <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                              <span>Applicant: <strong className="text-slate-700">{item.applicantName}</strong></span>
+                              <span className="text-slate-300">•</span>
+                              <span>Date: <strong>{formatDate(item.date)}</strong></span>
+                            </div>
+
+                            <p className="text-xs text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-200/60 font-mono">
+                              {item.details}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Right Action Column: Direct Screen Review Link */}
+                        <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                          {canApprove ? (
+                            <Button
+                              size="sm"
+                              className="h-8 px-3.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 shadow-xs font-semibold"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleNavigateToScreen(item.targetUrl);
+                              }}
+                            >
+                              <span>Review & Act</span>
+                              <ArrowRight className="h-3.5 w-3.5" />
+                            </Button>
+                          ) : (
+                            <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold">
+                              <ShieldCheck className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                              <span>Audit View</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
-
-      {/* Mandatory Rejection Description Modal */}
-      {rejectingItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-200">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-bold text-base text-rose-600 flex items-center gap-2">
-                <XCircle className="h-5 w-5" />
-                <span>Mandatory Rejection Description</span>
-              </h3>
-              <button
-                onClick={() => setRejectingItem(null)}
-                className="text-slate-400 hover:text-slate-600"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleConfirmReject} className="space-y-4 text-xs">
-              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
-                <div className="font-bold text-rose-900">{rejectingItem.title}</div>
-                <div className="text-rose-700">Applicant: {rejectingItem.applicantName}</div>
-              </div>
-
-              {rejectionError && (
-                <div className="p-3 rounded-xl bg-rose-100 text-rose-800 font-semibold text-xs border border-rose-200">
-                  {rejectionError}
-                </div>
-              )}
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Rejection / Cancellation Reason (Mandatory)
-                </label>
-                <textarea
-                  rows={4}
-                  required
-                  placeholder="Specify clear business justification, coverage constraint, or policy reason for rejecting this request..."
-                  className="w-full p-3 border rounded-xl outline-none focus:ring-2 focus:ring-rose-500 text-xs"
-                  value={rejectionReason}
-                  onChange={(e) => setRejectionReason(e.target.value)}
-                />
-              </div>
-
-              <div className="p-3 bg-slate-50 border rounded-xl text-[11px] text-slate-500 flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-indigo-600 shrink-0" />
-                <span>
-                  This cancellation description will be permanently logged in PostgreSQL Audit Logs and communicated to the applicant.
-                </span>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t">
-                <Button type="button" variant="outline" onClick={() => setRejectingItem(null)}>
-                  Keep Request Pending
-                </Button>
-                <Button type="submit" disabled={isSubmitting} variant="destructive" className="gap-1.5">
-                  <XCircle className="h-4 w-4" />
-                  <span>Confirm Rejection</span>
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
