@@ -25,21 +25,21 @@ flowchart TD
 ```
 
 ### Why Start with Phase 1 & Phase 2?
-1. **Phase 1 (Security & Navigation)**: Before testing business features, we must verify that the 6 roles switch cleanly and unauthorized pages are blocked.
+1. **Phase 1 (Security & Navigation)**: Before testing business features, we must verify that all 6 roles (including Chairman and MD) switch cleanly and unauthorized pages are blocked.
 2. **Phase 2 (Employee Master Data)**: Every other module (Attendance, Leaves, Payroll, Performance, Grievances, Exits) requires active employee records. Creating employees first ensures all downstream modules have real data to process.
 
 ---
 
-## 2. Master Summary: 6 Roles & Their Permission Keys
+## 2. Master Summary: All 6 Roles & Their Permission Keys
 
 | Role Key | Plain-Language Title | Allowed Capabilities |
 | :--- | :--- | :--- |
-| **`chairman`** | **Chairman of the Board** | High-level business view, board-level executive approvals, macro salary reports. |
-| **`managing_director`** | **Managing Director / CEO** | Final business authority; approves payroll disbursal, new hires, promotions, and major penalties. |
-| **`hr_head`** | **HR Head / Director** | Master operational control (**Full CRUD**) across all 14 modules and 17 lifecycle stages. |
-| **`internal_audit_head`** | **Internal Auditor** | Independent checker (**View-Only Audit**); inspects salary math and permanent activity history. |
-| **`compliance_statutory`**| **Compliance Officer** | Legal guardian (**Full CRUD on Policies**); handles PF/ESI/TDS filings, Form 25 muster rolls, and POSH committee. |
-| **`employee`** | **Regular Employee** | Self-Service Portal (**Own Record Only**); clock-in, leave application, payslips, grievances. |
+| **`chairman`** | **Chairman of the Board** | **Board-Level Governance**: High-level business view, board-level executive approvals (director promotions, annual holidays), macro salary reports, and corporate policy approvals. |
+| **`managing_director`** | **Managing Director / CEO** | **Executive Authority**: Approves monthly payroll disbursal, new manpower hires, branch promotions, and major disciplinary penalties. |
+| **`hr_head`** | **HR Head / Director** | **Master Operational Control (Full CRUD)** across all 14 modules and 17 lifecycle stages. |
+| **`internal_audit_head`** | **Internal Auditor** | **Independent Checker (View-Only Audit)**; inspects salary math, prevents ghost workers, and checks permanent activity history. |
+| **`compliance_statutory`**| **Compliance Officer** | **Legal & Labor Guardian (Full CRUD on Policies)**; handles PF/ESI/TDS filings, Form 25 muster rolls, and POSH committee. |
+| **`employee`** | **Regular Employee** | **Self-Service Portal (Own Record Only)**; clock-in, leave application, payslips, self-appraisals, grievances. |
 
 ---
 
@@ -49,36 +49,39 @@ flowchart TD
 
 ### 🚀 PHASE 1: Security Foundation, Role Switcher & Navigation Morphing
 
-* **Objective**: Confirm that switching roles in the header instantly updates the sidebar menus, changes titles, and blocks unauthorized URL access.
+* **Objective**: Confirm that switching roles in the header instantly updates the sidebar menus, changes titles, and blocks unauthorized URL access for all 6 roles.
 * **Target Components**: Top Header (`AppHeader.tsx`), Navigation Sidebar (`AppSidebar.tsx`), Screen Guard (`RBACGuard.tsx`).
 
 ```mermaid
 flowchart LR
-    Switcher["Top Header Role Switcher"] -->|Select Employee| ESS["Sidebar Morphs to ESS Items Only"]
-    Switcher -->|Select Compliance| COMP["Sidebar Morphs to Legal & Muster Rolls"]
-    Switcher -->|Select Auditor| AUD["Sidebar Morphs to Audit & Activity Logs"]
+    Switcher["Top Header Role Switcher"] -->|Select Chairman| CH["Executive Board Dashboard & Macro Reports"]
+    Switcher -->|Select MD| MD["Operational Dashboard & Executive Approvals"]
     Switcher -->|Select HR Head| FULL["All 14 Modules Visible (Full CRUD)"]
+    Switcher -->|Select Auditor| AUD["Audit Dashboard & Permanent Activity Logs"]
+    Switcher -->|Select Compliance| COMP["Legal Registers & Policy CRUD"]
+    Switcher -->|Select Employee| ESS["Employee Self-Service (ESS) Only"]
 ```
 
 #### Step-by-Step Test Procedure:
 1. Open `http://localhost:3000` in your web browser.
 2. Click the **"Role" dropdown** in the top header.
-3. Switch through each of the 6 roles and verify the sidebar navigation:
+3. Switch through each of the **6 roles** and verify the sidebar navigation:
 
 | Switch to Role | Expected Sidebar Titles & Visible Items | Expected Blocked / Hidden Items |
 | :--- | :--- | :--- |
-| **Employee** (`employee`) | Profile 360, Attendance Check-In, Leave Requests, Payslips, Self-Appraisals, Training Enrolment, Grievance Filing, Resignation Notice. | Recruitment, Employee Directory, Settings, Reports, Approvals Hub are **completely hidden**. |
-| **Compliance Officer** (`compliance_statutory`) | Compliance Dashboard, Policy & Statutory Compliance, Statutory Filings (PF/ESI), Statutory Muster (Form 25), Statutory Leave Registers, POSH & Welfare Committee, Safety & EHS Training, Exit Clearances & Gratuity. | Recruitment, Performance KRAs, Promotions are **completely hidden**. |
-| **Internal Auditor** (`internal_audit_head`) | Audit Dashboard, Salary & Statutory Audit, Policy & Rulebook, Disciplinary & Inquiries, System Activity Logs, Employee Directory (View-Only). | Recruitment, Performance KRAs, Promotions, and all creation/edit buttons are **hidden/disabled**. |
-| **Managing Director** (`managing_director`) | Executive Dashboard, Approvals Hub, Enterprise Analytics, Master Directory, ATS Approvals, Payroll Disbursal, Performance Calibrations, Transfers, Disciplinary. | Full executive visibility across all management modules. |
-| **HR Head** (`hr_head`) | Full 14-module sidebar with full administrative control. | No modules hidden. |
+| **Chairman** (`chairman`) | **Executive Board Dashboard**, **Approvals Hub** (Board items), **Analytics & Reports** (Macro charts), **Employee Directory** (View-Only), **HR Policy Repository** (Full Control), **Executive KRAs & 9-Box Grid** (Full View), **System Settings** (View-Only). | Routine daily operational tasks (daily punch edits, phone screenings) are not assigned. |
+| **Managing Director** (`managing_director`) | **Executive Dashboard**, **Approvals Hub** (Full executive queue), **Enterprise Analytics**, **Master Directory**, **ATS Approvals**, **Payroll Disbursal**, **Performance Calibrations**, **Transfers**, **Disciplinary**. | Full executive visibility across all management modules. |
+| **HR Head** (`hr_head`) | Full 14-module sidebar with full administrative control (**Full CRUD**). | No modules hidden. |
+| **Internal Auditor** (`internal_audit_head`) | **Audit Dashboard**, **Salary & Statutory Audit**, **Policy & Rulebook**, **Disciplinary & Inquiries**, **System Activity Logs**, **Employee Directory** (View-Only). | Recruitment, Performance KRAs, Promotions, and all creation/edit buttons are **hidden/disabled**. |
+| **Compliance Officer** (`compliance_statutory`) | **Compliance Dashboard**, **Policy & Statutory Compliance (CRUD)**, **Statutory Filings (PF/ESI)**, **Statutory Muster (Form 25)**, **Statutory Leave Registers**, **POSH & Welfare Committee**, **Safety & EHS Training**, **Exit Clearances & Gratuity**. | Recruitment, Performance KRAs, Promotions are **completely hidden**. |
+| **Employee** (`employee`) | **Profile 360 (My Profile)**, **Attendance Check-In**, **Leave Requests**, **Payslips**, **Self-Appraisals**, **Training Enrolment**, **Grievance Filing**, **Resignation Notice**. | Recruitment, Employee Directory, Settings, Reports, Approvals Hub are **completely hidden**. |
 
 4. **URL Tamper Test**:
    - While logged in as **Employee**, manually type `http://localhost:3000/recruitment` or `http://localhost:3000/settings` in your browser address bar.
    - **Verification**: The system must display **"Access Denied (HTTP 403)"** or redirect safely.
 
 #### Phase 1 Verification Checklist:
-- [ ] Role switcher dropdown in header switches active user session cleanly.
+- [ ] Role switcher dropdown in header switches active user session cleanly across all 6 roles.
 - [ ] Sidebar menus adapt titles and visible links dynamically per role.
 - [ ] Direct URL entry to restricted screens is strictly blocked by `RBACGuard`.
 
@@ -86,13 +89,14 @@ flowchart LR
 
 ### 🚀 PHASE 2: Organization Master Data & Employee 360° Directory
 
-* **Objective**: Test creating new employees, editing profile dossiers, searching directory records, and verifying salary privacy masking.
+* **Objective**: Test creating new employees, editing profile dossiers, searching directory records, and verifying salary privacy masking across leadership, HR, and workers.
 * **Target Screens**: Employee Directory (`/employees`), Employee 360 Profile (`/employees/[id]`).
 
 ```mermaid
 flowchart LR
     HR_Add["HR Head adds new Employee"] --> SaveDB["Saves to Database with 17-Stage Milestone"]
-    SaveDB --> ViewHR["HR/MD views full salary & bank info"]
+    SaveDB --> ViewExec["Chairman & MD view organizational headcount & structure"]
+    SaveDB --> ViewHR["HR Head edits complete dossier & compensation"]
     SaveDB --> ViewEmp["Employee only sees own personal profile"]
 ```
 
@@ -105,7 +109,7 @@ flowchart LR
    - **Verification**: Confirm the new employee card appears in the directory list.
 2. **READ (Profile 360 & Salary Privacy Check)**:
    - Click on the newly created employee to open `/employees/[id]`.
-   - As **HR Head / MD**: Verify you can see full compensation, bank account number, and documents.
+   - As **Chairman / MD / HR Head**: Verify you can view organizational reporting lines, department details, and compensation brackets.
    - Switch to **Employee (Vishwadharan R)**: Try to open Ramesh Patel's profile URL directly.
    - **Verification**: The system must block access or redirect you to your own personal profile.
 3. **UPDATE (Edit Employee Details)**:
@@ -123,9 +127,9 @@ flowchart LR
 
 ---
 
-### 🚀 PHASE 3: Daily Web Clock-In, Attendance Muster & Leave Approvals
+### 🚀 PHASE 3: Daily Web Clock-In, Attendance Muster & Multi-Tier Leave Approvals
 
-* **Objective**: Test daily employee attendance clock-in, leave balance deductions, multi-tier manager approvals, and statutory Form 25 muster exports.
+* **Objective**: Test daily employee attendance clock-in, leave balance deductions, multi-tier manager approvals, Chairman holiday calendar approvals, and statutory Form 25 muster exports.
 * **Target Screens**: Attendance & Shifts (`/attendance`), Leave Management (`/leaves`), Approvals Hub (`/approvals`).
 
 ```mermaid
@@ -133,6 +137,7 @@ sequenceDiagram
     autonumber
     actor EMP as Employee
     actor HR as HR Head / Manager
+    actor CH_MD as Chairman / MD
     actor COMP as Compliance Officer
 
     EMP->>EMP: 1. Clicks 'Web Check-In' on Attendance Screen
@@ -140,7 +145,9 @@ sequenceDiagram
     EMP->>HR: 3. Leave request routes to Approvals Hub
     HR->>HR: 4. Reviews balance & clicks 'Approve'
     HR->>EMP: 5. Employee leave balance decreases by 2 days
-    COMP->>COMP: 6. Exports Statutory Form 25 Attendance Muster Roll
+    HR->>CH_MD: 6. Submits Annual Company Holiday Calendar
+    CH_MD->>CH_MD: 7. Chairman / MD signs off on Holiday Calendar
+    COMP->>COMP: 8. Exports Statutory Form 25 Attendance Muster Roll
 ```
 
 #### Detailed CRUD Operations to Execute:
@@ -159,7 +166,10 @@ sequenceDiagram
    - Locate Vishwadharan's 2-day leave application.
    - Click **"Approve"** (or test "Reject" with a reason note).
    - **Verification**: Status turns green *"Approved"*. Switch back to **Employee** and confirm the leave status displays as *"Approved"*.
-4. **READ & EXPORT (Statutory Form 25 Muster Roll)**:
+4. **APPROVE (Annual Holiday Calendar by Chairman / MD)**:
+   - Switch to **Role: Chairman** or **Managing Director** $\rightarrow$ Go to `/leaves` or `/approvals`.
+   - Review proposed national, state, and festival holidays for the year $\rightarrow$ Sign off on the calendar.
+5. **READ & EXPORT (Statutory Form 25 Muster Roll)**:
    - Switch to **Role: Compliance Officer**.
    - Go to `/attendance` $\rightarrow$ Click **"Export Monthly Register (Form 25)"**.
    - **Verification**: System exports the legal monthly attendance muster roll compliant with the Factories Act.
@@ -168,20 +178,22 @@ sequenceDiagram
 - [ ] Web Clock-In updates attendance logs in real time.
 - [ ] Leave application prevents applying for more days than available balance.
 - [ ] Approvals Hub updates leave status immediately across all user sessions.
+- [ ] Chairman / MD can review and authorize annual holiday calendars.
 - [ ] Compliance Officer can export official Form 25 Attendance Muster Roll.
 
 ---
 
 ### 🚀 PHASE 4: Monthly Payroll Batches, PF/ESI Dues & Printable Payslips
 
-* **Objective**: Test gross-to-net salary calculations, statutory government deductions (Provident Fund, ESI, Tax withholding), executive disbursal sign-off, and employee payslip printing.
-* **Target Screens**: Payroll & Benefits (`/payroll`), Approvals Hub (`/approvals`).
+* **Objective**: Test gross-to-net salary calculations, statutory government deductions (Provident Fund, ESI, Tax withholding), executive disbursal sign-off, Chairman budget review, and employee payslip printing.
+* **Target Screens**: Payroll & Benefits (`/payroll`), Approvals Hub (`/approvals`), Company Reports (`/reports`).
 
 ```mermaid
 flowchart TD
     Calc["1. HR Head computes monthly gross-to-net salary batch"] --> Audit["2. Auditor inspects zero-variance math (Read-Only)"]
     Audit --> Auth["3. Managing Director clicks 'Authorize Payroll Disbursal'"]
-    Auth --> Payslip["4. Official PDF Payslips unlocked for all Employees"]
+    Auth --> Board["4. Chairman reviews monthly payroll budget vs actuals in Reports"]
+    Auth --> Payslip["5. Official PDF Payslips unlocked for all Employees"]
 ```
 
 #### Detailed CRUD Operations to Execute:
@@ -201,7 +213,10 @@ flowchart TD
    - Switch to **Role: Managing Director** $\rightarrow$ Go to `/payroll` or `/approvals`.
    - Review the batch total $\rightarrow$ Click **"Authorize Payroll Disbursal"**.
    - **Verification**: Batch status changes from *"Pending Review"* $\rightarrow$ *"Disbursed"*.
-4. **READ & PRINT (Employee Official Payslip)**:
+4. **BOARD REVIEW (Chairman Macro Compensation Report)**:
+   - Switch to **Role: Chairman** $\rightarrow$ Go to `/dashboard` and `/reports`.
+   - Review total monthly payroll cost, overtime trends, and department compensation breakdown.
+5. **READ & PRINT (Employee Official Payslip)**:
    - Switch to **Role: Employee (Vishwadharan R)** $\rightarrow$ Go to `/payroll`.
    - Click **"View Payslip"** on the latest salary month.
    - **Verification**: Payslip modal opens displaying company seal, earnings table, deductions table, and net salary. Click **"Print Payslip"** to verify print preview formatting.
@@ -211,24 +226,26 @@ flowchart TD
 - [ ] PF (12%), ESI (0.75%), and tax deductions align with statutory standards.
 - [ ] Auditor can inspect salary records in read-only mode without edit buttons.
 - [ ] Managing Director authorization releases official PDF payslips to employees.
+- [ ] Chairman can review macro compensation analytics.
 
 ---
 
 ### 🚀 PHASE 5: Policy Repository, Statutory Registers & Signed PDF Uploads
 
-* **Objective**: Test full CRUD operations (Create, Read, Update, Delete) on company policies, upload signed PDF directives, and track workforce digital acknowledgments.
+* **Objective**: Test full CRUD operations (Create, Read, Update, Delete) on company policies, upload signed PDF directives, track workforce digital acknowledgments, and test Chairman governance sign-off.
 * **Target Screens**: Policy & Statutory Compliance (`/compliance`).
 
 ```mermaid
 flowchart LR
-    Create["1. Compliance Officer publishes new EHS Safety Policy + PDF"] --> Store["2. Policy stored in PostgreSQL Database"]
-    Store --> Read["3. Employees & Managers view and print official Policy"]
-    Store --> Update["4. Compliance Officer edits directives or archives old policy"]
+    Create["1. Compliance / HR creates new Corporate Policy + PDF"] --> Board["2. Chairman / MD signs off on Policy Charter"]
+    Board --> Store["3. Policy stored in Database with digital tracking"]
+    Store --> Read["4. Employees & Managers view and print official Policy"]
+    Store --> Update["5. Compliance edits directives or archives old policy"]
 ```
 
 #### Detailed CRUD Operations to Execute:
 1. **CREATE (Publish New Corporate Policy)**:
-   - Switch to **Role: Compliance Officer** or **HR Head** $\rightarrow$ Go to `/compliance`.
+   - Switch to **Role: Compliance Officer**, **HR Head**, or **Chairman** $\rightarrow$ Go to `/compliance`.
    - Click **"Publish Policy Document"** button.
    - Fill in:
      - **Title**: *Occupational Health, Plant Safety & EHS Guidelines v2.1*
@@ -254,7 +271,7 @@ flowchart LR
    - **Verification**: Official register cards export and display statutory compliance records.
 
 #### Phase 5 Verification Checklist:
-- [ ] Compliance Officer & HR Head have Full CRUD access to policies.
+- [ ] Chairman, Compliance Officer & HR Head have Full CRUD access to policies.
 - [ ] Signed PDF document upload and viewing works smoothly.
 - [ ] Search bar and category filter (POSH, Safety EHS, Code of Conduct) filter cards in real time.
 - [ ] Regular employees cannot edit or delete corporate policies.
@@ -296,14 +313,15 @@ flowchart LR
 
 ### 🚀 PHASE 7: Performance Reviews, 9-Box Grid & Training Programs
 
-* **Objective**: Test employee self-appraisal submissions, manager 9-box talent rating calibrations, and scheduling safety/skills training workshops.
+* **Objective**: Test employee self-appraisal submissions, manager 9-box talent rating calibrations, Chairman executive succession reviews, and scheduling safety/skills training workshops.
 * **Target Screens**: Performance & KRAs (`/performance`), Training & Skills (`/training`).
 
 ```mermaid
 flowchart TD
     Self["1. Employee submits Self-Appraisal ratings & achievements"] --> Calib["2. HR & MD calibrate 9-Box Grid (Potential vs Performance)"]
-    Calib --> Train["3. Compliance/HR schedules Safety & Technical Training Workshops"]
-    Train --> Enroll["4. Employee enrolls & completes post-training feedback"]
+    Calib --> Board["3. Chairman reviews Executive Succession & Leadership Pipeline"]
+    Calib --> Train["4. Compliance/HR schedules Safety & Technical Training Workshops"]
+    Train --> Enroll["5. Employee enrolls & completes post-training feedback"]
 ```
 
 #### Detailed CRUD Operations to Execute:
@@ -312,9 +330,10 @@ flowchart TD
    - Fill out rating stars (1 to 5) and write key achievements $\rightarrow$ Click **"Submit Self-Appraisal"**.
    - **Verification**: Self-appraisal score saves to the employee's dossier.
 2. **READ & REVIEW (9-Box Grid Talent Matrix)**:
-   - Switch to **Role: HR Head** or **Managing Director** $\rightarrow$ Go to `/performance`.
+   - Switch to **Role: HR Head**, **Managing Director**, or **Chairman** $\rightarrow$ Go to `/performance`.
    - Inspect the interactive **9-Box Talent Matrix** (High Potential vs. High Performance).
    - **Verification**: Employee cards plot accurately into leadership boxes (*Core Talent, High Potential, Top Star*).
+   - As **Chairman**: Verify high-level talent succession pipeline across senior leadership.
 3. **CREATE & ENROLL (Training Workshop)**:
    - Switch to **Role: Compliance Officer** or **HR Head** $\rightarrow$ Go to `/training`.
    - Click **"Schedule Workshop"** $\rightarrow$ Title (*Factory Chemical Safety & Spill Response*), Capacity (*25*), Date $\rightarrow$ Save.
@@ -324,6 +343,7 @@ flowchart TD
 #### Phase 7 Verification Checklist:
 - [ ] Employee self-appraisals save properly to database.
 - [ ] 9-Box Grid categorizes workforce performance accurately.
+- [ ] Chairman can review leadership succession pipeline.
 - [ ] Training workshops track capacity, enrollments, and feedback ratings.
 
 ---
@@ -366,19 +386,20 @@ flowchart LR
 
 ### 🚀 PHASE 9: Approvals Hub, Executive Reports & Permanent Activity Logs
 
-* **Objective**: Verify centralized multi-category approvals, cross-department analytics exports, and audit the permanent activity log stream.
+* **Objective**: Verify centralized multi-category approvals, cross-department analytics exports for Chairman & MD, and audit the permanent activity log stream.
 * **Target Screens**: Approvals Hub (`/approvals`), Company Reports (`/reports`), System Settings & Activity Logs (`/settings`).
 
 ```mermaid
 flowchart TD
-    AppHub["1. Approvals Hub unifies Leaves, Requisitions, Payroll & Exits in one queue"] --> Reports["2. Executive Reports export Workforce Headcount & Salary Costs"]
+    AppHub["1. Approvals Hub unifies Leaves, Requisitions, Transfers, Payroll & Exits"] --> Reports["2. Chairman & MD export Workforce Headcount & Salary Costs"]
     Reports --> LogStream["3. Auditor inspects permanent, unalterable Activity History Log"]
 ```
 
 #### Detailed CRUD Operations to Execute:
 1. **CENTRALIZED APPROVALS QUEUE**:
-   - Switch to **Role: Managing Director** or **HR Head** $\rightarrow$ Open `/approvals`.
+   - Switch to **Role: Chairman**, **Managing Director**, or **HR Head** $\rightarrow$ Open `/approvals`.
    - Verify tabs for all 7 approval categories: *Leaves, Job Requisitions, Transfers, Payroll Runs, Resignations, Holidays, Disciplinary*.
+   - As **Chairman**: Verify ability to approve executive promotions, director appointments, and annual holiday calendars.
 2. **EXECUTIVE ANALYTICS & REPORTS**:
    - Switch to **Role: Chairman** or **Managing Director** $\rightarrow$ Open `/reports`.
    - Generate reports for: *Workforce Headcount Distribution, Salary Cost Breakdown, Department Attrition Rates, Overtime Hours*.
@@ -390,6 +411,7 @@ flowchart TD
 
 #### Phase 9 Verification Checklist:
 - [ ] Approvals Hub routes all 7 workflow categories accurately.
+- [ ] Chairman & MD can approve high-level governance and operational items.
 - [ ] Reports export clean workforce and financial summaries.
 - [ ] System Activity Logs permanently record all actions without deletion capability.
 
