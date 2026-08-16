@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { FieldLoader } from '@/components/ui/skeleton';
 
 export default function AttendancePage() {
   return (
@@ -38,6 +39,7 @@ function AttendanceContent() {
     currentUser,
     employees,
     setAttendanceRecords,
+    isHydrated,
   } = useAuth();
 
   const [filterDate, setFilterDate] = useState('');
@@ -45,7 +47,7 @@ function AttendanceContent() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState('Just now');
 
-  const empId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
+  const empId = currentEmployee?.id || currentUser?.employeeId || '';
   const isEmployee = currentRole === 'employee';
 
   const syncBiometricData = () => {
@@ -131,7 +133,7 @@ function AttendanceContent() {
         {(() => {
           const presentDays = baseRecords.filter((a) => a.status === 'present').length;
           const totalHours = baseRecords.reduce((acc, r) => acc + (Number(r.totalHours) || 0), 0);
-          const punchRate = baseRecords.length > 0 ? ((presentDays / baseRecords.length) * 100).toFixed(1) : '100.0';
+          const punchRate = baseRecords.length > 0 ? ((presentDays / baseRecords.length) * 100).toFixed(1) : '0.0';
 
           return (
             <>
@@ -139,9 +141,11 @@ function AttendanceContent() {
                 <CardContent className="p-6">
                   <span className="text-xs font-semibold text-slate-500">{isEmployee ? 'My Present Days' : 'Present Today'}</span>
                   <div className="text-3xl font-extrabold text-emerald-600 mt-2">
-                    {presentDays}
+                    {!isHydrated || isSyncing ? <FieldLoader className="h-8 w-16" /> : presentDays}
                   </div>
-                  <div className="text-xs text-emerald-600 mt-1 font-medium">{punchRate}% on-time punch rate</div>
+                  <div className="text-xs text-emerald-600 mt-1 font-medium">
+                    {!isHydrated || isSyncing ? <FieldLoader className="h-3 w-24" /> : `${punchRate}% on-time punch rate`}
+                  </div>
                 </CardContent>
               </Card>
 

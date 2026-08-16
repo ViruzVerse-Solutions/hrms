@@ -36,7 +36,8 @@ function ResignationContent() {
 
   const [hasSubmittedResignation, setHasSubmittedResignation] = useState(false);
   const [resignationReason, setResignationReason] = useState('');
-  const [lastWorkingDay, setLastWorkingDay] = useState('2026-10-15');
+  const defaultLwd = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const [lastWorkingDay, setLastWorkingDay] = useState(defaultLwd);
   const [exitCase, setExitCase] = useState<ResignationCase | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,7 +67,7 @@ function ResignationContent() {
     e.preventDefault();
     const payload = {
       requestedLwd: lastWorkingDay,
-      reason: resignationReason || 'Career Transition',
+      reason: resignationReason,
     };
 
     fetch('/api/resignation', {

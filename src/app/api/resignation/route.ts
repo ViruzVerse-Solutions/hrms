@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
         hr: { status: 'pending' },
       },
       ffSettlement: (() => {
-        const ctc = Number(exitCase.employee?.ctc || 540000);
+        const ctc = Number(exitCase.employee?.ctc || 0);
         const monthlyGross = Math.round(ctc / 12);
         const pendingSalary = Math.round(monthlyGross * 0.9);
         const leaveEncashment = Math.round((monthlyGross / 30) * 12);
@@ -136,13 +136,17 @@ export async function POST(req: NextRequest) {
       where: { employeeId: emp.id },
     });
 
+    const defaultLwdObj = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
+    const lwdDate = (body.lastWorkingDay || body.requestedLwd) ? new Date(body.lastWorkingDay || body.requestedLwd) : defaultLwdObj;
+    const calcFnfAmount = body.fnfAmount ? Number(body.fnfAmount) : Math.round((Number(emp.ctc || 0) / 12) * 1.5);
+
     let exitRecord;
     if (existing) {
       exitRecord = await prisma.resignationExitCase.update({
         where: { id: existing.id },
         data: {
-          lastWorkingDay: new Date(body.lastWorkingDay || body.requestedLwd || '2026-10-15'),
-          reason: body.reason || 'Career Transition',
+          lastWorkingDay: lwdDate,
+          reason: body.reason || '',
         },
       });
     } else {
@@ -154,10 +158,10 @@ export async function POST(req: NextRequest) {
           organization: { connect: { id: org.id } },
           employee: { connect: { id: emp.id } },
           resignationDate: new Date(),
-          lastWorkingDay: new Date(body.lastWorkingDay || body.requestedLwd || '2026-10-15'),
-          reason: body.reason || 'Career Transition',
+          lastWorkingDay: lwdDate,
+          reason: body.reason || '',
           noticePeriodDays: 60,
-          fnfAmount: body.fnfAmount || 239000,
+          fnfAmount: calcFnfAmount,
           fnfStatus: 'pending',
           itClearanceStatus: 'pending',
           deptClearanceStatus: 'pending',

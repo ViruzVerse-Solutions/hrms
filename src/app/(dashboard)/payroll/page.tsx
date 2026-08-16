@@ -64,7 +64,7 @@ function PayrollContent() {
   const [departmentFilter, setDepartmentFilter] = useState('all');
 
   // Employee self-service: only see own payslip!
-  const employeeId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
+  const employeeId = currentEmployee?.id || currentUser?.employeeId || '';
   const employeeCode = currentEmployee?.employeeCode || '';
   const isSelfServiceOnly = currentRole === 'employee';
   const isAuditHead = currentRole === 'internal_audit_head';

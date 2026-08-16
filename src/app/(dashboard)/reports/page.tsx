@@ -18,6 +18,7 @@ import { formatCurrency } from '@/lib/utils';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
 import { useAuth } from '@/context/AuthContext';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { FieldLoader } from '@/components/ui/skeleton';
 
 export default function ReportsPage() {
   const { currentRole } = useAuth();
@@ -100,7 +101,9 @@ function ReportsContent() {
         <Card>
           <CardContent className="p-6">
             <span className="text-xs font-semibold text-slate-500">Annualized Attrition Rate</span>
-            <div className="text-3xl font-extrabold text-emerald-600 mt-2">{metrics.attritionRate}%</div>
+            <div className="text-3xl font-extrabold text-emerald-600 mt-2">
+              {loading ? <FieldLoader className="h-8 w-16" /> : `${metrics.attritionRate}%`}
+            </div>
             <div className="text-xs text-emerald-600 font-medium mt-1">Calculated from live exit records</div>
           </CardContent>
         </Card>
@@ -108,7 +111,9 @@ function ReportsContent() {
         <Card>
           <CardContent className="p-6">
             <span className="text-xs font-semibold text-slate-500">Avg. Cost Per Hire</span>
-            <div className="text-3xl font-extrabold text-indigo-600 mt-2 font-mono">{formatCurrency(metrics.costPerHire)}</div>
+            <div className="text-3xl font-extrabold text-indigo-600 mt-2 font-mono">
+              {loading ? <FieldLoader className="h-8 w-24" /> : formatCurrency(metrics.costPerHire)}
+            </div>
             <div className="text-xs text-slate-400 mt-1">Active talent acquisition cost</div>
           </CardContent>
         </Card>
@@ -116,7 +121,9 @@ function ReportsContent() {
         <Card>
           <CardContent className="p-6">
             <span className="text-xs font-semibold text-slate-500">Training ROI / Satisfaction</span>
-            <div className="text-3xl font-extrabold text-purple-600 mt-2">{metrics.trainingScore} / 5.0</div>
+            <div className="text-3xl font-extrabold text-purple-600 mt-2">
+              {loading ? <FieldLoader className="h-8 w-20" /> : `${metrics.trainingScore} / 5.0`}
+            </div>
             <div className="text-xs text-purple-600 font-medium mt-1">Workshop completion rate</div>
           </CardContent>
         </Card>
@@ -124,7 +131,9 @@ function ReportsContent() {
         <Card>
           <CardContent className="p-6">
             <span className="text-xs font-semibold text-slate-500">Leave Utilization</span>
-            <div className="text-3xl font-extrabold text-slate-900 dark:text-white mt-2">{metrics.leaveUtilization}%</div>
+            <div className="text-3xl font-extrabold text-slate-900 dark:text-white mt-2">
+              {loading ? <FieldLoader className="h-8 w-16" /> : `${metrics.leaveUtilization}%`}
+            </div>
             <div className="text-xs text-slate-400 mt-1">Approved leaves to workforce quota</div>
           </CardContent>
         </Card>

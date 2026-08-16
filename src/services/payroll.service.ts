@@ -47,24 +47,24 @@ export const payrollService = {
         const basic = Number(p.basicSalary || 0);
         const hra = Number(p.hra || 0);
         const specialAllowance = Number(p.specialAllowance || 0);
-        const conveyance = Number(p.conveyance || 1600);
-        const medicalAllowance = Number(p.medical || 1250);
+        const conveyance = Number(p.conveyance || 0);
+        const medicalAllowance = Number(p.medical || 0);
         const grossEarnings = Number(p.grossEarnings || (basic + hra + specialAllowance + conveyance + medicalAllowance));
         const pfEmployee = Number(p.pfDeduction || 0);
         const esiEmployee = Number(p.esiDeduction || 0);
-        const professionalTax = Number(p.professionalTax || 200);
+        const professionalTax = Number(p.professionalTax || 0);
         const tds = Number(p.incomeTaxTds || 0);
         const totalDeductions = Number(p.totalDeductions || (pfEmployee + esiEmployee + professionalTax + tds));
         const netPay = Number(p.netPay || (grossEarnings - totalDeductions));
 
         return {
           id: p.id,
-          payrollRunId: p.payrollRunId || 'pr_001',
+          payrollRunId: p.payrollRunId || '',
           employeeId: p.employeeId,
           employeeName: `${p.employee.firstName} ${p.employee.lastName}`,
           employeeCode: p.employee.employeeCode,
-          department: p.employee.department?.name || 'Operations',
-          designation: p.employee.designation?.title || 'Staff',
+          department: p.employee.department?.name || '',
+          designation: p.employee.designation?.title || '',
           period: p.period,
           paidDays: 30,
           lopDays: 0,
@@ -118,7 +118,7 @@ export const payrollService = {
     const payslipData: any[] = [];
 
     for (const emp of employees) {
-      const ctc = Number(emp.ctc || 600000);
+      const ctc = Number(emp.ctc || 0);
       const breakup = calculateSalaryBreakup(ctc);
 
       totalGross += breakup.grossEarnings;

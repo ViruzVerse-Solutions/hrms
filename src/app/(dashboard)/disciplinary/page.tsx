@@ -87,7 +87,7 @@ function DisciplinaryContent() {
 
   const handleSubmitNotice = async (e: React.FormEvent) => {
     e.preventDefault();
-    const empId = formData.employeeId || employees[0]?.id;
+    const empId = formData.employeeId || (employees[0] ? employees[0].id : '');
     if (!empId) return;
 
     try {

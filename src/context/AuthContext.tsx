@@ -36,6 +36,7 @@ interface AuthContextType {
   can: (action: 'create' | 'read' | 'update' | 'delete' | 'approve' | 'self', module: ModuleKey) => boolean;
   isSalaryVisible: (isOwnProfile?: boolean) => boolean;
   roleDetails: { title: string; description: string; badgeColor: string };
+  isHydrated: boolean;
   // Reactive Global State
   employees: Employee[];
   leaveRequests: LeaveRequest[];
@@ -151,14 +152,10 @@ export function AuthProvider({
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  // Fast Reactive Data stores (100% DB Driven)
+  const [isHydrated, setIsHydrated] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
-  const [leaveAllocations, setLeaveAllocations] = useState<LeaveBalance[]>([
-    { employeeId: 'emp_005', leaveType: 'casual', totalAllocated: 12, used: 2, pending: 0, balance: 10 },
-    { employeeId: 'emp_005', leaveType: 'sick', totalAllocated: 12, used: 1, pending: 0, balance: 11 },
-    { employeeId: 'emp_005', leaveType: 'earned', totalAllocated: 15, used: 0, pending: 0, balance: 15 },
-  ]);
+  const [leaveAllocations, setLeaveAllocations] = useState<LeaveBalance[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
@@ -167,18 +164,7 @@ export function AuthProvider({
   const [performanceReviews, setPerformanceReviews] = useState<PerformanceReview[]>([]);
   const [grievances, setGrievances] = useState<GrievanceTicket[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
-  const [notifications, setNotifications] = useState<SystemNotification[]>([
-    {
-      id: 'notif_1',
-      title: 'Database Connected',
-      message: 'HRMS enterprise platform is connected and synchronized with PostgreSQL',
-      type: 'success',
-      module: 'reports_dashboard',
-      createdAt: new Date().toISOString(),
-      read: false,
-      link: '/dashboard',
-    },
-  ]);
+  const [notifications, setNotifications] = useState<SystemNotification[]>([]);
 
   // Single-pass high-speed database hydration on mount & role switch (<30ms)
   useEffect(() => {
@@ -199,7 +185,10 @@ export function AuthProvider({
           if (d.auditLogs) setAuditLogs(d.auditLogs);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        setIsHydrated(true);
+      });
   }, [currentRole, currentUser.employeeId]);
 
   const handleSetRole = (newRole: UserRole) => {
@@ -482,6 +471,7 @@ export function AuthProvider({
         submitGrievance,
         markNotificationRead,
         logAuditAction,
+        isHydrated,
       }}
     >
       {children}

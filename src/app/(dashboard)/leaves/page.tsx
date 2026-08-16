@@ -89,7 +89,7 @@ function LeavesContent() {
     reason: '',
   });
 
-  const empId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
+  const empId = currentEmployee?.id || currentUser?.employeeId || '';
   const empName = currentEmployee ? `${currentEmployee.firstName} ${currentEmployee.lastName}` : currentUser.name;
 
   const visibleLeaves = currentRole === 'employee'
@@ -122,7 +122,7 @@ function LeavesContent() {
       daysCount: Math.max(1, daysCount),
       reason: form.reason,
       approverId: currentEmployee?.reportingManagerId || '',
-      approverName: currentEmployee?.reportingManagerName || 'Dr. Vikramaditya Rathore',
+      approverName: currentEmployee?.reportingManagerName || 'Reporting Manager',
     });
     setApplyModalOpen(false);
     setForm({ leaveType: 'casual', fromDate: todayStr, toDate: todayStr, reason: '' });
