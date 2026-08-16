@@ -35,6 +35,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { getPersonaAvatar } from '@/lib/constants';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { FieldLoader } from '@/components/ui/skeleton';
 
 export default function DashboardPage() {
   const {
@@ -42,6 +43,7 @@ export default function DashboardPage() {
     currentUser,
     currentEmployee,
     isLoadingData,
+    isHydrated,
     employees,
     leaveRequests,
     leaveAllocations,
@@ -55,6 +57,7 @@ export default function DashboardPage() {
   } = useAuth();
 
   const [branches, setBranches] = React.useState<Array<{ id: string; name: string }>>([]);
+  const [loadingBranches, setLoadingBranches] = React.useState(true);
   const [activePolicies, setActivePolicies] = React.useState<Array<{ id: string; title: string; category: string; effectiveDate: string }>>([]);
 
   React.useEffect(() => {
@@ -63,7 +66,8 @@ export default function DashboardPage() {
       .then((data) => {
         if (data?.data?.branches) setBranches(data.data.branches);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingBranches(false));
 
     fetch('/api/compliance', {
       headers: { 'x-user-role': currentRole },
@@ -184,9 +188,17 @@ export default function DashboardPage() {
                   <span className="text-xs font-semibold uppercase tracking-wider">Enterprise Workforce</span>
                   <Users className="h-4 w-4 text-indigo-600" />
                 </div>
-                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">{employees.length} Staff</div>
+                <div className="text-3xl font-extrabold mt-3 text-slate-900 dark:text-white">
+                  {!isHydrated ? <FieldLoader className="h-8 w-24" /> : `${employees.length} Staff`}
+                </div>
                 <div className="text-xs text-emerald-600 font-medium mt-1">
-                  {branches.length > 0 ? `${branches.length} Operating Locations (${branches.map((b) => b.name).join(', ')})` : 'Operating Plants (HQ + Tech Campus)'}
+                  {loadingBranches ? (
+                    <FieldLoader className="h-3 w-40" />
+                  ) : branches.length > 0 ? (
+                    `${branches.length} Operating Locations (${branches.map((b) => b.name).join(', ')})`
+                  ) : (
+                    'Operating Locations'
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -692,9 +704,9 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {currentRole === 'employee' && (() => {
         const casualAlloc = leaveAllocations.find((a) => a.leaveType === 'casual');
-        const casualBal = casualAlloc ? casualAlloc.balance : (leaveAllocations[0]?.balance ?? 10);
-        const casualUsed = casualAlloc ? casualAlloc.used : (leaveAllocations[0]?.used ?? 0);
-        const casualPend = casualAlloc ? casualAlloc.pending : (leaveAllocations[0]?.pending ?? 0);
+        const casualBal = casualAlloc ? (casualAlloc.balanceDays ?? casualAlloc.balance) : 12;
+        const casualUsed = casualAlloc ? (casualAlloc.usedDays ?? casualAlloc.used) : 0;
+        const casualPend = casualAlloc ? (casualAlloc.pendingDays ?? casualAlloc.pending) : 0;
 
         const myEmpId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
         const latestPs = payslips.find((p) => p.employeeId === myEmpId || p.employeeCode === currentEmployee?.employeeCode) || payslips[0];

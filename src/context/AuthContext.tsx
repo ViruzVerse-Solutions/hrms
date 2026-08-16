@@ -36,6 +36,7 @@ interface AuthContextType {
   can: (action: 'create' | 'read' | 'update' | 'delete' | 'approve' | 'self', module: ModuleKey) => boolean;
   isSalaryVisible: (isOwnProfile?: boolean) => boolean;
   roleDetails: { title: string; description: string; badgeColor: string };
+  isHydrated: boolean;
   // Reactive Global State
   employees: Employee[];
   leaveRequests: LeaveRequest[];
@@ -127,6 +128,7 @@ export function AuthProvider({
 
   // Fast Reactive Data stores (100% DB Driven)
   const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
+  const isHydrated = !isLoadingData;
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [leaveAllocations, setLeaveAllocations] = useState<LeaveBalance[]>([]);
@@ -319,23 +321,40 @@ export function AuthProvider({
 
   // 6. Optimistic Requisition Creation (0ms UI update + DB Sync)
   const addRequisition = async (req: Omit<ManpowerRequisition, 'id' | 'createdAt' | 'status'>) => {
-    const tempId = `req_${Date.now()}`;
-    const newReq: ManpowerRequisition = {
-      ...req,
-      id: tempId,
-      status: 'in_progress',
-      createdAt: new Date().toISOString(),
-    };
-    setRequisitions((prev) => [newReq, ...prev]);
-    logAuditAction('CREATED_REQUISITION', 'recruitment', newReq.id, `Created job opening for ${req.positionTitle}`);
+    // Prevent state duplication if title already exists in active requisitions
+    let isAlreadyInState = false;
+    setRequisitions((prev) => {
+      const exists = prev.some(
+        (r) => r.positionTitle.toLowerCase() === req.positionTitle.toLowerCase() && r.departmentId === req.departmentId
+      );
+      if (exists) {
+        isAlreadyInState = true;
+        return prev;
+      }
+      return [{
+        ...req,
+        id: `req_${Date.now()}`,
+        status: 'in_progress',
+        createdAt: new Date().toISOString(),
+      }, ...prev];
+    });
+
+    if (isAlreadyInState) return;
 
     try {
       const res = await apiClient.recruitment.createRequisition(req, currentRole);
       if (res?.data?.requisition) {
-        const realId = res.data.requisition.id;
-        setRequisitions((prev) =>
-          prev.map((r) => (r.id === tempId ? { ...r, id: realId } : r))
-        );
+        const realReq = res.data.requisition;
+        setRequisitions((prev) => {
+          const map = new Map();
+          for (const item of prev) {
+            const titleKey = item.positionTitle.toLowerCase();
+            if (!map.has(titleKey)) {
+              map.set(titleKey, item.id.startsWith('req_') ? { ...item, id: realReq.id } : item);
+            }
+          }
+          return Array.from(map.values());
+        });
       }
     } catch {}
   };
@@ -413,6 +432,7 @@ export function AuthProvider({
         submitGrievance,
         markNotificationRead,
         logAuditAction,
+        isHydrated,
       }}
     >
       {children}

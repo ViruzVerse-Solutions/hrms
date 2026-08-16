@@ -10,18 +10,12 @@ export async function GET(req: NextRequest) {
     if (accessError) return accessError;
 
     const leaves = await attendanceService.getLeaves(userCtx.role, userCtx.employeeId);
-
-    // Standard default allocations for leave counters
-    const standardAllocations = [
-      { leaveType: 'casual', allocatedDays: 12, usedDays: 2, balanceDays: 10 },
-      { leaveType: 'sick', allocatedDays: 12, usedDays: 1, balanceDays: 11 },
-      { leaveType: 'earned', allocatedDays: 15, usedDays: 0, balanceDays: 15 },
-    ];
+    const leaveAllocations = await attendanceService.getLeaveAllocations(userCtx.employeeId);
 
     return apiSuccess({
       count: leaves.length,
       leaves,
-      leaveAllocations: standardAllocations,
+      leaveAllocations,
       userRole: userCtx.role,
     });
   } catch (error: any) {

@@ -68,19 +68,6 @@ export async function getApiUserContextAsync(req: NextRequest): Promise<Authenti
         role: user.activeRole as UserRole,
       };
     }
-
-    // 3. Dynamic DB fallback to first employee
-    const firstEmp = await prisma.employee.findFirst({ include: { user: true } });
-    if (firstEmp) {
-      return {
-        userId: firstEmp.user?.id || firstEmp.id,
-        employeeId: firstEmp.id,
-        employeeCode: firstEmp.employeeCode,
-        employeeName: `${firstEmp.firstName} ${firstEmp.lastName}`,
-        email: firstEmp.email,
-        role,
-      };
-    }
   } catch (error) {
     console.error('Database context resolution warning:', error);
   }

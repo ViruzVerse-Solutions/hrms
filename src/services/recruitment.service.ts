@@ -4,6 +4,28 @@ export const recruitmentService = {
   async getRequisitionsAndCandidates() {
     if (!prisma) return { requisitions: [], candidates: [] };
 
+    // Clean up duplicate requisition records from PostgreSQL DB
+    const allReqs = await prisma.jobRequisition.findMany({ orderBy: { createdAt: 'desc' } });
+    const seenKeys = new Set<string>();
+    const duplicateIdsToDelete: string[] = [];
+    for (const req of allReqs) {
+      const key = `${req.title.trim().toLowerCase()}_${req.departmentId}`;
+      if (seenKeys.has(key)) {
+        duplicateIdsToDelete.push(req.id);
+      } else {
+        seenKeys.add(key);
+      }
+    }
+    if (duplicateIdsToDelete.length > 0) {
+      try {
+        await prisma.jobRequisition.deleteMany({
+          where: { id: { in: duplicateIdsToDelete } },
+        });
+      } catch (e) {
+        console.error('Failed to purge duplicate requisitions:', e);
+      }
+    }
+
     const requisitions = await prisma.jobRequisition.findMany({
       include: {
         department: true,
@@ -22,8 +44,22 @@ export const recruitmentService = {
       orderBy: { createdAt: 'desc' },
     });
 
+    // Deduplicate any consecutive double-inserted requisitions
+    const uniqueReqs: any[] = [];
+    for (const r of requisitions) {
+      const isDuplicate = uniqueReqs.some((existing) => {
+        const sameTitle = existing.title.toLowerCase() === r.title.toLowerCase();
+        const sameDept = existing.departmentId === r.departmentId;
+        const timeDiff = Math.abs(new Date(existing.createdAt).getTime() - new Date(r.createdAt).getTime());
+        return sameTitle && sameDept && timeDiff < 15000;
+      });
+      if (!isDuplicate) {
+        uniqueReqs.push(r);
+      }
+    }
+
     return {
-      requisitions: requisitions.map((r: any) => ({
+      requisitions: uniqueReqs.map((r: any) => ({
         id: r.id,
         title: r.title,
         department: r.department.name,
@@ -77,6 +113,24 @@ export const recruitmentService = {
         where: data.positionTitle ? { title: { contains: data.positionTitle, mode: 'insensitive' } } : undefined,
       });
       desId = des?.id || (await prisma.designation.findFirst())?.id;
+    }
+
+    const title = (data.title || data.positionTitle || 'Open Position').trim();
+
+    // Robust duplicate guard: check if identical title requisition already exists in DB
+    const existingActive = await prisma.jobRequisition.findFirst({
+      where: {
+        organizationId: org.id,
+        departmentId: deptId,
+        title: { equals: title, mode: 'insensitive' },
+      },
+      include: {
+        department: true,
+        designation: true,
+      },
+    });
+    if (existingActive) {
+      return existingActive;
     }
 
     return prisma.jobRequisition.create({

@@ -78,17 +78,14 @@ function RecruitmentContent() {
     justification: '',
   });
 
+  const [departmentsList, setDepartmentsList] = useState<Array<{ id: string; name: string }>>([]);
+
   React.useEffect(() => {
     fetch('/api/master')
       .then((res) => res.json())
       .then((data) => {
-        if (data?.data?.departments && data.data.departments[0]) {
-          const firstDept = data.data.departments[0];
-          setReqForm((prev) => ({
-            ...prev,
-            departmentId: firstDept.id,
-            departmentName: firstDept.name,
-          }));
+        if (data?.data?.departments) {
+          setDepartmentsList(data.data.departments);
         }
       })
       .catch(() => {});
@@ -109,33 +106,22 @@ function RecruitmentContent() {
     { keys: ['offered', 'hired', 'selected'], label: 'Offered / Selected', color: 'border-emerald-400 dark:border-emerald-700' },
   ];
 
+  const [isSubmittingReq, setIsSubmittingReq] = useState(false);
+
   const handleCreateRequisition = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingReq) return;
+    setIsSubmittingReq(true);
 
-    // Optimistic UI update
-    addRequisition({
-      ...reqForm,
-      requestedById: currentUser.employeeId || currentUser.id,
-      requestedByName: `${currentUser.name} (HR Head)`,
-    });
-    setReqModalOpen(false);
-
-    // Save directly to PostgreSQL API
     try {
-      const res = await fetch('/api/recruitment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': currentRole,
-        },
-        body: JSON.stringify(reqForm),
+      await addRequisition({
+        ...reqForm,
+        requestedById: currentUser.employeeId || currentUser.id,
+        requestedByName: `${currentUser.name} (HR Head)`,
       });
-      const data = await res.json();
-      if (data?.success) {
-        window.location.reload();
-      }
-    } catch (err) {
-      console.error('Failed to create requisition in DB:', err);
+      setReqModalOpen(false);
+    } finally {
+      setIsSubmittingReq(false);
     }
   };
 
@@ -240,6 +226,30 @@ function RecruitmentContent() {
                   />
                 </div>
 
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">Target Department</label>
+                  <select
+                    required
+                    value={reqForm.departmentId}
+                    onChange={(e) => {
+                      const selectedDept = departmentsList.find((d) => d.id === e.target.value);
+                      setReqForm({
+                        ...reqForm,
+                        departmentId: e.target.value,
+                        departmentName: selectedDept ? selectedDept.name : '',
+                      });
+                    }}
+                    className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                  >
+                    <option value="">Select Target Department...</option>
+                    {departmentsList.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="font-semibold text-slate-700 dark:text-slate-300">Openings Count</label>
@@ -289,8 +299,8 @@ function RecruitmentContent() {
                   </p>
                 </div>
 
-                <Button type="submit" className="w-full bg-indigo-600 text-white hover:bg-indigo-700">
-                  Submit Requisition for MD Sanction
+                <Button type="submit" disabled={isSubmittingReq} className="w-full bg-indigo-600 text-white hover:bg-indigo-700">
+                  {isSubmittingReq ? 'Submitting...' : 'Submit Requisition for MD Sanction'}
                 </Button>
               </form>
             </DialogContent>
@@ -399,7 +409,7 @@ function RecruitmentContent() {
                   </p>
                   <div className="flex items-center gap-4 text-xs text-slate-400">
                     <span>Dept: {req.departmentName}</span>
-                    <span>Requested by: <strong>{req.requestedByName || 'Eleanor Vance (HR Head)'}</strong></span>
+                    <span>Requested by: <strong>{req.requestedByName || 'HR Head / Operations'}</strong></span>
                     <span>Target: {formatDate(req.targetDate)}</span>
                   </div>
                 </div>

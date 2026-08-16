@@ -161,7 +161,7 @@ export const employeeService = {
     // 2. Resolve Designation
     let desigId = data.designationId;
     if (!desigId) {
-      const title = data.designationTitle || 'Senior Quality Inspector';
+      const title = data.designationTitle || 'Staff Member';
       let desig = await prisma.designation.findFirst({
         where: {
           organizationId: org.id,
@@ -220,14 +220,14 @@ export const employeeService = {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
-        phone: data.phone || '9876543210',
-        gender: (data.gender as any) || 'male',
-        dob: data.dob ? new Date(data.dob) : new Date('1995-01-01'),
+        phone: data.phone || '',
+        gender: (data.gender as any) || 'other',
+        dob: data.dob ? new Date(data.dob) : new Date(),
         dateOfJoining: data.dateOfJoining ? new Date(data.dateOfJoining) : new Date(),
         reportingManager: data.reportingManagerId ? { connect: { id: data.reportingManagerId } } : undefined,
         employmentStatus: (data.employmentStatus as any) || 'probation',
         currentLifecycleStage: 'onboarding',
-        ctc: data.ctc ? Number(data.ctc) : 540000,
+        ctc: data.ctc ? Number(data.ctc) : 0,
         accountNumber: data.accountNumber || null,
         bankName: data.bankName || null,
         ifscCode: data.ifscCode || null,

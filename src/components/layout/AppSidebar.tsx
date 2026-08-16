@@ -77,7 +77,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProps) {
   const pathname = usePathname();
-  const { hasAccess, currentRole, roleDetails, currentUser, employees } = useAuth();
+  const { hasAccess, currentRole, roleDetails, currentUser, currentEmployee, employees } = useAuth();
 
   const sidebarContent = (
     <div className="flex flex-col h-full bg-white select-none">
@@ -180,7 +180,8 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                 if (currentRole === 'employee') {
                   if (item.href === '/employees') {
                     displayTitle = 'My Profile 360 (Self)';
-                    targetHref = `/employees/${currentUser?.employeeId || employees[0]?.id || ''}`;
+                    const empSelfId = currentUser?.employeeId || currentEmployee?.id;
+                    targetHref = empSelfId ? `/employees/${empSelfId}` : '/employees';
                   } else if (item.href === '/attendance') displayTitle = 'Attendance Check-In';
                   else if (item.href === '/leaves') displayTitle = 'My Leaves';
                   else if (item.href === '/payroll') displayTitle = 'My Payslips';

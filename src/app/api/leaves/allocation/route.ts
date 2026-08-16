@@ -28,22 +28,41 @@ export async function POST(req: NextRequest) {
 
     if (prisma) {
       const year = 2026;
-      let whereFilter: any = { leaveType, year };
-      if (employeeId) {
-        whereFilter.employeeId = employeeId;
-      }
+      const org = await prisma.organization.findFirst();
+      if (!org) return apiError('Organization not found', 404);
 
-      const existing = await prisma.leaveAllocation.findMany({
-        where: whereFilter,
-      });
+      const allEmployees = employeeId
+        ? await prisma.employee.findMany({ where: { id: employeeId } })
+        : await prisma.employee.findMany({ where: { employmentStatus: { not: 'terminated' } } });
 
-      for (const alloc of existing) {
-        const used = Number(alloc.usedDays);
+      for (const emp of allEmployees) {
+        const existing = await prisma.leaveAllocation.findFirst({
+          where: { employeeId: emp.id, leaveType: leaveType as any, year },
+        });
+
+        const used = existing ? Number(existing.usedDays) : 0;
+        const pending = existing ? Number(existing.pendingDays) : 0;
         const newBalance = Math.max(0, numAllocated - used);
 
-        const updated = await prisma.leaveAllocation.update({
-          where: { id: alloc.id },
-          data: {
+        const updated = await prisma.leaveAllocation.upsert({
+          where: {
+            employeeId_leaveType_year: {
+              employeeId: emp.id,
+              leaveType: leaveType as any,
+              year,
+            },
+          },
+          create: {
+            organizationId: org.id,
+            employeeId: emp.id,
+            leaveType: leaveType as any,
+            year,
+            allocatedDays: numAllocated,
+            usedDays: used,
+            pendingDays: pending,
+            balanceDays: newBalance,
+          },
+          update: {
             allocatedDays: numAllocated,
             balanceDays: newBalance,
           },

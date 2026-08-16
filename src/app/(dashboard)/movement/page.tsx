@@ -33,16 +33,15 @@ function MovementContent() {
   const [transfers, setTransfers] = useState<TransferPromotionCase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const firstEmp = employees[0];
   const [formData, setFormData] = useState({
-    employeeId: firstEmp?.id || '',
+    employeeId: '',
     type: 'promotion',
-    currentDepartment: firstEmp?.departmentName || '',
-    newDepartment: firstEmp?.departmentName || '',
-    currentDesignation: firstEmp?.designationTitle || '',
+    currentDepartment: '',
+    newDepartment: '',
+    currentDesignation: '',
     newDesignation: '',
-    currentBranch: firstEmp?.branchName || '',
-    newBranch: firstEmp?.branchName || '',
+    currentBranch: '',
+    newBranch: '',
     effectiveDate: new Date().toISOString().split('T')[0],
   });
 
