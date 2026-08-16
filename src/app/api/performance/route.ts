@@ -34,21 +34,17 @@ export async function GET(req: NextRequest) {
       id: r.id,
       employeeId: r.employeeId,
       employeeName: r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : 'Employee',
-      department: r.employee?.department?.name || 'Quality Assurance & Analytical Lab',
-      designation: r.employee?.designation?.title || 'Senior Analytical Chemist',
+      department: r.employee?.department?.name || '',
+      designation: r.employee?.designation?.title || '',
       cycleName: r.cycleName,
-      selfRating: Number(r.selfRating),
-      managerRating: Number(r.managerRating),
-      finalRating: Number(r.finalRating),
-      kraScore: Number(r.kraScore),
+      selfRating: Number(r.selfRating || 0),
+      managerRating: Number(r.managerRating || 0),
+      finalRating: Number(r.finalRating || 0),
+      kraScore: Number(r.kraScore || 0),
       nineBoxGrid: r.nineBoxGrid,
       status: r.status,
       completedAt: r.completedAt ? r.completedAt.toISOString().split('T')[0] : null,
-      kras: [
-        { title: 'Core Process & Quality Compliance', weightage: 40, target: 'Zero procedural deviations and adherence to cGMP/ISO guidelines', selfScore: Number(r.selfRating) || 4.5, managerScore: Number(r.managerRating) || 4.6 },
-        { title: 'Operational Efficiency & Turnaround', weightage: 35, target: 'Achieve >95% SLA adherence across batch processes and analysis', selfScore: 4.6, managerScore: 4.8 },
-        { title: 'Team Collaboration & Plant Safety', weightage: 25, target: 'Active participation in EHS audits and junior team mentoring', selfScore: 4.8, managerScore: 4.7 },
-      ],
+      kras: (r as any).kras || [],
     }));
 
     return apiSuccess({
@@ -109,7 +105,7 @@ export async function POST(req: NextRequest) {
       review = await prisma.performanceReview.update({
         where: { id: existingReview.id },
         data: {
-          selfRating: selfRating || 4.5,
+          selfRating: selfRating || 0,
           status: 'submitted',
         },
       });
@@ -119,11 +115,11 @@ export async function POST(req: NextRequest) {
           organizationId: orgId,
           employeeId: emp.id,
           cycleName: cycle,
-          selfRating: selfRating || 4.5,
+          selfRating: selfRating || 0,
           managerRating: 0.0,
-          finalRating: selfRating || 4.5,
-          kraScore: 90.0,
-          nineBoxGrid: 'High Potential - Star',
+          finalRating: selfRating || 0,
+          kraScore: 0.0,
+          nineBoxGrid: 'Pending Evaluation',
           status: 'submitted',
         },
       });

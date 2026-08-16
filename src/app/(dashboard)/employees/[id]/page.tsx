@@ -154,9 +154,19 @@ function EmployeeDetailContent({
 
   if (loading) {
     return (
-      <div className="p-12 text-center space-y-3">
-        <div className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-        <p className="text-xs text-slate-500">Loading 360° employee profile from database...</p>
+      <div className="p-8 space-y-6 max-w-7xl mx-auto">
+        <div className="flex items-center gap-4 p-6 rounded-2xl border bg-white dark:bg-slate-900">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
       </div>
     );
   }

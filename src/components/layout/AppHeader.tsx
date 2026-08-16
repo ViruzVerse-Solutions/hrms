@@ -191,12 +191,12 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
             <button className="flex items-center gap-2 pl-1.5 pr-2 sm:pr-3 py-1 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200">
               <img
                 src={getPersonaAvatar(currentUser?.employeeId, currentUser?.name)}
-                alt={currentUser?.name || 'User'}
+                alt={currentUser?.name || ''}
                 className="h-8 w-8 rounded-full object-cover ring-2 ring-indigo-500/20"
               />
               <div className="text-left hidden lg:block">
                 <div suppressHydrationWarning className="text-xs font-semibold text-slate-900 leading-tight">
-                  {currentUser?.name || 'User'}
+                  {currentUser?.name || ''}
                 </div>
                 <div suppressHydrationWarning className="text-[10px] text-slate-500 capitalize">
                   {ROLE_LABELS[currentRole]?.title || currentRole}
@@ -206,7 +206,7 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 p-2 bg-white border border-slate-200 shadow-xl rounded-2xl">
             <DropdownMenuLabel className="px-2 py-1.5">
-              <div className="font-bold text-xs text-slate-900">{currentUser?.name || 'User'}</div>
+              <div className="font-bold text-xs text-slate-900">{currentUser?.name || ''}</div>
               <div className="text-[11px] text-slate-500 truncate">{currentUser?.email || ''}</div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

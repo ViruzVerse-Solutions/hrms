@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { FieldLoader, CardSkeleton } from '@/components/ui/skeleton';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -242,19 +243,19 @@ function PerformanceContent() {
                   <div>
                     <span className="text-[10px] uppercase font-semibold text-slate-400">Self Rating</span>
                     <div className="text-xl font-bold text-slate-900 dark:text-white font-mono">
-                      {review.selfRating || 4.5} / 5.0
+                      {!isHydrated ? <FieldLoader className="h-6 w-12" /> : review.selfRating ? `${review.selfRating} / 5.0` : 'Pending'}
                     </div>
                   </div>
                   <div>
                     <span className="text-[10px] uppercase font-semibold text-slate-400">Manager Rating</span>
                     <div className="text-xl font-bold text-indigo-600 font-mono">
-                      {review.managerRating || 4.7} / 5.0
+                      {!isHydrated ? <FieldLoader className="h-6 w-12" /> : review.managerRating ? `${review.managerRating} / 5.0` : 'Pending'}
                     </div>
                   </div>
                   <div>
                     <span className="text-[10px] uppercase font-semibold text-slate-400">Final Calibrated</span>
                     <div className="text-xl font-bold text-emerald-600 font-mono">
-                      {review.finalRating || 4.6} / 5.0
+                      {!isHydrated ? <FieldLoader className="h-6 w-12" /> : review.finalRating ? `${review.finalRating} / 5.0` : 'Pending'}
                     </div>
                   </div>
                 </div>
@@ -267,11 +268,7 @@ function PerformanceContent() {
                 <CardTitle className="text-base font-bold">Key Result Areas (KRAs) & Weightages</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {(review.kras && review.kras.length > 0 ? review.kras : [
-                  { title: 'Core Process & Quality Compliance', weightage: 40, target: 'Zero procedural deviations and adherence to cGMP/ISO guidelines', selfScore: Number(review.selfRating || 4.5), managerScore: Number(review.managerRating || 4.7) },
-                  { title: 'Operational Efficiency & Turnaround', weightage: 35, target: 'Achieve >95% SLA adherence across batch processes and analysis', selfScore: Number(review.selfRating || 4.5), managerScore: Number(review.managerRating || 4.7) },
-                  { title: 'Team Collaboration & Plant Safety', weightage: 25, target: 'Active participation in EHS audits and junior team mentoring', selfScore: Number(review.selfRating || 4.5), managerScore: Number(review.managerRating || 4.7) },
-                ]).map((kra: any, idx: number) => (
+                {(review.kras || []).map((kra: any, idx: number) => (
                   <div key={idx} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border space-y-2 text-xs">
                     <div className="flex items-center justify-between font-bold">
                       <span className="text-slate-900 dark:text-white text-sm">{kra.title}</span>

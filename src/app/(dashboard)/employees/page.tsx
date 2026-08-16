@@ -99,10 +99,10 @@ function EmployeesContent() {
 
   React.useEffect(() => {
     if (currentRole === 'employee') {
-      const selfId = currentEmployee?.id || currentUser.employeeId || employees[0]?.id;
+      const selfId = currentEmployee?.id || currentUser.employeeId;
       if (selfId) router.replace(`/employees/${selfId}`);
     }
-  }, [currentRole, currentEmployee, currentUser, employees, router]);
+  }, [currentRole, currentEmployee, currentUser, router]);
 
   React.useEffect(() => {
     fetch('/api/master')

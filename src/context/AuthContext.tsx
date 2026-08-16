@@ -36,6 +36,7 @@ interface AuthContextType {
   can: (action: 'create' | 'read' | 'update' | 'delete' | 'approve' | 'self', module: ModuleKey) => boolean;
   isSalaryVisible: (isOwnProfile?: boolean) => boolean;
   roleDetails: { title: string; description: string; badgeColor: string };
+  isHydrated: boolean;
   // Reactive Global State
   employees: Employee[];
   leaveRequests: LeaveRequest[];
@@ -448,6 +449,7 @@ export function AuthProvider({
         submitGrievance,
         markNotificationRead,
         logAuditAction,
+        isHydrated,
       }}
     >
       {children}

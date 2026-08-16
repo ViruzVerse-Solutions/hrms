@@ -33,9 +33,8 @@ function MovementContent() {
   const [transfers, setTransfers] = useState<TransferPromotionCase[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const firstEmp = employees[0];
   const [formData, setFormData] = useState({
-    employeeId: firstEmp?.id || '',
+    employeeId: '',
     type: 'promotion',
     currentDepartment: firstEmp?.departmentName || '',
     newDepartment: firstEmp?.departmentName || '',

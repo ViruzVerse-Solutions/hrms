@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       targetDate: r.targetDate,
       justification: `Approved headcount requirement for ${r.title}`,
       requestedById: userCtx.employeeId || userCtx.userId,
-      requestedByName: userCtx.employeeName || 'HR Officer',
+      requestedByName: userCtx.employeeName || '',
     }));
 
     const formattedCandidates = data.candidates.map((c: any) => ({
@@ -33,13 +33,13 @@ export async function GET(req: NextRequest) {
       name: c.name,
       email: c.email,
       phone: c.phone,
-      positionApplied: c.jobTitle || 'Open Position',
+      positionApplied: c.jobTitle || '',
       currentStage: c.stage,
       experienceYears: c.experienceYears,
       currentCtc: c.currentCtc || 0,
       expectedCtc: c.expectedCtc || 0,
-      rating: 4.5,
-      matchScore: c.matchScore || 85,
+      rating: c.rating || 0,
+      matchScore: c.matchScore || 0,
       interviewDate: c.interviewDate,
     }));
 
