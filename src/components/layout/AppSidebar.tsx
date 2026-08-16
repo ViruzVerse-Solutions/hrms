@@ -19,6 +19,7 @@ import {
   LogOut,
   Settings,
   BarChart3,
+  CheckSquare,
   ChevronRight,
   Factory,
   X,
@@ -40,6 +41,7 @@ const NAV_GROUPS: { groupName: string; items: NavItem[] }[] = [
     groupName: 'Overview',
     items: [
       { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'reports_dashboard' },
+      { title: 'Approvals Hub', href: '/approvals', icon: CheckSquare, module: 'reports_dashboard', badge: 'Queue' },
       { title: 'Analytics & Reports', href: '/reports', icon: BarChart3, module: 'reports_dashboard' },
     ],
   },
