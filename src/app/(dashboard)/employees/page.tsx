@@ -85,9 +85,9 @@ export default function EmployeesPage() {
 
       const data = await res.json();
       if (data?.success) {
-        setOnboardSuccess(`Employee ${form.firstName} ${form.lastName} onboarded successfully to database.`);
+        setOnboardSuccess(`Employee ${form.firstName} ${form.lastName} onboarded successfully.`);
         if (logAuditAction) {
-          logAuditAction('EMPLOYEE_ONBOARDED', 'employee_records', 'new_emp', `Onboarded ${form.firstName} ${form.lastName}`);
+          logAuditAction('EMPLOYEE_ONBOARDED', 'employee_records', data.data?.id || 'new_emp', `Onboarded ${form.firstName} ${form.lastName}`);
         }
         setTimeout(() => {
           setOnboardModalOpen(false);
@@ -102,8 +102,7 @@ export default function EmployeesPage() {
             dateOfJoining: new Date().toISOString().split('T')[0],
             ctc: 540000,
           });
-          window.location.reload();
-        }, 1500);
+        }, 1200);
       }
     } catch (err) {
       console.error('Failed to onboard employee:', err);

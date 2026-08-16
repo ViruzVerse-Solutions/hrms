@@ -1,122 +1,59 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db/prisma';
-import { authenticateApiRequest } from '@/lib/auth/rbac-guard-api';
+import { NextRequest } from 'next/server';
+import { apiSuccess, apiError } from '@/lib/api-response';
+import { getApiUserContext, requireModuleAccess, requireActionPermission } from '@/lib/auth/rbac-guard-api';
+import { complianceService } from '@/services/compliance.service';
+import { auditService } from '@/services/audit.service';
 
 export async function GET(req: NextRequest) {
   try {
-    const authResult = await authenticateApiRequest(req, 'policy_compliance', 'read');
-    if (!authResult.authorized) {
-      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.status });
-    }
+    const userCtx = getApiUserContext(req);
+    const accessError = requireModuleAccess(userCtx, 'policy_compliance');
+    if (accessError) return accessError;
 
-    if (!prisma) {
-      return NextResponse.json({ success: true, data: { policies: [], totalEmployees: 110 } });
-    }
+    const data = await complianceService.getPolicies();
 
-    const org = await prisma.organization.findFirst();
-    if (!org) {
-      return NextResponse.json({ success: true, data: { policies: [], totalEmployees: 110 } });
-    }
-
-    const policies = await prisma.companyPolicy.findMany({
-      where: { organizationId: org.id },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const totalEmployees = await prisma.employee.count({
-      where: { organizationId: org.id, employmentStatus: { in: ['active', 'probation'] } },
-    });
-
-    const formattedPolicies = (policies || []).map((p: any) => {
-      let dateStr = new Date().toISOString().split('T')[0];
-      if (p.effectiveDate) {
-        if (p.effectiveDate instanceof Date) {
-          dateStr = p.effectiveDate.toISOString().split('T')[0];
-        } else if (typeof p.effectiveDate === 'string') {
-          dateStr = p.effectiveDate.split('T')[0];
-        }
-      }
-
-      return {
-        id: p.id,
-        title: p.title,
-        category: p.category,
-        version: p.version,
-        effectiveDate: dateStr,
-        acknowledgedCount: p.acknowledgedCount || 0,
-        totalEmployees: totalEmployees || 110,
-        status: p.status || 'active',
-        content: p.content || '',
-        fileUrl: p.fileUrl || '#',
-        createdByName: p.createdByName,
-        createdByRole: p.createdByRole,
-      };
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        policies: formattedPolicies,
-        totalEmployees: totalEmployees || 110,
-      },
-    });
+    return apiSuccess(data);
   } catch (error: any) {
-    console.error('Error fetching compliance policies:', error);
-    return NextResponse.json(
-      { success: false, error: error?.message || 'Failed to fetch compliance policies', data: { policies: [] } },
-      { status: 500 }
-    );
+    return apiError(error?.message || 'Failed to fetch compliance policies', 500);
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const authResult = await authenticateApiRequest(req, 'policy_compliance', 'create');
-    if (!authResult.authorized) {
-      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.status });
-    }
+    const userCtx = getApiUserContext(req);
+    const permError = requireActionPermission(userCtx, 'policy_compliance', 'create');
+    if (permError) return permError;
 
     const body = await req.json();
-    const { title, category, version, effectiveDate, content } = body;
+    const { title, category, version, effectiveDate, content, fileUrl } = body;
 
     if (!title || !category || !version) {
-      return NextResponse.json({ success: false, error: 'Missing required policy fields' }, { status: 400 });
+      return apiError('Missing required policy fields: title, category, and version are mandatory', 400);
     }
 
-    if (!prisma) {
-      return NextResponse.json({ success: false, error: 'Database unavailable' }, { status: 503 });
-    }
-
-    const org = await prisma.organization.findFirst();
-    if (!org) {
-      return NextResponse.json({ success: false, error: 'Organization not found' }, { status: 404 });
-    }
-
-    const newPolicy = await prisma.companyPolicy.create({
-      data: {
-        organizationId: org.id,
-        title,
-        category,
-        version: version.startsWith('v') ? version : `v${version}`,
-        effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date(),
-        content: content || '',
-        createdById: authResult.userCtx.userId,
-        createdByName: authResult.userCtx.employeeName || 'Policy Officer',
-        createdByRole: authResult.userCtx.role,
-        status: 'active',
-      },
+    const newPolicy = await complianceService.createPolicy({
+      title,
+      category,
+      version,
+      effectiveDate,
+      content,
+      fileUrl,
+      userId: userCtx.userId,
+      userName: userCtx.employeeName,
+      userRole: userCtx.role,
     });
 
-    return NextResponse.json({
-      success: true,
-      message: 'Company policy published successfully',
-      data: { policy: newPolicy },
+    await auditService.logAction({
+      userName: userCtx.employeeName || 'Policy Officer',
+      userRole: userCtx.role,
+      action: 'POLICY_CREATED',
+      module: 'policy_compliance',
+      resourceId: newPolicy.id,
+      payloadAfter: { title: newPolicy.title, version: newPolicy.version },
     });
+
+    return apiSuccess({ policy: newPolicy }, 'Company policy published successfully', 201);
   } catch (error: any) {
-    console.error('Error publishing compliance policy:', error);
-    return NextResponse.json(
-      { success: false, error: error?.message || 'Failed to publish compliance policy' },
-      { status: 500 }
-    );
+    return apiError(error?.message || 'Failed to publish compliance policy', 500);
   }
 }

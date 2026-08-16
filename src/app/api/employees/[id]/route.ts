@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError, apiNotFound } from '@/lib/api-response';
-import { getApiUserContext, requireModuleAccess } from '@/lib/auth/rbac-guard-api';
-import { canViewSensitiveSalary } from '@/lib/rbac';
-import { prisma } from '@/lib/db/prisma';
+import { getApiUserContext, requireModuleAccess, requireActionPermission } from '@/lib/auth/rbac-guard-api';
+import { employeeService } from '@/services/employee.service';
+import { auditService } from '@/services/audit.service';
 import { getPersonaAvatar } from '@/lib/constants';
 
 export async function GET(
@@ -15,126 +15,67 @@ export async function GET(
     const accessError = requireModuleAccess(userCtx, 'employee_records');
     if (accessError) return accessError;
 
-    let employee: any = null;
-
-    if (prisma) {
-      // 1. Direct ID / Code search
-      employee = await prisma.employee.findFirst({
-        where: {
-          OR: [
-            { id },
-            { employeeCode: id },
-            { employeeCode: { equals: id, mode: 'insensitive' } },
-          ],
-        },
-        include: {
-          department: true,
-          designation: true,
-          branch: true,
-          bankDetails: true,
-          statutoryInfo: true,
-          emergencyContacts: true,
-        },
-      });
-
-      // 2. Numeric suffix fallback search (e.g. 'emp_005' -> '1005' / '5')
-      if (!employee) {
-        const numMatch = id.match(/\d+/);
-        if (numMatch) {
-          const numStr = numMatch[0]; // e.g. "005" or "5"
-          const codeSearch = `VV-${1000 + parseInt(numStr, 10)}`;
-          employee = await prisma.employee.findFirst({
-            where: {
-              OR: [
-                { employeeCode: codeSearch },
-                { employeeCode: { contains: numStr } },
-              ],
-            },
-            include: {
-              department: true,
-              designation: true,
-              branch: true,
-              bankDetails: true,
-              statutoryInfo: true,
-              emergencyContacts: true,
-            },
-          });
-        }
-      }
-
-      // 3. Fallback to first employee in DB if requested ID cannot be found
-      if (!employee) {
-        employee = await prisma.employee.findFirst({
-          include: {
-            department: true,
-            designation: true,
-            branch: true,
-            bankDetails: true,
-            statutoryInfo: true,
-            emergencyContacts: true,
-          },
-        });
-      }
-    }
-
+    const employee = await employeeService.getById(id, userCtx.role, userCtx.employeeId);
     if (!employee) {
-      return apiNotFound(`Employee with ID '${id}' not found in database`);
+      return apiNotFound(`Employee with ID '${id}' not found`);
     }
-
-    const isSelf = employee.id === userCtx.employeeId || employee.employeeCode === userCtx.employeeId || employee.userId === userCtx.userId;
-    const isSalaryVisible = canViewSensitiveSalary(userCtx.role, isSelf);
 
     const sanitizedEmployee = {
-      id: employee.id,
-      employeeCode: employee.employeeCode,
-      firstName: employee.firstName,
-      lastName: employee.lastName,
-      email: employee.email,
-      phone: employee.phone,
-      gender: employee.gender,
-      dob: employee.dob ? new Date(employee.dob).toISOString().split('T')[0] : '1990-01-01',
-      dateOfJoining: employee.dateOfJoining ? new Date(employee.dateOfJoining).toISOString().split('T')[0] : '2023-01-15',
+      ...employee,
       avatarUrl: employee.avatarUrl || getPersonaAvatar(employee.employeeCode, `${employee.firstName} ${employee.lastName}`),
-      departmentId: employee.departmentId,
       departmentName: employee.department?.name || 'Operations',
-      designationId: employee.designationId,
-      designationTitle: employee.designation?.title || 'Team Member',
-      branchId: employee.branchId,
-      branchName: employee.branch?.name || 'Tech Operations Center (HQ)',
-      employmentStatus: employee.employmentStatus || 'active',
-      currentLifecycleStage: employee.currentLifecycleStage || 'performance',
-      ctc: isSalaryVisible ? Number(employee.ctc) : 0,
-      bankDetails: isSalaryVisible && employee.bankDetails ? {
-        accountNumber: employee.bankDetails.accountNumber,
-        bankName: employee.bankDetails.bankName,
-        ifscCode: employee.bankDetails.ifscCode,
-        pan: 'AAACV1234F',
-      } : isSalaryVisible ? {
-        accountNumber: '••••••••4892',
-        bankName: 'HDFC Bank Ltd',
-        ifscCode: 'HDFC0001234',
-        pan: 'AAACV1234F',
+      designationTitle: employee.designation?.title || 'Staff',
+      branchName: employee.branch?.name || 'Headquarters',
+      bankDetails: employee.accountNumber ? {
+        accountNumber: employee.accountNumber,
+        bankName: employee.bankName || 'HDFC Bank',
+        ifscCode: employee.ifscCode || 'HDFC0001234',
+        pan: employee.pan || 'ABCDE1234F',
       } : undefined,
-      statutory: {
-        pfNumber: 'KN/BLR/1029384/001',
-        esiNumber: '5300098765432001',
-        uan: '101293847562',
-      },
-      emergencyContact: employee.emergencyContacts?.[0] || {
-        name: 'Emergency Contact',
-        relationship: 'Family',
-        phone: '+91 98765 00000',
-      },
+      statutoryInfo: employee.pfNumber ? {
+        pfNumber: employee.pfNumber,
+        uan: employee.uan,
+        esiNumber: employee.esiNumber,
+      } : undefined,
+      emergencyContacts: employee.emergencyContactName ? [
+        {
+          name: employee.emergencyContactName,
+          phone: employee.emergencyContactPhone,
+          relationship: employee.emergencyContactRelation || 'Family',
+        },
+      ] : [],
     };
 
-    return apiSuccess({
-      employee: sanitizedEmployee,
-      permissions: {
-        isSelf,
-        isSalaryVisible,
-      },
-    });
+    return apiSuccess({ employee: sanitizedEmployee });
   } catch (error: any) {
-    return apiError(error?.message || 'Failed to fetch employee record', 500);
+    return apiError(error?.message || 'Failed to fetch employee profile', 500);
+  }
+}
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const userCtx = getApiUserContext(req);
+    const permError = requireActionPermission(userCtx, 'employee_records', 'update');
+    if (permError) return permError;
+
+    const body = await req.json();
+    const updated = await employeeService.update(id, body);
+
+    await auditService.logAction({
+      userName: userCtx.employeeName || 'HR Officer',
+      userRole: userCtx.role,
+      action: 'EMPLOYEE_UPDATED',
+      module: 'employee_records',
+      resourceId: id,
+      payloadAfter: { id, name: `${updated.firstName} ${updated.lastName}`, stage: updated.currentLifecycleStage },
+    });
+
+    return apiSuccess({ employee: updated }, 'Employee profile updated successfully');
+  } catch (error: any) {
+    return apiError(error?.message || 'Failed to update employee profile', 500);
   }
 }
