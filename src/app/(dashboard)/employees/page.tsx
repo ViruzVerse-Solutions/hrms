@@ -15,6 +15,9 @@ import {
   Shield,
   Briefcase,
   Lock,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
 } from 'lucide-react';
 import { formatCurrency, getStatusColorBadge } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -37,7 +40,7 @@ export default function EmployeesPage() {
 
 function EmployeesContent() {
   const router = useRouter();
-  const { employees, isSalaryVisible, can, currentRole, currentEmployee, currentUser, logAuditAction } = useAuth();
+  const { employees, addEmployee, refreshEmployees, isSalaryVisible, can, currentRole, currentEmployee, currentUser, logAuditAction } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('all');
 
@@ -45,16 +48,53 @@ function EmployeesContent() {
   const [onboardModalOpen, setOnboardModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [onboardSuccess, setOnboardSuccess] = useState('');
+  const [formError, setFormError] = useState('');
+  
+  // Clean form state without prefilled defaults
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
+    gender: '',
+    dob: '',
     departmentId: '',
-    designationTitle: 'Senior Quality Inspector',
-    dateOfJoining: new Date().toISOString().split('T')[0],
-    ctc: 540000,
+    designationTitle: '',
+    dateOfJoining: '',
+    ctc: '',
+    pan: '',
+    uan: '',
+    esiNumber: '',
+    bankName: '',
+    accountNumber: '',
+    ifscCode: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    emergencyContactRelation: '',
+    documentTitle: '',
+    documentCategory: 'Identity Proof',
   });
+
+  const capitalizeWords = (str: string) => {
+    if (!str) return '';
+    return str.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  const isValidEmail = (email: string) => {
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email.trim());
+  };
+
+  const handlePhoneChange = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 10);
+    setFormError('');
+    setForm((prev) => ({ ...prev, phone: digits }));
+  };
+
+  const handleEmergencyPhoneChange = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 10);
+    setFormError('');
+    setForm((prev) => ({ ...prev, emergencyContactPhone: digits }));
+  };
 
   React.useEffect(() => {
     if (currentRole === 'employee') {
@@ -69,9 +109,6 @@ function EmployeesContent() {
       .then((data) => {
         if (data?.data?.departments) {
           setDepartments(data.data.departments);
-          if (data.data.departments[0]) {
-            setForm((prev) => ({ ...prev, departmentId: data.data.departments[0].id }));
-          }
         }
       })
       .catch(() => {});
@@ -79,7 +116,45 @@ function EmployeesContent() {
 
   const handleOnboardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.firstName || !form.lastName || !form.email) return;
+    setFormError('');
+
+    const trimmedFirstName = form.firstName.trim();
+    const trimmedLastName = form.lastName.trim();
+    const trimmedEmail = form.email.trim();
+    const trimmedPhone = form.phone.trim();
+    const trimmedDesignation = form.designationTitle.trim();
+
+    // Validate Mandatory Fields
+    if (
+      !trimmedFirstName ||
+      !trimmedLastName ||
+      !trimmedEmail ||
+      !trimmedPhone ||
+      !form.gender ||
+      !form.dob ||
+      !form.departmentId ||
+      !trimmedDesignation ||
+      !form.dateOfJoining ||
+      !form.ctc
+    ) {
+      setFormError('Please fill in all mandatory fields marked with an asterisk (*).');
+      return;
+    }
+
+    if (!isValidEmail(trimmedEmail)) {
+      setFormError('Please enter a valid official email address (e.g. name@viruzverse.com).');
+      return;
+    }
+
+    if (trimmedPhone.length !== 10) {
+      setFormError('Phone number must contain exactly 10 digits.');
+      return;
+    }
+
+    if (form.emergencyContactPhone && form.emergencyContactPhone.length !== 10) {
+      setFormError('Emergency contact phone must contain exactly 10 digits.');
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -89,32 +164,66 @@ function EmployeesContent() {
           'Content-Type': 'application/json',
           'x-user-role': currentRole,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          ...form,
+          firstName: trimmedFirstName,
+          lastName: trimmedLastName,
+          email: trimmedEmail,
+          phone: trimmedPhone,
+          designationTitle: trimmedDesignation,
+          ctc: Number(form.ctc),
+          pan: form.pan ? form.pan.toUpperCase().trim() : undefined,
+          ifscCode: form.ifscCode ? form.ifscCode.toUpperCase().trim() : undefined,
+        }),
       });
 
       const data = await res.json();
-      if (data?.success) {
-        setOnboardSuccess(`Employee ${form.firstName} ${form.lastName} onboarded successfully.`);
+      if (data?.success && data?.data) {
+        const createdEmployee = data.data;
+        
+        // Instantly reflect in global AuthContext and screen without page refresh
+        addEmployee(createdEmployee);
+        refreshEmployees();
+
+        setOnboardSuccess(`Employee ${trimmedFirstName} ${trimmedLastName} (${createdEmployee.employeeCode}) onboarded successfully!`);
         if (logAuditAction) {
-          logAuditAction('EMPLOYEE_ONBOARDED', 'employee_records', data.data?.id || 'new_emp', `Onboarded ${form.firstName} ${form.lastName}`);
+          logAuditAction('EMPLOYEE_ONBOARDED', 'employee_records', createdEmployee.id || 'new_emp', `Onboarded ${trimmedFirstName} ${trimmedLastName} (${createdEmployee.employeeCode})`);
         }
+
         setTimeout(() => {
           setOnboardModalOpen(false);
           setOnboardSuccess('');
+          setFormError('');
           setForm({
             firstName: '',
             lastName: '',
             email: '',
             phone: '',
-            departmentId: departments[0]?.id || '',
-            designationTitle: 'Senior Quality Inspector',
-            dateOfJoining: new Date().toISOString().split('T')[0],
-            ctc: 540000,
+            gender: '',
+            dob: '',
+            departmentId: '',
+            designationTitle: '',
+            dateOfJoining: '',
+            ctc: '',
+            pan: '',
+            uan: '',
+            esiNumber: '',
+            bankName: '',
+            accountNumber: '',
+            ifscCode: '',
+            emergencyContactName: '',
+            emergencyContactPhone: '',
+            emergencyContactRelation: '',
+            documentTitle: '',
+            documentCategory: 'Identity Proof',
           });
         }, 1200);
+      } else {
+        setFormError(data?.error || 'Failed to onboard employee. Please try again.');
       }
     } catch (err) {
       console.error('Failed to onboard employee:', err);
+      setFormError('An error occurred during onboarding. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -161,110 +270,416 @@ function EmployeesContent() {
         </div>
 
         {can('create', 'employee_records') && (
-          <Dialog open={onboardModalOpen} onOpenChange={setOnboardModalOpen}>
+          <Dialog open={onboardModalOpen} onOpenChange={(open) => { setOnboardModalOpen(open); if (!open) setFormError(''); }}>
             <DialogTrigger asChild>
               <Button className="rounded-xl gap-2 shadow-md bg-indigo-600 hover:bg-indigo-700 text-white">
                 <Plus className="h-4 w-4" />
                 <span>Onboard New Employee</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>Onboard New Employee Dossier</DialogTitle>
+                <DialogTitle className="text-lg font-bold">Onboard New Employee Dossier</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleOnboardSubmit} className="space-y-4 pt-2 text-xs">
+              <form onSubmit={handleOnboardSubmit} className="space-y-5 pt-2 text-xs">
                 {onboardSuccess && (
-                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold">
-                    {onboardSuccess}
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>{onboardSuccess}</span>
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">First Name</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Ramesh"
-                      value={form.firstName}
-                      onChange={(e) => setForm({ ...form, firstName: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                    />
+                {formError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 font-semibold flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <span>{formError}</span>
                   </div>
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">Last Name</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Patel"
-                      value={form.lastName}
-                      onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                    />
+                )}
+
+                {/* Section 1: Personal & Demographics (Mandatory Starred) */}
+                <div className="space-y-3">
+                  <h3 className="font-bold text-slate-800 dark:text-slate-200 text-xs border-b pb-1 flex items-center justify-between">
+                    <span>1. Personal Identity & Demographics</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Fields with <span className="text-rose-500 font-bold">*</span> are required</span>
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        First Name <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        autoCapitalize="words"
+                        placeholder="e.g. Ramesh"
+                        value={form.firstName}
+                        onChange={(e) => {
+                          setFormError('');
+                          setForm({ ...form, firstName: capitalizeWords(e.target.value) });
+                        }}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs capitalize"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Last Name <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        autoCapitalize="words"
+                        placeholder="e.g. Patel"
+                        value={form.lastName}
+                        onChange={(e) => {
+                          setFormError('');
+                          setForm({ ...form, lastName: capitalizeWords(e.target.value) });
+                        }}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs capitalize"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Official Email <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="e.g. ramesh.patel@viruzverse.com"
+                        value={form.email}
+                        pattern="^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+                        title="Please enter a valid email address (e.g. name@viruzverse.com)"
+                        onChange={(e) => {
+                          setFormError('');
+                          setForm({ ...form, email: e.target.value.trim() });
+                        }}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <label className="font-semibold text-slate-700 dark:text-slate-300">
+                          Phone Number <span className="text-rose-500 font-bold">*</span>
+                        </label>
+                        <span className="text-[10px] text-slate-400 font-mono">{form.phone.length}/10 digits</span>
+                      </div>
+                      <input
+                        type="tel"
+                        required
+                        maxLength={10}
+                        pattern="[0-9]{10}"
+                        placeholder="e.g. 9876543210"
+                        title="Please enter a 10-digit mobile number"
+                        value={form.phone}
+                        onChange={(e) => handlePhoneChange(e.target.value)}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Date of Birth <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={form.dob}
+                        onChange={(e) => {
+                          setFormError('');
+                          setForm({ ...form, dob: e.target.value });
+                        }}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Gender <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <select
+                        required
+                        value={form.gender}
+                        onChange={(e) => {
+                          setFormError('');
+                          setForm({ ...form, gender: e.target.value });
+                        }}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                      >
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="prefer_not_to_say">Prefer Not to Say</option>
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">Official Email</label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="ramesh.patel@viruzverse.com"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">Phone</label>
-                    <input
-                      type="text"
-                      placeholder="+91 98765 43210"
-                      value={form.phone}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                    />
+                {/* Section 2: Department & Role (Mandatory Starred) */}
+                <div className="space-y-3">
+                  <h3 className="font-bold text-slate-800 dark:text-slate-200 text-xs border-b pb-1">
+                    2. Role, Department & Compensation
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Department <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <select
+                        required
+                        value={form.departmentId}
+                        onChange={(e) => {
+                          setFormError('');
+                          setForm({ ...form, departmentId: e.target.value });
+                        }}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                      >
+                        <option value="">Select Department</option>
+                        {departments.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Designation Title <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        autoCapitalize="words"
+                        placeholder="e.g. Senior Quality Inspector"
+                        value={form.designationTitle}
+                        onChange={(e) => {
+                          setFormError('');
+                          setForm({ ...form, designationTitle: capitalizeWords(e.target.value) });
+                        }}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs capitalize"
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">Joining Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={form.dateOfJoining}
-                      onChange={(e) => setForm({ ...form, dateOfJoining: e.target.value })}
-                      className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                    />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Date of Joining <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={form.dateOfJoining}
+                        onChange={(e) => {
+                          setFormError('');
+                          setForm({ ...form, dateOfJoining: e.target.value });
+                        }}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Annual CTC (₹) <span className="text-rose-500 font-bold">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        min={100000}
+                        step={10000}
+                        placeholder="e.g. 540000"
+                        value={form.ctc}
+                        onChange={(e) => {
+                          setFormError('');
+                          setForm({ ...form, ctc: e.target.value });
+                        }}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">Designation Title</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Senior Quality Inspector"
-                    value={form.designationTitle}
-                    onChange={(e) => setForm({ ...form, designationTitle: e.target.value })}
-                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                  />
+                {/* Section 3: Statutory & Banking (Optional) */}
+                <div className="space-y-3">
+                  <h3 className="font-bold text-slate-800 dark:text-slate-200 text-xs border-b pb-1 flex items-center justify-between">
+                    <span>3. Statutory Registrations & Bank Account</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+                  </h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        PAN Number <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. ABCDE1234F"
+                        value={form.pan}
+                        maxLength={10}
+                        onChange={(e) => setForm({ ...form, pan: e.target.value.toUpperCase() })}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        PF UAN <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 100912345678"
+                        maxLength={12}
+                        value={form.uan}
+                        onChange={(e) => setForm({ ...form, uan: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        ESIC Number <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 31001234560001234"
+                        maxLength={17}
+                        value={form.esiNumber}
+                        onChange={(e) => setForm({ ...form, esiNumber: e.target.value.replace(/\D/g, '').slice(0, 17) })}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Bank Name <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. HDFC Bank"
+                        value={form.bankName}
+                        onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Account Number <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 5010023456789"
+                        value={form.accountNumber}
+                        onChange={(e) => setForm({ ...form, accountNumber: e.target.value.replace(/\D/g, '') })}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        IFSC Code <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. HDFC0001234"
+                        value={form.ifscCode}
+                        maxLength={11}
+                        onChange={(e) => setForm({ ...form, ifscCode: e.target.value.toUpperCase() })}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono uppercase"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">Annual CTC (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    min={100000}
-                    step={10000}
-                    value={form.ctc}
-                    onChange={(e) => setForm({ ...form, ctc: Number(e.target.value) })}
-                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
-                  />
+                {/* Section 4: Emergency Contacts (Optional) */}
+                <div className="space-y-3">
+                  <h3 className="font-bold text-slate-800 dark:text-slate-200 text-xs border-b pb-1 flex items-center justify-between">
+                    <span>4. Emergency Contact Details</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+                  </h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Contact Name <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Priya Sharma"
+                        value={form.emergencyContactName}
+                        onChange={(e) => setForm({ ...form, emergencyContactName: capitalizeWords(e.target.value) })}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs capitalize"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <label className="font-semibold text-slate-700 dark:text-slate-300">
+                          Emergency Phone <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+                        </label>
+                        <span className="text-[10px] text-slate-400 font-mono">{form.emergencyContactPhone.length}/10</span>
+                      </div>
+                      <input
+                        type="tel"
+                        maxLength={10}
+                        placeholder="e.g. 9876543210"
+                        value={form.emergencyContactPhone}
+                        onChange={(e) => handleEmergencyPhoneChange(e.target.value)}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Relationship <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <select
+                        value={form.emergencyContactRelation}
+                        onChange={(e) => setForm({ ...form, emergencyContactRelation: e.target.value })}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                      >
+                        <option value="">Select Relationship (Optional)</option>
+                        <option value="Spouse">Spouse</option>
+                        <option value="Father">Father</option>
+                        <option value="Mother">Mother</option>
+                        <option value="Sibling">Sibling</option>
+                        <option value="Family">Family Member</option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2 border-t">
+                {/* Section 5: Documents Attachment (Optional) */}
+                <div className="space-y-3">
+                  <h3 className="font-bold text-slate-800 dark:text-slate-200 text-xs border-b pb-1 flex items-center justify-between">
+                    <span>5. KYC & Personnel Document Attachments</span>
+                    <span className="text-[10px] text-slate-400 font-normal">Optional</span>
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Document Category <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <select
+                        value={form.documentCategory}
+                        onChange={(e) => setForm({ ...form, documentCategory: e.target.value })}
+                        className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                      >
+                        <option value="Identity Proof">Identity Proof (Aadhaar / Passport / Voter ID)</option>
+                        <option value="Educational Certificate">Educational Degree / Marksheet</option>
+                        <option value="Offer Acceptance">Signed Offer / Appointment Acceptance</option>
+                        <option value="Bank Proof">Bank Cancelled Cheque / Passbook</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-semibold text-slate-700 dark:text-slate-300">
+                        Upload Document File <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
+                      </label>
+                      <input
+                        type="file"
+                        className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t">
                   <Button type="button" variant="outline" onClick={() => setOnboardModalOpen(false)}>
                     Cancel
                   </Button>

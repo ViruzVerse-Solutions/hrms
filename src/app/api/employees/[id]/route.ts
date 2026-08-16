@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
-import { apiSuccess, apiError, apiNotFound } from '@/lib/api-response';
+import { apiSuccess, apiError, apiNotFound, apiForbidden } from '@/lib/api-response';
 import { getApiUserContext, requireModuleAccess, requireActionPermission } from '@/lib/auth/rbac-guard-api';
+import { canPerformAction } from '@/lib/rbac';
 import { employeeService } from '@/services/employee.service';
 import { auditService } from '@/services/audit.service';
 import { getPersonaAvatar } from '@/lib/constants';
@@ -23,27 +24,32 @@ export async function GET(
     const sanitizedEmployee = {
       ...employee,
       avatarUrl: employee.avatarUrl || getPersonaAvatar(employee.employeeCode, `${employee.firstName} ${employee.lastName}`),
-      departmentName: employee.department?.name || 'Operations',
+      departmentName: employee.department?.name || 'General',
       designationTitle: employee.designation?.title || 'Staff',
       branchName: employee.branch?.name || 'Headquarters',
-      bankDetails: employee.accountNumber ? {
-        accountNumber: employee.accountNumber,
-        bankName: employee.bankName || 'HDFC Bank',
-        ifscCode: employee.ifscCode || 'HDFC0001234',
-        pan: employee.pan || 'ABCDE1234F',
-      } : undefined,
-      statutoryInfo: employee.pfNumber ? {
-        pfNumber: employee.pfNumber,
-        uan: employee.uan,
-        esiNumber: employee.esiNumber,
-      } : undefined,
+      gender: employee.gender || '',
+      dob: employee.dob || '',
+      dateOfJoining: employee.dateOfJoining || '',
+      bankDetails: {
+        accountNumber: employee.accountNumber || employee.bankDetails?.accountNumber || '',
+        bankName: employee.bankName || employee.bankDetails?.bankName || '',
+        ifscCode: employee.ifscCode || employee.bankDetails?.ifscCode || '',
+        pan: employee.pan || employee.bankDetails?.pan || '',
+      },
+      statutoryInfo: {
+        pan: employee.pan || '',
+        pfNumber: employee.pfNumber || employee.statutoryInfo?.pfNumber || '',
+        uan: employee.uan || employee.statutoryInfo?.uan || '',
+        esiNumber: employee.esiNumber || employee.statutoryInfo?.esiNumber || '',
+        ptState: employee.ptState || '',
+      },
       emergencyContacts: employee.emergencyContactName ? [
         {
           name: employee.emergencyContactName,
-          phone: employee.emergencyContactPhone,
+          phone: employee.emergencyContactPhone || '',
           relationship: employee.emergencyContactRelation || 'Family',
         },
-      ] : [],
+      ] : (employee.emergencyContacts?.length ? employee.emergencyContacts : []),
     };
 
     return apiSuccess({ employee: sanitizedEmployee });
@@ -59,19 +65,37 @@ export async function PUT(
   try {
     const { id } = await params;
     const userCtx = getApiUserContext(req);
-    const permError = requireActionPermission(userCtx, 'employee_records', 'update');
-    if (permError) return permError;
+    const isOwnProfile = userCtx.employeeId === id || userCtx.employeeCode === id;
+    
+    // RBAC: HR Head & MD have full administrative update rights; Employee has self-service update rights on own profile
+    const hasAdminPerm = canPerformAction(userCtx.role, 'employee_records', 'update');
+    const hasSelfPerm = userCtx.role === 'employee' && isOwnProfile;
+
+    if (!hasAdminPerm && !hasSelfPerm) {
+      return apiForbidden(`Role '${userCtx.role}' does not have permission to update this employee profile`);
+    }
 
     const body = await req.json();
-    const updated = await employeeService.update(id, body);
+
+    // If regular employee, only allow updating personal contact details
+    const updatePayload = hasAdminPerm
+      ? body
+      : {
+          phone: body.phone,
+          emergencyContactName: body.emergencyContactName,
+          emergencyContactPhone: body.emergencyContactPhone,
+          emergencyContactRelation: body.emergencyContactRelation,
+        };
+
+    const updated = await employeeService.update(id, updatePayload);
 
     await auditService.logAction({
-      userName: userCtx.employeeName || 'HR Officer',
+      userName: userCtx.employeeName || (hasSelfPerm ? 'Employee Self' : 'HR Officer'),
       userRole: userCtx.role,
       action: 'EMPLOYEE_UPDATED',
       module: 'employee_records',
       resourceId: id,
-      payloadAfter: { id, name: `${updated.firstName} ${updated.lastName}`, stage: updated.currentLifecycleStage },
+      payloadAfter: { id, name: `${updated.firstName} ${updated.lastName}`, updatedBy: userCtx.role },
     });
 
     return apiSuccess({ employee: updated }, 'Employee profile updated successfully');
