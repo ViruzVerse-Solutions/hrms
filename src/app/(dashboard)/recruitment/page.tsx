@@ -36,6 +36,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function RecruitmentPage() {
   return (
@@ -53,6 +54,7 @@ function RecruitmentContent() {
     updateCandidateStage,
     currentRole,
     currentUser,
+    isLoadingData,
   } = useAuth();
 
   const [activeTab, setActiveTab] = useState<'pipeline' | 'requisitions'>('pipeline');
@@ -91,6 +93,14 @@ function RecruitmentContent() {
       })
       .catch(() => {});
   }, []);
+
+  if (isLoadingData) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="dashboard" />
+      </div>
+    );
+  }
 
   const stages: Array<{ keys: string[]; label: string; color: string }> = [
     { keys: ['applied'], label: 'Applied', color: 'border-slate-300 dark:border-slate-700' },

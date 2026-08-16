@@ -50,6 +50,7 @@ interface AuthContextType {
   grievances: GrievanceTicket[];
   auditLogs: AuditLogItem[];
   notifications: SystemNotification[];
+  isLoadingData: boolean;
   setAttendanceRecords: React.Dispatch<React.SetStateAction<AttendanceRecord[]>>;
   setLeaveAllocations: React.Dispatch<React.SetStateAction<LeaveBalance[]>>;
   refreshLeaves: () => Promise<void>;
@@ -90,14 +91,6 @@ const getInitialRole = (initialRole?: UserRole): UserRole => {
   return 'hr_head';
 };
 
-const getInitialUser = (role: UserRole): User => {
-  return (
-    CORE_PERSONAS.find((u) => u.activeRole === role) ||
-    CORE_PERSONAS.find((u) => u.roles.includes(role)) ||
-    CORE_PERSONAS[2]
-  );
-};
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({
@@ -107,52 +100,35 @@ export function AuthProvider({
   children: React.ReactNode;
   initialRole?: UserRole;
 }) {
-  const activeRole = getInitialRole(initialRole);
-  const [currentRole, setCurrentRole] = useState<UserRole>(activeRole);
-  const [currentUser, setCurrentUser] = useState<User>(() => getInitialUser(activeRole));
+  const [currentRole, setCurrentRole] = useState<UserRole>(() => getInitialRole(initialRole));
+  const [currentUser, setCurrentUser] = useState<User>(() => {
+    const role = getInitialRole(initialRole);
+    const matching =
+      CORE_PERSONAS.find((u) => u.activeRole === role) ||
+      CORE_PERSONAS.find((u) => u.roles.includes(role)) ||
+      CORE_PERSONAS[0];
+    return { ...matching, activeRole: role };
+  });
 
-  // Sync cookies/localStorage on initial client mount
-  useEffect(() => {
-    try {
-      const savedRole = localStorage.getItem('hrms_active_role') as UserRole | null;
-      if (savedRole && VALID_ROLES.includes(savedRole)) {
-        document.cookie = `hrms_active_role=${savedRole}; path=/; max-age=31536000; SameSite=Lax`;
-        if (savedRole !== currentRole) {
-          setCurrentRole(savedRole);
-          const matchingUser = getInitialUser(savedRole);
-          setCurrentUser({
-            ...matchingUser,
-            activeRole: savedRole,
-          });
-        }
-      } else if (currentRole) {
-        localStorage.setItem('hrms_active_role', currentRole);
-        document.cookie = `hrms_active_role=${currentRole}; path=/; max-age=31536000; SameSite=Lax`;
-      }
-    } catch {}
-  }, []);
-
-  // Multi-tab sync
+  // Sync role changes across browser tabs & cookies
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'hrms_active_role' && e.newValue) {
+      if (e.key === 'hrms_active_role' && e.newValue && VALID_ROLES.includes(e.newValue as UserRole)) {
         const newRole = e.newValue as UserRole;
-        if (VALID_ROLES.includes(newRole)) {
-          document.cookie = `hrms_active_role=${newRole}; path=/; max-age=31536000; SameSite=Lax`;
-          setCurrentRole(newRole);
-          const matchingUser = getInitialUser(newRole);
-          setCurrentUser({
-            ...matchingUser,
-            activeRole: newRole,
-          });
-        }
+        setCurrentRole(newRole);
+        const matching =
+          CORE_PERSONAS.find((u) => u.activeRole === newRole) ||
+          CORE_PERSONAS.find((u) => u.roles.includes(newRole)) ||
+          CORE_PERSONAS[0];
+        setCurrentUser({ ...matching, activeRole: newRole });
       }
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
-  const [isHydrated, setIsHydrated] = useState(false);
+  // Fast Reactive Data stores (100% DB Driven)
+  const [isLoadingData, setIsLoadingData] = useState<boolean>(true);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [leaveAllocations, setLeaveAllocations] = useState<LeaveBalance[]>([]);
@@ -168,6 +144,7 @@ export function AuthProvider({
 
   // Single-pass high-speed database hydration on mount & role switch (<30ms)
   useEffect(() => {
+    setIsLoadingData(true);
     fetch('/api/dashboard/summary', {
       headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
     })
@@ -187,7 +164,7 @@ export function AuthProvider({
       })
       .catch(() => {})
       .finally(() => {
-        setIsHydrated(true);
+        setIsLoadingData(false);
       });
   }, [currentRole, currentUser.employeeId]);
 
@@ -445,6 +422,7 @@ export function AuthProvider({
         can,
         isSalaryVisible,
         roleDetails,
+        isLoadingData,
         employees,
         leaveRequests,
         leaveAllocations,

@@ -29,6 +29,7 @@ import { getPersonaAvatar } from '@/lib/constants';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function EmployeesPage() {
   return (
@@ -40,7 +41,7 @@ export default function EmployeesPage() {
 
 function EmployeesContent() {
   const router = useRouter();
-  const { employees, addEmployee, refreshEmployees, isSalaryVisible, can, currentRole, currentEmployee, currentUser, logAuditAction } = useAuth();
+  const { employees, addEmployee, refreshEmployees, isSalaryVisible, can, currentRole, currentEmployee, currentUser, logAuditAction, isLoadingData } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDept, setSelectedDept] = useState('all');
 
@@ -229,9 +230,17 @@ function EmployeesContent() {
     }
   };
 
+  if (isLoadingData) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="table" rows={6} />
+      </div>
+    );
+  }
+
   const filteredEmployees = employees.filter((emp) => {
     if (currentRole === 'employee') {
-      const selfId = currentEmployee?.id || currentUser.employeeId || employees[0]?.id;
+      const selfId = currentEmployee?.id || currentUser.employeeId || '';
       const selfCode = currentEmployee?.employeeCode;
       return emp.id === selfId || (selfCode && emp.employeeCode === selfCode);
     }

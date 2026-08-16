@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { useAuth } from '@/context/AuthContext';
+import { LoadingState } from '@/components/ui/LoadingState';
 import {
   ApprovalCategory,
   canUserApproveCategory,
@@ -131,6 +132,14 @@ function ApprovalsContent() {
       router.push(targetUrl);
     }
   };
+
+  if (isLoading && items.length === 0) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="table" rows={5} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">

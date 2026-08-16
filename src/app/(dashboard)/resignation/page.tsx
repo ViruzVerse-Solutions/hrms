@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { useAuth } from '@/context/AuthContext';
 import { ResignationCase } from '@/types';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function ResignationPage() {
   return (
@@ -59,7 +60,15 @@ function ResignationContent() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [currentRole, currentEmployee]);
+  }, [currentRole, currentEmployee?.id, currentUser.employeeId]);
+
+  if (loading) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="dashboard" />
+      </div>
+    );
+  }
 
   const [relievingModalOpen, setRelievingModalOpen] = useState(false);
 

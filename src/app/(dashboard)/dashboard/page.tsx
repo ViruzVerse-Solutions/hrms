@@ -34,13 +34,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { getPersonaAvatar } from '@/lib/constants';
-import { FieldLoader } from '@/components/ui/skeleton';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function DashboardPage() {
   const {
     currentRole,
     currentUser,
     currentEmployee,
+    isLoadingData,
     employees,
     leaveRequests,
     leaveAllocations,
@@ -77,6 +78,14 @@ export default function DashboardPage() {
       })
       .catch(() => {});
   }, [currentRole]);
+
+  if (isLoadingData) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="dashboard" />
+      </div>
+    );
+  }
 
   const pendingLeaves = leaveRequests.filter((l) => l.status === 'pending');
   const today = new Date().toISOString().split('T')[0];

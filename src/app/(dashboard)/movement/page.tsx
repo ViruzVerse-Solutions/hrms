@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { TransferPromotionCase } from '@/types';
 import { useAuth } from '@/context/AuthContext';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function MovementPage() {
   return (
@@ -35,12 +36,12 @@ function MovementContent() {
   const [formData, setFormData] = useState({
     employeeId: '',
     type: 'promotion',
-    currentDepartment: '',
-    newDepartment: '',
-    currentDesignation: '',
+    currentDepartment: firstEmp?.departmentName || '',
+    newDepartment: firstEmp?.departmentName || '',
+    currentDesignation: firstEmp?.designationTitle || '',
     newDesignation: '',
-    currentBranch: '',
-    newBranch: '',
+    currentBranch: firstEmp?.branchName || '',
+    newBranch: firstEmp?.branchName || '',
     effectiveDate: new Date().toISOString().split('T')[0],
   });
 
@@ -64,6 +65,14 @@ function MovementContent() {
   useEffect(() => {
     fetchTransfers();
   }, [currentRole]);
+
+  if (isLoading) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="table" rows={5} />
+      </div>
+    );
+  }
 
   const handleActionTransfer = async (transferId: string, action: 'approve' | 'reject') => {
     try {

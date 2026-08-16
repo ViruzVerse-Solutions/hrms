@@ -38,6 +38,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { ROLE_PERMISSIONS, ROLE_LABELS } from '@/lib/rbac/permissions';
 import Link from 'next/link';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function SettingsPage() {
   return (
@@ -448,9 +449,12 @@ function SettingsContent() {
                 <tbody className="divide-y divide-slate-100">
                   {isLoadingLogs ? (
                     <tr>
-                      <td colSpan={6} className="p-8 text-center text-slate-400">
-                        <RefreshCw className="h-5 w-5 animate-spin mx-auto mb-2 text-indigo-600" />
-                        <span>Loading audit records from database...</span>
+                      <td colSpan={6} className="p-4 text-center">
+                        <LoadingState
+                          variant="inline"
+                          title="Loading Audit Trail"
+                          message="Synchronizing immutable SHA-256 ledger records from database..."
+                        />
                       </td>
                     </tr>
                   ) : dbAuditLogs.length === 0 ? (

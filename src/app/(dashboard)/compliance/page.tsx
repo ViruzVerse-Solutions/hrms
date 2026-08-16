@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { PolicyDocument } from '@/types';
 import { useAuth } from '@/context/AuthContext';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function CompliancePage() {
   return (
@@ -213,6 +214,14 @@ function ComplianceContent() {
     const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
+
+  if (isLoading) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="table" rows={6} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">

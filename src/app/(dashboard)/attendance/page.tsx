@@ -21,7 +21,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { RBACGuard } from '@/components/layout/RBACGuard';
-import { FieldLoader } from '@/components/ui/skeleton';
+
+import { LoadingState } from '@/components/ui/LoadingState';
+
 
 export default function AttendancePage() {
   return (
@@ -39,7 +41,7 @@ function AttendanceContent() {
     currentUser,
     employees,
     setAttendanceRecords,
-    isHydrated,
+    isLoadingData,
   } = useAuth();
 
   const [filterDate, setFilterDate] = useState('');
@@ -87,6 +89,14 @@ function AttendanceContent() {
     const matchesSource = sourceFilter === 'all' || rec.source === sourceFilter;
     return matchesDate && matchesSource;
   });
+
+  if (isLoadingData) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="table" rows={6} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 space-y-6 max-w-7xl mx-auto">

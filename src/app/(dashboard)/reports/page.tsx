@@ -18,7 +18,7 @@ import { formatCurrency } from '@/lib/utils';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line } from 'recharts';
 import { useAuth } from '@/context/AuthContext';
 import { RBACGuard } from '@/components/layout/RBACGuard';
-import { FieldLoader } from '@/components/ui/skeleton';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function ReportsPage() {
   const { currentRole } = useAuth();
@@ -56,6 +56,14 @@ function ReportsContent() {
       .catch((err) => console.error('Failed to load reports API data:', err))
       .finally(() => setLoading(false));
   }, [currentRole]);
+
+  if (loading) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="dashboard" />
+      </div>
+    );
+  }
 
   const metrics = reportsData?.metrics || {
     attritionRate: 0,

@@ -36,6 +36,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Payslip } from '@/types';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export default function PayrollPage() {
   return (
@@ -55,6 +56,7 @@ function PayrollContent() {
     can,
     currentRole,
     employees,
+    isLoadingData,
   } = useAuth();
 
   // Active view tabs
@@ -72,7 +74,7 @@ function PayrollContent() {
   const basePayslips = useMemo(() => {
     if (isSelfServiceOnly) {
       return payslips.filter(
-        (ps) => ps.employeeId === employeeId || (employeeCode && ps.employeeCode === employeeCode)
+        (ps) => (employeeId && ps.employeeId === employeeId) || (employeeCode && ps.employeeCode === employeeCode)
       );
     }
     return payslips;
@@ -96,8 +98,16 @@ function PayrollContent() {
     return Array.from(set);
   }, [basePayslips]);
 
-  const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(basePayslips[0] || null);
+  const [selectedPayslip, setSelectedPayslip] = useState<Payslip | null>(null);
   const [payslipModalOpen, setPayslipModalOpen] = useState(false);
+
+  if (isLoadingData) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <LoadingState variant="table" rows={6} />
+      </div>
+    );
+  }
   const [auditSigningMsg, setAuditSigningMsg] = useState('');
   const [isSigningAudit, setIsSigningAudit] = useState(false);
 
