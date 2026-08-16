@@ -42,7 +42,7 @@ export default function CompliancePage() {
 }
 
 function ComplianceContent() {
-  const { currentRole, can, currentUser } = useAuth();
+  const { currentRole, can, currentUser, employees } = useAuth();
   const [policies, setPolicies] = useState<PolicyDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -169,7 +169,7 @@ function ComplianceContent() {
           version: formData.version,
           effectiveDate: formData.effectiveDate,
           acknowledgedCount: 0,
-          totalEmployees: 110,
+          totalEmployees: employees.length || policies[0]?.totalEmployees || 0,
           fileUrl: formData.fileUrl || '#',
           createdByName: currentUser?.name || 'Compliance Officer',
         };
@@ -405,7 +405,7 @@ function ComplianceContent() {
                   <div className="flex items-center gap-3">
                     <div className="text-right hidden sm:block">
                       <div className="text-xs font-bold text-slate-800">
-                        {p.acknowledgedCount} / {p.totalEmployees || 110}
+                        {p.acknowledgedCount} / {p.totalEmployees || employees.length || 0}
                       </div>
                       <div className="text-[10px] text-slate-400">Acknowledged</div>
                     </div>
@@ -665,7 +665,7 @@ function ComplianceContent() {
                 <div>
                   <div className="font-bold text-emerald-900">Digitally Enforced & Formally Signed</div>
                   <div className="text-emerald-700 text-[11px]">
-                    Acknowledged by {pdfPreviewPolicy.acknowledgedCount} of {pdfPreviewPolicy.totalEmployees || 110} active workforce personnel.
+                    Acknowledged by {pdfPreviewPolicy.acknowledgedCount} of {pdfPreviewPolicy.totalEmployees || employees.length || 0} active workforce personnel.
                   </div>
                 </div>
               </div>
@@ -704,7 +704,7 @@ function ComplianceContent() {
               </div>
               <div className="flex justify-between border-b pb-2">
                 <span className="text-slate-500 font-semibold">Filing Period</span>
-                <span className="font-mono font-bold text-indigo-600">August 2026 Batch</span>
+                <span className="font-mono font-bold text-indigo-600">Current Statutory Cycle</span>
               </div>
               <div className="flex justify-between border-b pb-2">
                 <span className="text-slate-500 font-semibold">Statutory Authority</span>

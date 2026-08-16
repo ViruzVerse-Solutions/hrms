@@ -322,7 +322,7 @@ export default function DashboardPage() {
                   <Wallet className="h-4 w-4 text-emerald-600" />
                 </div>
                 <div className="text-3xl font-extrabold mt-3 text-emerald-600">{formatCurrency(monthlyDisbursal)}</div>
-                <div className="text-xs text-slate-500 font-medium mt-1">August 2026 Batch Ready</div>
+                <div className="text-xs text-slate-500 font-medium mt-1">{payrollRuns[0]?.period || 'Current'} Batch Ready</div>
               </CardContent>
             </Card>
 
@@ -624,7 +624,7 @@ export default function DashboardPage() {
               <CardContent className="p-6">
                 <span className="text-xs font-semibold text-slate-500">Statutory Monthly Deposits</span>
                 <div className="text-2xl font-extrabold mt-2 text-emerald-600">PF + ESI + PT</div>
-                <div className="text-xs text-slate-500 mt-1">August ECR Challan generated</div>
+                <div className="text-xs text-slate-500 mt-1">{payrollRuns[0]?.period || 'Monthly'} ECR Challan generated</div>
               </CardContent>
             </Card>
 
@@ -648,7 +648,7 @@ export default function DashboardPage() {
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
                 <div>
                   <div className="font-semibold text-slate-900">Employees' Provident Fund (EPF) Monthly Filing & ECR</div>
-                  <div className="text-slate-400">Due: 15th August 2026 • 110 Employees Covered</div>
+                  <div className="text-slate-400">Due: 15th of Every Month • {employees.length} Active Employees Covered</div>
                 </div>
                 <Badge variant="success">Challan Ready</Badge>
               </div>
@@ -656,7 +656,7 @@ export default function DashboardPage() {
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
                 <div>
                   <div className="font-semibold text-slate-900">Employee State Insurance (ESI) Monthly Contribution</div>
-                  <div className="text-slate-400">Due: 15th August 2026 • Wage Ceiling Checked</div>
+                  <div className="text-slate-400">Due: 15th of Every Month • Wage Ceiling Checked</div>
                 </div>
                 <Badge variant="success">Calculated</Badge>
               </div>
@@ -664,7 +664,7 @@ export default function DashboardPage() {
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
                 <div>
                   <div className="font-semibold text-slate-900">TDS (Section 192B) Salary Remittance & Form 24Q</div>
-                  <div className="text-slate-400">Due: 07th September 2026</div>
+                  <div className="text-slate-400">Due: 07th of Every Month</div>
                 </div>
                 <Badge variant="info">Scheduled</Badge>
               </div>
@@ -672,7 +672,7 @@ export default function DashboardPage() {
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
                 <div>
                   <div className="font-semibold text-slate-900">Karnataka Professional Tax (PT) Monthly Return (Form 5A)</div>
-                  <div className="text-slate-400">Due: 20th August 2026</div>
+                  <div className="text-slate-400">Due: 20th of Every Month</div>
                 </div>
                 <Badge variant="success">Verified</Badge>
               </div>
@@ -686,14 +686,14 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {currentRole === 'employee' && (() => {
         const casualAlloc = leaveAllocations.find((a) => a.leaveType === 'casual');
-        const casualBal = casualAlloc ? casualAlloc.balance : 7;
-        const casualUsed = casualAlloc ? casualAlloc.used : 3;
-        const casualPend = casualAlloc ? casualAlloc.pending : 2;
+        const casualBal = casualAlloc ? casualAlloc.balance : (leaveAllocations[0]?.balance ?? 10);
+        const casualUsed = casualAlloc ? casualAlloc.used : (leaveAllocations[0]?.used ?? 0);
+        const casualPend = casualAlloc ? casualAlloc.pending : (leaveAllocations[0]?.pending ?? 0);
 
         const myEmpId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
         const latestPs = payslips.find((p) => p.employeeId === myEmpId || p.employeeCode === currentEmployee?.employeeCode) || payslips[0];
-        const payslipNet = latestPs?.breakup?.netPay ?? 128450;
-        const payslipPeriod = latestPs?.period || 'July 2026';
+        const payslipNet = latestPs?.breakup?.netPay || (latestPs as any)?.netPay || (currentEmployee?.ctc ? Math.round(Number(currentEmployee.ctc) / 12 * 0.85) : 85000);
+        const payslipPeriod = latestPs?.period || payrollRuns[0]?.period || 'Current Period';
 
         return (
         <div className="space-y-8">
@@ -718,11 +718,11 @@ export default function DashboardPage() {
 
             <Card>
               <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Mandatory Training</span>
+                <span className="text-xs font-semibold text-slate-500">Mandatory Training & Policies</span>
                 <div className="text-base font-bold mt-2 text-slate-900">
-                  Chemical Hazardous Material Handling & Safety
+                  {activePolicies[0]?.title || 'Occupational Safety & POSH Protocol'}
                 </div>
-                <div className="text-xs text-purple-600 font-medium mt-1">Scheduled for Aug 22, 2026</div>
+                <div className="text-xs text-purple-600 font-medium mt-1">Active Compliance Track</div>
               </CardContent>
             </Card>
           </div>
@@ -781,27 +781,7 @@ export default function DashboardPage() {
                     </div>
                   ))
                 ) : (
-                  <>
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                        <ShieldCheck className="h-3.5 w-3.5 text-indigo-600" />
-                        <span>Quarterly EHS Safety & PPE Verification</span>
-                      </div>
-                      <p className="text-slate-500">
-                        Mandatory protective equipment audits scheduled across all manufacturing units next week.
-                      </p>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-                      <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                        <Award className="h-3.5 w-3.5 text-emerald-600" />
-                        <span>Annual Employee Health Checkup Camp</span>
-                      </div>
-                      <p className="text-slate-500">
-                        Complimentary industrial health screening on Aug 25-26 at the on-site health center.
-                      </p>
-                    </div>
-                  </>
+                  <div className="p-6 text-center text-slate-400 text-xs">No active bulletin notices at this time.</div>
                 )}
               </CardContent>
             </Card>

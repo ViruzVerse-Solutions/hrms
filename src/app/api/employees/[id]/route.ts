@@ -15,7 +15,7 @@ export async function GET(
     const accessError = requireModuleAccess(userCtx, 'employee_records');
     if (accessError) return accessError;
 
-    const employee = await employeeService.getById(id, userCtx.role, userCtx.employeeId);
+    const employee: any = await employeeService.getById(id, userCtx.role, userCtx.employeeId);
     if (!employee) {
       return apiNotFound(`Employee with ID '${id}' not found`);
     }

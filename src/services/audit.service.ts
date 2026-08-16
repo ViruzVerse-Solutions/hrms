@@ -69,9 +69,14 @@ export const auditService = {
 
     const integrityHash = crypto.createHash('sha256').update(`${prevHash}:${payloadStr}`).digest('hex');
 
+    const user = await prisma.user.findFirst({
+      where: { OR: [{ name: data.userName }, { activeRole: data.userRole }] },
+    });
+
     return prisma.auditLog.create({
       data: {
         organizationId: org.id,
+        userId: user?.id,
         userName: data.userName,
         userRole: data.userRole as any,
         action: data.action,
@@ -82,7 +87,7 @@ export const auditService = {
         ipAddress: data.ipAddress || '127.0.0.1',
         previousHash: prevHash,
         integrityHash: integrityHash,
-      },
+      } as any,
     }).catch(() => null);
   },
 };

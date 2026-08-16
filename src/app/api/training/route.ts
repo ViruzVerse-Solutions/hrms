@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!prisma) {
-      return apiSuccess({ message: 'Training created in mock session', training: body }, 'Created', 201);
+      return apiError('Database unavailable', 503);
     }
 
     const org = await prisma.organization.findFirst();

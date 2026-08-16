@@ -6,183 +6,197 @@ import {
   canUserApproveCategory,
   canUserViewApprovalCategory,
 } from '@/lib/rbac';
+import { auditService } from '@/services/audit.service';
 
 export async function GET(req: NextRequest) {
   try {
     const userCtx = await getApiUserContextAsync(req);
-    const org = await prisma.organization.findFirst();
+    if (!prisma) {
+      return NextResponse.json({ success: true, data: { items: [], counts: {} } });
+    }
 
+    const org = await prisma.organization.findFirst();
     if (!org) {
       return NextResponse.json({ success: true, data: { items: [], counts: {} } });
     }
 
     const role = userCtx.role;
 
-    // 1. Pending Leave Requests
-    let pendingLeaves: any[] = [];
-    if (canUserViewApprovalCategory(role, 'leaves')) {
-      const leaves = await prisma.leaveRequest.findMany({
-        where: { status: 'pending' },
-        include: { employee: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      pendingLeaves = leaves.map((l: any) => ({
-        id: l.id,
-        category: 'leaves',
-        categoryTitle: 'Leave Request',
-        title: `${l.leaveType.toUpperCase()} Leave (${l.daysCount} Days)`,
-        applicantName: l.employee ? `${l.employee.firstName} ${l.employee.lastName}` : 'Employee',
-        applicantId: l.employee?.employeeCode || l.employeeId,
-        details: `From ${l.fromDate.toISOString().split('T')[0]} to ${l.toDate.toISOString().split('T')[0]} • Reason: ${l.reason}`,
-        date: l.createdAt.toISOString(),
-        targetUrl: '/leaves',
-        canApprove: canUserApproveCategory(role, 'leaves'),
-        meta: { leaveType: l.leaveType, daysCount: l.daysCount, fromDate: l.fromDate.toISOString().split('T')[0], toDate: l.toDate.toISOString().split('T')[0], reason: l.reason },
-        raw: l,
-      }));
-    }
+    const [
+      leaves,
+      reqs,
+      transfers,
+      runs,
+      exits,
+      holidays,
+      discCases,
+    ] = await Promise.all([
+      // 1. Pending Leave Requests
+      canUserViewApprovalCategory(role, 'leaves')
+        ? prisma.leaveRequest.findMany({
+            where: { status: 'pending' },
+            include: { employee: true },
+            orderBy: { createdAt: 'desc' },
+          }).catch(() => [])
+        : Promise.resolve([]),
 
-    // 2. Pending Job Requisitions
-    let pendingRequisitions: any[] = [];
-    if (canUserViewApprovalCategory(role, 'requisitions')) {
-      const reqs = await prisma.jobRequisition.findMany({
-        where: { status: { in: ['active', 'pending_approval'] } },
-        include: { department: true, designation: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      pendingRequisitions = reqs.map((r: any) => ({
-        id: r.id,
-        category: 'requisitions',
-        categoryTitle: 'Job Requisition',
-        title: `Manpower Requisition: ${r.title} (${r.headcount} Openings)`,
-        applicantName: r.department?.name || 'Department Head',
-        applicantId: r.department?.code || r.departmentId,
-        details: `Experience: ${r.experienceMin}-${r.experienceMax} Yrs • Department: ${r.department?.name || 'General'}`,
-        date: r.createdAt.toISOString(),
-        targetUrl: '/recruitment',
-        canApprove: canUserApproveCategory(role, 'requisitions'),
-        meta: { headcount: r.headcount, experience: `${r.experienceMin}-${r.experienceMax} Yrs`, budget: `₹${(Number(r.budgetMin) || 0) / 100000}L - ₹${(Number(r.budgetMax) || 0) / 100000}L` },
-        raw: r,
-      }));
-    }
+      // 2. Pending Job Requisitions
+      canUserViewApprovalCategory(role, 'requisitions')
+        ? prisma.jobRequisition.findMany({
+            where: { status: { in: ['active', 'pending_approval'] } },
+            include: { department: true, designation: true },
+            orderBy: { createdAt: 'desc' },
+          }).catch(() => [])
+        : Promise.resolve([]),
 
-    // 3. Pending Transfers & Promotions
-    let pendingTransfers: any[] = [];
-    if (canUserViewApprovalCategory(role, 'transfers')) {
-      const transfers = await prisma.transferPromotionCase.findMany({
-        where: { status: 'pending' },
-        include: { employee: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      pendingTransfers = transfers.map((t: any) => ({
-        id: t.id,
-        category: 'transfers',
-        categoryTitle: 'Transfer / Promotion',
-        title: `${t.type.toUpperCase()}: ${t.newDesignation}`,
-        applicantName: t.employee ? `${t.employee.firstName} ${t.employee.lastName}` : 'Employee',
-        applicantId: t.employee?.employeeCode || t.employeeId,
-        details: `${t.currentDepartment} → ${t.newDepartment} • Initiated by: ${t.initiatedBy}`,
-        date: t.createdAt.toISOString(),
-        targetUrl: '/movement',
-        canApprove: canUserApproveCategory(role, 'transfers'),
-        meta: { type: t.type, currentRole: t.currentDesignation, proposedRole: t.newDesignation, initiatedBy: t.initiatedBy },
-        raw: t,
-      }));
-    }
+      // 3. Pending Transfers & Promotions
+      canUserViewApprovalCategory(role, 'transfers')
+        ? prisma.transferPromotionCase.findMany({
+            where: { status: 'pending' },
+            include: { employee: true },
+            orderBy: { createdAt: 'desc' },
+          }).catch(() => [])
+        : Promise.resolve([]),
 
-    // 4. Pending Payroll Runs
-    let pendingPayrollRuns: any[] = [];
-    if (canUserViewApprovalCategory(role, 'payroll')) {
-      const runs = await prisma.payrollRun.findMany({
-        where: { status: { in: ['draft', 'calculated', 'verified'] } },
-        orderBy: { createdAt: 'desc' },
-      });
-      pendingPayrollRuns = runs.map((p: any) => ({
-        id: p.id,
-        category: 'payroll',
-        categoryTitle: 'Payroll Disbursal Run',
-        title: `Payroll Disbursal Cycle (${p.monthYear})`,
-        applicantName: `Calculated by ${p.calculatedBy}`,
-        applicantId: p.calculatedBy,
-        details: `Total Employees: ${p.totalEmployees} • Gross: ₹${Number(p.totalGross).toLocaleString()} • Net Pay: ₹${Number(p.totalNet).toLocaleString()}`,
-        date: p.createdAt.toISOString(),
-        targetUrl: '/payroll',
-        canApprove: canUserApproveCategory(role, 'payroll'),
-        meta: { cycle: p.monthYear, headcount: p.totalEmployees, gross: `₹${Number(p.totalGross).toLocaleString()}`, net: `₹${Number(p.totalNet).toLocaleString()}` },
-        raw: p,
-      }));
-    }
+      // 4. Pending Payroll Runs
+      canUserViewApprovalCategory(role, 'payroll')
+        ? prisma.payrollRun.findMany({
+            where: { status: { in: ['draft', 'calculated', 'verified', 'approved'] } },
+            orderBy: { createdAt: 'desc' },
+          }).catch(() => [])
+        : Promise.resolve([]),
 
-    // 5. Pending Exit Clearance Cases
-    let pendingExits: any[] = [];
-    if (canUserViewApprovalCategory(role, 'exits')) {
-      const exits = await prisma.resignationExitCase.findMany({
-        where: { fnfStatus: { in: ['pending', 'draft'] } },
-        include: { employee: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      pendingExits = exits.map((e: any) => ({
-        id: e.id,
-        category: 'exits',
-        categoryTitle: 'Resignation & Exit Clearance',
-        title: `Resignation Exit: LWD ${e.lastWorkingDay.toISOString().split('T')[0]}`,
-        applicantName: e.employee ? `${e.employee.firstName} ${e.employee.lastName}` : 'Employee',
-        applicantId: e.employee?.employeeCode || e.employeeId,
-        details: `Reason: ${e.reason} • F&F Settlement Amount: ₹${Number(e.fnfAmount).toLocaleString()}`,
-        date: e.createdAt.toISOString(),
-        targetUrl: '/resignation',
-        canApprove: canUserApproveCategory(role, 'exits'),
-        meta: { lwd: e.lastWorkingDay.toISOString().split('T')[0], reason: e.reason, fnfAmount: `₹${Number(e.fnfAmount).toLocaleString()}` },
-        raw: e,
-      }));
-    }
+      // 5. Pending Exit Clearance Cases
+      canUserViewApprovalCategory(role, 'exits')
+        ? prisma.resignationExitCase.findMany({
+            where: { fnfStatus: { in: ['pending', 'draft'] } },
+            include: { employee: true },
+            orderBy: { createdAt: 'desc' },
+          }).catch(() => [])
+        : Promise.resolve([]),
 
-    // 6. Pending Holidays
-    let pendingHolidays: any[] = [];
-    if (canUserViewApprovalCategory(role, 'holidays')) {
-      const holidays = await prisma.companyHoliday.findMany({
-        where: { status: 'pending_approval' },
-        orderBy: { date: 'asc' },
-      });
-      pendingHolidays = holidays.map((h: any) => ({
-        id: h.id,
-        category: 'holidays',
-        categoryTitle: 'Company Holiday Calendar',
-        title: `Holiday Entry: ${h.title} (${h.date.toISOString().split('T')[0]})`,
-        applicantName: h.createdByName || h.createdByRole,
-        applicantId: h.createdById || 'hr',
-        details: `Category: ${h.category} • Configured by ${h.createdByName || h.createdByRole}`,
-        date: h.createdAt.toISOString(),
-        targetUrl: '/leaves?tab=holidays',
-        canApprove: canUserApproveCategory(role, 'holidays'),
-        meta: { holidayTitle: h.title, date: h.date.toISOString().split('T')[0], category: h.category },
-        raw: h,
-      }));
-    }
+      // 6. Pending Holidays
+      canUserViewApprovalCategory(role, 'holidays')
+        ? prisma.companyHoliday.findMany({
+            where: { status: 'proposed' },
+            orderBy: { date: 'asc' },
+          }).catch(() => [])
+        : Promise.resolve([]),
 
-    // 7. Pending Disciplinary Cases
-    let pendingDisciplinary: any[] = [];
-    if (canUserViewApprovalCategory(role, 'disciplinary')) {
-      const discCases = await prisma.disciplinaryCase.findMany({
-        where: { currentStage: { in: ['show_cause_notice', 'inquiry_panel'] } },
-        include: { employee: true },
-        orderBy: { createdAt: 'desc' },
-      });
-      pendingDisciplinary = discCases.map((dc: any) => ({
-        id: dc.id,
-        category: 'disciplinary',
-        categoryTitle: 'Disciplinary Case Review',
-        title: `Disciplinary Review: ${dc.caseNumber} (${dc.violationType.toUpperCase()})`,
-        applicantName: dc.employee ? `${dc.employee.firstName} ${dc.employee.lastName}` : 'Employee',
-        applicantId: dc.employee?.employeeCode || dc.employeeId,
-        details: `Severity: ${dc.severity.toUpperCase()} • Reported By: ${dc.reportedBy} • ${dc.description || 'Action Pending'}`,
-        date: dc.createdAt.toISOString(),
-        targetUrl: '/disciplinary',
-        canApprove: canUserApproveCategory(role, 'disciplinary'),
-        meta: { caseNumber: dc.caseNumber, violation: dc.violationType, severity: dc.severity, reportedBy: dc.reportedBy },
-        raw: dc,
-      }));
-    }
+      // 7. Pending Disciplinary Cases
+      canUserViewApprovalCategory(role, 'disciplinary')
+        ? prisma.disciplinaryCase.findMany({
+            where: { currentStage: { in: ['show_cause_notice', 'investigation', 'hearing'] } },
+            include: { employee: true },
+            orderBy: { createdAt: 'desc' },
+          }).catch(() => [])
+        : Promise.resolve([]),
+    ]);
+
+    const pendingLeaves = leaves.map((l: any) => ({
+      id: l.id,
+      category: 'leaves',
+      categoryTitle: 'Leave Request',
+      title: `${(l.leaveType || 'Leave').toUpperCase()} Leave (${Number(l.daysCount || 1)} Days)`,
+      applicantName: l.employee ? `${l.employee.firstName} ${l.employee.lastName}` : 'Employee',
+      applicantId: l.employee?.employeeCode || l.employeeId,
+      details: `From ${l.fromDate ? l.fromDate.toISOString().split('T')[0] : '—'} to ${l.toDate ? l.toDate.toISOString().split('T')[0] : '—'} • Reason: ${l.reason || 'Personal'}`,
+      date: l.createdAt ? l.createdAt.toISOString() : new Date().toISOString(),
+      targetUrl: '/leaves',
+      canApprove: canUserApproveCategory(role, 'leaves'),
+      meta: { leaveType: l.leaveType, daysCount: Number(l.daysCount || 1), reason: l.reason },
+      raw: l,
+    }));
+
+    const pendingRequisitions = reqs.map((r: any) => ({
+      id: r.id,
+      category: 'requisitions',
+      categoryTitle: 'Job Requisition',
+      title: `Manpower Requisition: ${r.title} (${r.headcount} Openings)`,
+      applicantName: r.department?.name || 'Department Head',
+      applicantId: r.department?.code || r.departmentId,
+      details: `Experience: ${r.experienceMin}-${r.experienceMax} Yrs • Department: ${r.department?.name || 'General'}`,
+      date: r.createdAt ? r.createdAt.toISOString() : new Date().toISOString(),
+      targetUrl: '/recruitment',
+      canApprove: canUserApproveCategory(role, 'requisitions'),
+      meta: { headcount: r.headcount, experience: `${r.experienceMin}-${r.experienceMax} Yrs` },
+      raw: r,
+    }));
+
+    const pendingTransfers = transfers.map((t: any) => ({
+      id: t.id,
+      category: 'transfers',
+      categoryTitle: 'Transfer / Promotion',
+      title: `${(t.type || 'Transfer').toUpperCase()}: ${t.newDesignation || 'New Designation'}`,
+      applicantName: t.employee ? `${t.employee.firstName} ${t.employee.lastName}` : 'Employee',
+      applicantId: t.employee?.employeeCode || t.employeeId,
+      details: `${t.currentDepartment || 'Current Dept'} → ${t.newDepartment || 'New Dept'} • Initiated by: ${t.initiatedBy || 'HR'}`,
+      date: t.createdAt ? t.createdAt.toISOString() : new Date().toISOString(),
+      targetUrl: '/movement',
+      canApprove: canUserApproveCategory(role, 'transfers'),
+      meta: { type: t.type, currentRole: t.currentDesignation, proposedRole: t.newDesignation },
+      raw: t,
+    }));
+
+    const pendingPayrollRuns = runs.map((p: any) => ({
+      id: p.id,
+      category: 'payroll',
+      categoryTitle: 'Payroll Disbursal Run',
+      title: `Payroll Disbursal Cycle (${p.monthYear})`,
+      applicantName: `Calculated by ${p.calculatedBy || 'HR Head'}`,
+      applicantId: p.calculatedBy || 'hr',
+      details: `Total Employees: ${p.totalEmployees} • Gross: ₹${Number(p.totalGross || 0).toLocaleString()} • Net Pay: ₹${Number(p.totalNet || 0).toLocaleString()}`,
+      date: p.createdAt ? p.createdAt.toISOString() : new Date().toISOString(),
+      targetUrl: '/payroll',
+      canApprove: canUserApproveCategory(role, 'payroll'),
+      meta: { cycle: p.monthYear, headcount: p.totalEmployees },
+      raw: p,
+    }));
+
+    const pendingExits = exits.map((e: any) => ({
+      id: e.id,
+      category: 'exits',
+      categoryTitle: 'Resignation & Exit Clearance',
+      title: `Resignation Exit: LWD ${e.lastWorkingDay ? e.lastWorkingDay.toISOString().split('T')[0] : '—'}`,
+      applicantName: e.employee ? `${e.employee.firstName} ${e.employee.lastName}` : 'Employee',
+      applicantId: e.employee?.employeeCode || e.employeeId,
+      details: `Reason: ${e.reason} • F&F Settlement Amount: ₹${Number(e.fnfAmount || 0).toLocaleString()}`,
+      date: e.createdAt ? e.createdAt.toISOString() : new Date().toISOString(),
+      targetUrl: '/resignation',
+      canApprove: canUserApproveCategory(role, 'exits'),
+      meta: { reason: e.reason, fnfAmount: `₹${Number(e.fnfAmount || 0).toLocaleString()}` },
+      raw: e,
+    }));
+
+    const pendingHolidays = holidays.map((h: any) => ({
+      id: h.id,
+      category: 'holidays',
+      categoryTitle: 'Company Holiday Calendar',
+      title: `Holiday Entry: ${h.title} (${h.date ? h.date.toISOString().split('T')[0] : '—'})`,
+      applicantName: h.createdByName || 'HR Head',
+      applicantId: h.createdById || 'hr',
+      details: `Category: ${h.category} • Configured by ${h.createdByName || 'HR Head'}`,
+      date: h.createdAt ? h.createdAt.toISOString() : new Date().toISOString(),
+      targetUrl: '/leaves?tab=holidays',
+      canApprove: canUserApproveCategory(role, 'holidays'),
+      meta: { holidayTitle: h.title, category: h.category },
+      raw: h,
+    }));
+
+    const pendingDisciplinary = discCases.map((dc: any) => ({
+      id: dc.id,
+      category: 'disciplinary',
+      categoryTitle: 'Disciplinary Case Review',
+      title: `Disciplinary Review: ${dc.caseNumber} (${(dc.violationType || 'Policy').toUpperCase()})`,
+      applicantName: dc.employee ? `${dc.employee.firstName} ${dc.employee.lastName}` : 'Employee',
+      applicantId: dc.employee?.employeeCode || dc.employeeId,
+      details: `Severity: ${(dc.severity || 'Medium').toUpperCase()} • Reported By: ${dc.reportedBy || 'Compliance'} • ${dc.description || 'Action Pending'}`,
+      date: dc.createdAt ? dc.createdAt.toISOString() : new Date().toISOString(),
+      targetUrl: '/disciplinary',
+      canApprove: canUserApproveCategory(role, 'disciplinary'),
+      meta: { caseNumber: dc.caseNumber, violation: dc.violationType, severity: dc.severity },
+      raw: dc,
+    }));
 
     const allItems = [
       ...pendingLeaves,
@@ -215,7 +229,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error('Error fetching pending approvals:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch pending approval items' },
+      { success: false, error: error?.message || 'Failed to fetch pending approval items' },
       { status: 500 }
     );
   }
@@ -249,8 +263,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const org = await prisma.organization.findFirst();
-    const orgId = org?.id || '';
+    if (!prisma) {
+      return NextResponse.json({ success: false, error: 'Database unavailable' }, { status: 503 });
+    }
 
     let actionDetail = '';
     let updatedRecord: any = null;
@@ -262,7 +277,7 @@ export async function POST(req: NextRequest) {
         where: { id: itemId },
         data: {
           status,
-          approverId: userCtx.employeeId || userCtx.userId,
+          approverId: userCtx.employeeId || undefined,
           approverComment: action === 'approve' ? 'Approved' : `Rejected: ${rejectionReason}`,
           processedAt: new Date(),
         },
@@ -295,13 +310,16 @@ export async function POST(req: NextRequest) {
     }
     // 4. Process Payroll Runs
     else if (category === 'payroll') {
-      const status = action === 'approve' ? 'approved' : 'rejected';
+      const status = action === 'approve' ? 'approved' : 'draft';
+      const user = await prisma.user.findFirst({
+        where: { OR: [{ id: userCtx.userId }, { activeRole: userCtx.role }] },
+      });
       updatedRecord = await prisma.payrollRun.update({
         where: { id: itemId },
         data: {
-          status: action === 'approve' ? 'approved' : 'draft',
-          approvedBy: action === 'approve' ? userCtx.employeeName : undefined,
-        },
+          status,
+          approvedBy: action === 'approve' ? (user?.name || userCtx.employeeName || userCtx.userId) : null,
+        } as any,
       });
       actionDetail = action === 'approve'
         ? `Approved payroll run ${updatedRecord.monthYear} for disbursement`
@@ -312,7 +330,7 @@ export async function POST(req: NextRequest) {
       updatedRecord = await prisma.resignationExitCase.update({
         where: { id: itemId },
         data: {
-          fnfStatus: action === 'approve' ? 'cleared' : 'rejected',
+          fnfStatus: action === 'approve' ? 'processed' : 'disputed',
         },
       });
       actionDetail = action === 'approve'
@@ -321,11 +339,14 @@ export async function POST(req: NextRequest) {
     }
     // 6. Process Company Holidays
     else if (category === 'holidays') {
+      const user = await prisma.user.findFirst({
+        where: { OR: [{ id: userCtx.userId }, { activeRole: userCtx.role }] },
+      });
       updatedRecord = await prisma.companyHoliday.update({
         where: { id: itemId },
         data: {
           status: action === 'approve' ? 'approved' : 'rejected',
-          approvedById: userCtx.userId,
+          approvedById: user?.id,
           approvedByName: userCtx.employeeName,
           approvedByRole: userCtx.role,
         },
@@ -339,7 +360,7 @@ export async function POST(req: NextRequest) {
       updatedRecord = await prisma.disciplinaryCase.update({
         where: { id: itemId },
         data: {
-          currentStage: action === 'approve' ? 'closed' : 'show_cause_notice',
+          currentStage: action === 'approve' ? 'closed' : 'action_taken',
           actionTaken: action === 'approve' ? 'written_warning' : 'exonerated',
         },
       });
@@ -348,25 +369,19 @@ export async function POST(req: NextRequest) {
         : `Exonerated / cancelled disciplinary notice: ${rejectionReason}`;
     }
 
-    // Persist SHA-256 integrity Audit Log entry
-    const auditAction = action === 'approve' ? `APPROVAL_GRANTED` : `APPROVAL_REJECTED`;
-    await prisma.auditLog.create({
-      data: {
-        organizationId: orgId,
-        userId: userCtx.userId,
-        userName: userCtx.employeeName || 'Approver',
-        userRole: userCtx.role,
-        action: auditAction,
-        module: category,
-        resourceId: itemId,
-        integrityHash: `SHA256_${Date.now()}_${userCtx.role}`,
-        payloadAfter: {
-          action,
-          rejectionReason: action === 'reject' ? rejectionReason : undefined,
-          processedByRole: userCtx.role,
-        },
+    // Persist SHA-256 cryptographic chained Audit Log entry
+    await auditService.logAction({
+      userName: userCtx.employeeName || 'Approver',
+      userRole: userCtx.role,
+      action: action === 'approve' ? 'APPROVAL_GRANTED' : 'APPROVAL_REJECTED',
+      module: category,
+      resourceId: itemId,
+      payloadAfter: {
+        action,
+        detail: actionDetail,
+        rejectionReason: action === 'reject' ? rejectionReason : undefined,
       },
-    }).catch(() => {});
+    });
 
     return NextResponse.json({
       success: true,
@@ -378,7 +393,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('Error processing approval action:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to process approval action' },
+      { success: false, error: error?.message || 'Failed to process approval action' },
       { status: 500 }
     );
   }

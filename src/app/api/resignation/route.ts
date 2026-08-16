@@ -146,9 +146,13 @@ export async function POST(req: NextRequest) {
         },
       });
     } else {
+      const org = await prisma.organization.findFirst();
+      if (!org) return apiError('Organization not found', 404);
+
       exitRecord = await prisma.resignationExitCase.create({
         data: {
-          employeeId: emp.id,
+          organization: { connect: { id: org.id } },
+          employee: { connect: { id: emp.id } },
           resignationDate: new Date(),
           lastWorkingDay: new Date(body.lastWorkingDay || body.requestedLwd || '2026-10-15'),
           reason: body.reason || 'Career Transition',
@@ -158,7 +162,7 @@ export async function POST(req: NextRequest) {
           itClearanceStatus: 'pending',
           deptClearanceStatus: 'pending',
           financeClearanceStatus: 'pending',
-        },
+        } as any,
       });
     }
 

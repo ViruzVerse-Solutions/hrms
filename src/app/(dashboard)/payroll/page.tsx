@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import {
   Wallet,
@@ -59,7 +59,7 @@ function PayrollContent() {
 
   // Active view tabs
   const [activeTab, setActiveTab] = useState<'register' | 'statutory' | 'audit'>('register');
-  const [selectedMonth, setSelectedMonth] = useState('August 2026');
+  const [selectedMonth, setSelectedMonth] = useState(payrollRuns[0]?.period || '2026-08');
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
 
@@ -100,6 +100,12 @@ function PayrollContent() {
   const [payslipModalOpen, setPayslipModalOpen] = useState(false);
   const [auditSigningMsg, setAuditSigningMsg] = useState('');
   const [isSigningAudit, setIsSigningAudit] = useState(false);
+
+  useEffect(() => {
+    if (!selectedPayslip && basePayslips.length > 0) {
+      setSelectedPayslip(basePayslips[0]);
+    }
+  }, [basePayslips, selectedPayslip]);
 
   const canManagePayroll = can('create', 'payroll_benefits') || can('approve', 'payroll_benefits');
 
@@ -204,9 +210,15 @@ function PayrollContent() {
             onChange={(e) => setSelectedMonth(e.target.value)}
             className="h-9 px-3 rounded-xl text-xs font-semibold bg-white border border-slate-200 text-slate-800 shadow-2xs"
           >
-            <option value="August 2026">August 2026 Batch</option>
-            <option value="July 2026">July 2026 Batch</option>
-            <option value="June 2026">June 2026 Batch</option>
+            {payrollRuns.length > 0 ? (
+              payrollRuns.map((r) => (
+                <option key={r.id} value={r.period}>
+                  {r.period} Batch
+                </option>
+              ))
+            ) : (
+              <option value="Current">Current Period Batch</option>
+            )}
           </select>
 
           {canManagePayroll && (
