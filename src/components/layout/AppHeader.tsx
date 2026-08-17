@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types';
 
@@ -15,6 +15,10 @@ import {
   AlertTriangle,
   CheckCircle2,
   Info,
+  Database,
+  RefreshCw,
+  Zap,
+  ZapOff,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -29,6 +33,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { ROLE_LABELS } from '@/lib/rbac';
 import { getPersonaAvatar } from '@/lib/constants';
+import { isDevCacheBypassed, setDevCacheBypass, clearAllCache } from '@/lib/cache';
 
 interface AppHeaderProps {
   onToggleMobileMenu?: () => void;
@@ -46,6 +51,30 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
   } = useAuth();
 
   const [notifOpen, setNotifOpen] = useState(false);
+  const [cacheBypassed, setCacheBypassed] = useState(false);
+  const [cacheNotice, setCacheNotice] = useState('');
+
+  useEffect(() => {
+    setCacheBypassed(isDevCacheBypassed());
+    const handleCacheChange = () => setCacheBypassed(isDevCacheBypassed());
+    window.addEventListener('hrms_cache_status_change', handleCacheChange);
+    return () => window.removeEventListener('hrms_cache_status_change', handleCacheChange);
+  }, []);
+
+  const handleToggleCache = () => {
+    const nextState = !cacheBypassed;
+    setDevCacheBypass(nextState);
+    setCacheBypassed(nextState);
+    setCacheNotice(nextState ? 'Cache Bypassed for Dev' : '2-Hour Local Cache Active');
+    setTimeout(() => setCacheNotice(''), 3000);
+  };
+
+  const handlePurgeCache = () => {
+    clearAllCache();
+    setCacheNotice('Local Cache Purged');
+    setTimeout(() => setCacheNotice(''), 3000);
+  };
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const rolesList: UserRole[] = [
@@ -58,20 +87,20 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
   ];
 
   return (
-    <header className="fixed top-0 right-0 left-0 md:left-64 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between z-30 transition-all">
+    <header className="fixed top-0 right-0 left-0 md:left-64 h-16 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 sm:px-6 flex items-center justify-between z-30 transition-all max-w-full">
       {/* Left: Mobile Menu Toggle + Search */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
         {/* Mobile Hamburger Button */}
         <button
           onClick={onToggleMobileMenu}
-          className="md:hidden p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs"
+          className="md:hidden p-2 rounded-xl border border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs shrink-0"
           aria-label="Toggle navigation menu"
         >
           <Menu className="h-5 w-5" />
         </button>
 
-        {/* Search Bar (Hidden on extra-small screens, expands on tablet/desktop) */}
-        <div className="relative hidden xs:block w-36 sm:w-64 md:w-80">
+        {/* Search Bar */}
+        <div className="relative hidden sm:block w-36 sm:w-56 md:w-72 lg:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           <input
             type="text"
@@ -81,8 +110,80 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
         </div>
       </div>
 
-      {/* Right: Role Switcher + Notifications + Profile */}
-      <div className="flex items-center gap-1.5 sm:gap-3">
+      {/* Right: Cache Controls + Role Switcher + Notifications + Profile */}
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+        {/* Dev Cache Manager Pill */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`h-8 sm:h-9 px-2 sm:px-2.5 gap-1 rounded-xl border text-xs font-semibold shadow-2xs transition-colors ${
+                cacheBypassed
+                  ? 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
+                  : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+              }`}
+            >
+              {cacheBypassed ? (
+                <ZapOff className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+              ) : (
+                <Zap className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+              )}
+              <span className="hidden xl:inline">
+                {cacheBypassed ? 'Cache: Bypassed' : 'Cache: 2h TTL'}
+              </span>
+              <span className="xl:hidden text-[11px]">
+                {cacheBypassed ? 'No-Cache' : '2h Cache'}
+              </span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64 p-2 bg-white border border-slate-200 shadow-xl rounded-2xl">
+            <DropdownMenuLabel className="text-xs font-bold text-slate-800 flex items-center justify-between px-2 py-1.5">
+              <div className="flex items-center gap-1.5">
+                <Database className="h-3.5 w-3.5 text-indigo-600" />
+                <span>Local Cache Manager</span>
+              </div>
+              <Badge variant={cacheBypassed ? 'outline' : 'secondary'} className="text-[10px]">
+                {cacheBypassed ? 'Dev Mode' : 'Active (2h)'}
+              </Badge>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <div className="p-2 text-[11px] text-slate-600 leading-relaxed bg-slate-50 rounded-xl mb-1.5 border border-slate-100">
+              {cacheBypassed
+                ? 'Local cache is disabled. API requests fetch fresh data on every render (Recommended for Development).'
+                : 'API responses are cached locally for 2 hours to accelerate page navigation.'}
+            </div>
+            {cacheNotice && (
+              <div className="px-2 py-1 text-[10px] font-bold text-emerald-600 animate-pulse">
+                {cacheNotice}
+              </div>
+            )}
+            <DropdownMenuItem
+              onClick={handleToggleCache}
+              className="flex items-center gap-2 p-2 rounded-xl cursor-pointer hover:bg-slate-100 text-xs font-semibold"
+            >
+              {cacheBypassed ? (
+                <>
+                  <Zap className="h-4 w-4 text-emerald-600" />
+                  <span>Enable 2-Hour Cache</span>
+                </>
+              ) : (
+                <>
+                  <ZapOff className="h-4 w-4 text-amber-600" />
+                  <span>Bypass Cache (Dev Team)</span>
+                </>
+              )}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={handlePurgeCache}
+              className="flex items-center gap-2 p-2 rounded-xl cursor-pointer hover:bg-rose-50 text-rose-600 text-xs font-semibold"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Purge Local Storage Cache</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {/* Interactive Role Switcher Pill */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -92,8 +193,8 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
               className="h-8 sm:h-9 px-2 sm:px-3 gap-1 sm:gap-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 font-semibold text-xs shadow-2xs"
             >
               <ShieldCheck className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
-              <span className="hidden md:inline">Role:</span>
-              <span suppressHydrationWarning className="truncate max-w-[70px] sm:max-w-[110px] md:max-w-[140px]">
+              <span className="hidden lg:inline">Role:</span>
+              <span suppressHydrationWarning className="truncate max-w-[65px] sm:max-w-[100px] md:max-w-[130px]">
                 {ROLE_LABELS[currentRole]?.title || currentRole}
               </span>
               <ChevronDown className="h-3 w-3 opacity-50 shrink-0" />
@@ -133,7 +234,7 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
         {/* Notifications Dropdown */}
         <DropdownMenu open={notifOpen} onOpenChange={setNotifOpen}>
           <DropdownMenuTrigger asChild>
-            <button className="relative h-9 w-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors shadow-2xs">
+            <button className="relative h-8 sm:h-9 w-8 sm:w-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors shadow-2xs shrink-0">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
@@ -197,7 +298,7 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
         {/* User Profile Pill */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 pl-1.5 pr-2 sm:pr-3 py-1 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200">
+            <button className="flex items-center gap-2 pl-1 sm:pl-1.5 pr-1.5 sm:pr-3 py-1 rounded-xl hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-200 shrink-0">
               <img
                 src={getPersonaAvatar(currentUser?.employeeId, currentUser?.name)}
                 alt={currentUser?.name || ''}

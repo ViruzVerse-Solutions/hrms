@@ -46,12 +46,24 @@
   border-color: var(--border);
 }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 body {
   background-color: #f8fafc;
   color: #0f172a;
   font-family: var(--font-sans);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11", "tnum";
   letter-spacing: -0.011em;
+}
+
+/* Auto Responsive Table Container */
+.responsive-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Crystal-clear typography hierarchy */
@@ -158,5 +170,3 @@ table tbody td {
     rgba(255, 255, 255, 0)
   );
 }
-
-
