@@ -170,3 +170,182 @@ table tbody td {
     rgba(255, 255, 255, 0)
   );
 }
+
+/* ==========================================================================
+   A4 SHEET PRINT ENGINE (Pixel-Perfect Enterprise PDF Print Formatting)
+   ========================================================================== */
+@page {
+  size: A4 portrait;
+  margin: 12mm 10mm 15mm 10mm;
+}
+
+@media print {
+  /* 1. Global Reset & Canvas */
+  html, body {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10pt !important;
+    line-height: 1.4 !important;
+    width: 100% !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* 2. Hide Navigation, Sidebars, Fixed Headers, Popups, and Controls */
+  header,
+  aside,
+  nav,
+  button,
+  .no-print,
+  [data-no-print="true"],
+  .fixed,
+  .sticky,
+  input,
+  select,
+  .dropdown-menu,
+  [role="tablist"],
+  form,
+  .print\\:hidden {
+    display: none !important;
+  }
+
+  /* 3. Layout Structure Unwrapping */
+  div[class*="min-h-screen"],
+  div[class*="flex-1"],
+  main {
+    padding-left: 0 !important;
+    padding-top: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    position: static !important;
+    display: block !important;
+  }
+
+  .max-w-7xl,
+  .container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* 4. Surface & Box Cleanups */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    filter: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .card,
+  [class*="Card"],
+  [class*="rounded-2xl"] {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    margin-bottom: 12pt !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* 5. A4 Data Tables */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    border-spacing: 0 !important;
+    page-break-inside: auto !important;
+    font-size: 8.5pt !important;
+    margin-top: 6pt !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  tr {
+    page-break-inside: avoid !important;
+    page-break-after: auto !important;
+  }
+
+  th {
+    background-color: #f1f5f9 !important;
+    color: #0f172a !important;
+    font-weight: 700 !important;
+    border: 1px solid #cbd5e1 !important;
+    padding: 5pt 6pt !important;
+    text-align: left !important;
+    text-transform: uppercase !important;
+    font-size: 7.5pt !important;
+    letter-spacing: 0.5px !important;
+  }
+
+  td {
+    border: 1px solid #e2e8f0 !important;
+    padding: 4.5pt 6pt !important;
+    color: #1e293b !important;
+    vertical-align: middle !important;
+  }
+
+  /* 6. Badges & Tags */
+  [class*="badge"],
+  .badge {
+    border: 1px solid #94a3b8 !important;
+    color: #0f172a !important;
+    background: transparent !important;
+    font-weight: 700 !important;
+    font-size: 7.5pt !important;
+    padding: 1pt 4pt !important;
+    border-radius: 3px !important;
+    display: inline-block !important;
+  }
+
+  /* 7. Typography */
+  h1, h2, h3, h4 {
+    color: #0f172a !important;
+    page-break-after: avoid !important;
+  }
+
+  a {
+    text-decoration: none !important;
+    color: #000000 !important;
+  }
+
+  /* 8. Modal & Dialog Print Isolation */
+  div[role="dialog"],
+  [data-state="open"] > div[class*="DialogContent"],
+  div[class*="DialogContent"],
+  div[class*="max-w-2xl"] {
+    position: static !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    transform: none !important;
+  }
+
+  div[class*="bg-slate-900/60"],
+  div[class*="backdrop-blur"] {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    position: static !important;
+    inset: auto !important;
+    padding: 0 !important;
+  }
+}
+
