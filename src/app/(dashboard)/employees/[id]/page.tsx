@@ -54,9 +54,9 @@ function EmployeeDetailContent({
   const resolvedParams = use(params);
   const { employees, addEmployee, refreshEmployees, isSalaryVisible, currentUser, currentRole, currentEmployee, can, isLoadingData } = useAuth();
   
-  // If employee role, strictly view own profile without fallback to other employees
+  // If employee role, strictly view own profile with safe fallback
   const targetId = currentRole === 'employee'
-    ? (currentEmployee?.id || currentUser.employeeId || resolvedParams.id)
+    ? (currentEmployee?.id || currentUser?.employeeId || resolvedParams.id || (employees.length > 0 ? employees[0]?.id : ''))
     : resolvedParams.id;
 
   const initialEmployee =
@@ -64,8 +64,9 @@ function EmployeeDetailContent({
       (e) =>
         e.id === targetId ||
         e.employeeCode === targetId ||
-        e.employeeCode?.toLowerCase() === targetId?.toLowerCase()
-    ) || (currentRole === 'employee' ? currentEmployee || null : null);
+        e.employeeCode?.toLowerCase() === targetId?.toLowerCase() ||
+        (currentUser?.id && e.userId === currentUser.id)
+    ) || (currentRole === 'employee' ? currentEmployee || (employees.length > 0 ? employees[0] : null) : null);
 
   const [employee, setEmployee] = useState<Employee | null>(initialEmployee);
   const [loading, setLoading] = useState(!initialEmployee);
@@ -321,7 +322,7 @@ function EmployeeDetailContent({
   }
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Back Button (Hidden for Employee self-service view) */}
       {currentRole !== 'employee' && (
         <Button variant="ghost" size="sm" asChild className="gap-2 text-xs">
@@ -333,27 +334,27 @@ function EmployeeDetailContent({
       )}
 
       {/* Header Profile Card */}
-      <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="flex items-center gap-5">
+      <div className="p-4 sm:p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5">
             <img
               src={getPersonaAvatar(employee.employeeCode, `${employee.firstName} ${employee.lastName}`)}
               alt={employee.firstName || 'Employee'}
-              className="h-20 w-20 rounded-3xl object-cover ring-4 ring-indigo-500/20 shadow-md"
+              className="h-16 w-16 sm:h-20 sm:w-20 rounded-2xl sm:rounded-3xl object-cover ring-4 ring-indigo-500/20 shadow-md shrink-0"
             />
             <div className="space-y-1.5">
-              <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
                   {employee.firstName} {employee.lastName}
                 </h1>
                 <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase ${statusBadge.bg} ${statusBadge.text}`}>
                   {employee.employmentStatus || 'active'}
                 </span>
               </div>
-              <div className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">
+              <div className="text-xs sm:text-sm font-semibold text-indigo-600 dark:text-indigo-400">
                 {employee.designationTitle || 'Staff Member'}
               </div>
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-1">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs text-slate-500 pt-1">
                 <span className="font-mono font-semibold bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
                   {employee.employeeCode}
                 </span>
@@ -382,7 +383,7 @@ function EmployeeDetailContent({
                     <span>{canEditFull ? 'Edit Dossier' : 'Update Personal Info'}</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="text-lg font-bold">
                       {canEditFull ? 'Edit Employee Dossier' : 'Update Personal Contact Details'}
@@ -410,7 +411,7 @@ function EmployeeDetailContent({
                             <span>1. Personal Demographics</span>
                             <span className="text-[10px] text-slate-400 font-normal">Fields with <span className="text-rose-500 font-bold">*</span> are required</span>
                           </h4>
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="space-y-1">
                               <label className="font-semibold text-slate-700 dark:text-slate-300">
                                 First Name <span className="text-rose-500 font-bold">*</span>
@@ -447,7 +448,7 @@ function EmployeeDetailContent({
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="space-y-1">
                               <label className="font-semibold text-slate-700 dark:text-slate-300">
                                 Date of Birth <span className="text-rose-500 font-bold">*</span>
@@ -491,7 +492,7 @@ function EmployeeDetailContent({
                           <h4 className="font-bold text-slate-800 dark:text-slate-200 border-b pb-1">
                             2. Designation, Status & Compensation
                           </h4>
-                          <div className="grid grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="space-y-1">
                               <label className="font-semibold text-slate-700 dark:text-slate-300">
                                 Designation Title <span className="text-rose-500 font-bold">*</span>
@@ -556,7 +557,7 @@ function EmployeeDetailContent({
                             <span>3. Statutory Registrations & Bank</span>
                             <span className="text-[10px] text-slate-400 font-normal">Optional</span>
                           </h3>
-                          <div className="grid grid-cols-3 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div className="space-y-1">
                               <label className="font-semibold text-slate-700 dark:text-slate-300">
                                 PAN Number <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
@@ -598,7 +599,7 @@ function EmployeeDetailContent({
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-3 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div className="space-y-1">
                               <label className="font-semibold text-slate-700 dark:text-slate-300">
                                 Bank Name <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
@@ -666,7 +667,7 @@ function EmployeeDetailContent({
                         />
                       </div>
 
-                      <div className="grid grid-cols-3 gap-3 pt-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                         <div className="space-y-1">
                           <label className="font-semibold text-slate-700 dark:text-slate-300">
                             Emergency Name <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
@@ -748,12 +749,14 @@ function EmployeeDetailContent({
 
       {/* Detailed Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
-          <TabsTrigger value="overview">Overview & Bio</TabsTrigger>
-          <TabsTrigger value="compensation">Compensation & CTC</TabsTrigger>
-          <TabsTrigger value="statutory">Statutory & Bank</TabsTrigger>
-          <TabsTrigger value="documents">Document Vault</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto max-w-full pb-1">
+          <TabsList className="flex w-max sm:grid sm:grid-cols-4 sm:w-full max-w-2xl">
+            <TabsTrigger value="overview" className="px-3 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap">Overview & Bio</TabsTrigger>
+            <TabsTrigger value="compensation" className="px-3 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap">Compensation & CTC</TabsTrigger>
+            <TabsTrigger value="statutory" className="px-3 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap">Statutory & Bank</TabsTrigger>
+            <TabsTrigger value="documents" className="px-3 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap">Document Vault</TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* 1. Overview Tab */}
         <TabsContent value="overview" className="space-y-6">

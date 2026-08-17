@@ -99,10 +99,10 @@ function EmployeesContent() {
 
   React.useEffect(() => {
     if (currentRole === 'employee') {
-      const selfId = currentEmployee?.id || currentUser.employeeId;
+      const selfId = currentEmployee?.id || currentUser?.employeeId || (employees.length > 0 ? employees[0]?.id : null);
       if (selfId) router.replace(`/employees/${selfId}`);
     }
-  }, [currentRole, currentEmployee, currentUser, router]);
+  }, [currentRole, currentEmployee, currentUser, employees, router]);
 
   React.useEffect(() => {
     fetch('/api/master')
@@ -240,9 +240,14 @@ function EmployeesContent() {
 
   const filteredEmployees = employees.filter((emp) => {
     if (currentRole === 'employee') {
-      const selfId = currentEmployee?.id || currentUser.employeeId || '';
-      const selfCode = currentEmployee?.employeeCode;
-      return emp.id === selfId || (selfCode && emp.employeeCode === selfCode);
+      const selfId = currentEmployee?.id || currentUser?.employeeId || (employees.length > 0 ? employees[0]?.id : '');
+      const selfCode = currentEmployee?.employeeCode || currentUser?.employeeId;
+      return (
+        emp.id === selfId ||
+        emp.employeeCode === selfId ||
+        (selfCode && emp.employeeCode === selfCode) ||
+        (currentUser?.id && emp.userId === currentUser.id)
+      );
     }
 
     const matchesSearch =
@@ -259,12 +264,12 @@ function EmployeesContent() {
   });
 
   return (
-    <div className="p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
               {currentRole === 'employee' ? 'Profile 360 (My Profile)' : 'Employee Directory & Master Records'}
             </h1>
             <Badge variant="outline" className="text-xs">
@@ -286,7 +291,7 @@ function EmployeesContent() {
                 <span>Onboard New Employee</span>
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-lg font-bold">Onboard New Employee Dossier</DialogTitle>
               </DialogHeader>
@@ -311,7 +316,7 @@ function EmployeesContent() {
                     <span>1. Personal Identity & Demographics</span>
                     <span className="text-[10px] text-slate-400 font-normal">Fields with <span className="text-rose-500 font-bold">*</span> are required</span>
                   </h3>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="font-semibold text-slate-700 dark:text-slate-300">
                         First Name <span className="text-rose-500 font-bold">*</span>
@@ -348,7 +353,7 @@ function EmployeesContent() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="font-semibold text-slate-700 dark:text-slate-300">
                         Official Email <span className="text-rose-500 font-bold">*</span>
@@ -388,7 +393,7 @@ function EmployeesContent() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="font-semibold text-slate-700 dark:text-slate-300">
                         Date of Birth <span className="text-rose-500 font-bold">*</span>
@@ -432,7 +437,7 @@ function EmployeesContent() {
                   <h3 className="font-bold text-slate-800 dark:text-slate-200 text-xs border-b pb-1">
                     2. Role, Department & Compensation
                   </h3>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="font-semibold text-slate-700 dark:text-slate-300">
                         Department <span className="text-rose-500 font-bold">*</span>
@@ -473,7 +478,7 @@ function EmployeesContent() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="font-semibold text-slate-700 dark:text-slate-300">
                         Date of Joining <span className="text-rose-500 font-bold">*</span>
@@ -516,7 +521,7 @@ function EmployeesContent() {
                     <span>3. Statutory Registrations & Bank Account</span>
                     <span className="text-[10px] text-slate-400 font-normal">Optional</span>
                   </h3>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <label className="font-semibold text-slate-700 dark:text-slate-300">
                         PAN Number <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
@@ -558,7 +563,7 @@ function EmployeesContent() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <label className="font-semibold text-slate-700 dark:text-slate-300">
                         Bank Name <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
@@ -605,7 +610,7 @@ function EmployeesContent() {
                     <span>4. Emergency Contact Details</span>
                     <span className="text-[10px] text-slate-400 font-normal">Optional</span>
                   </h3>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1">
                       <label className="font-semibold text-slate-700 dark:text-slate-300">
                         Contact Name <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
@@ -660,7 +665,7 @@ function EmployeesContent() {
                     <span>5. KYC & Personnel Document Attachments</span>
                     <span className="text-[10px] text-slate-400 font-normal">Optional</span>
                   </h3>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <label className="font-semibold text-slate-700 dark:text-slate-300">
                         Document Category <span className="text-[10px] text-slate-400 font-normal">(Optional)</span>
@@ -702,7 +707,6 @@ function EmployeesContent() {
         )}
       </div>
 
-
       {/* Filter and Search Bar */}
       {currentRole !== 'employee' && (
         <div className="flex flex-col sm:flex-row gap-3">
@@ -735,7 +739,7 @@ function EmployeesContent() {
       )}
 
       {/* Employee Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
         {filteredEmployees.map((emp) => {
           const statusBadge = getStatusColorBadge(emp.employmentStatus);
           const showSalary = isSalaryVisible(false);
