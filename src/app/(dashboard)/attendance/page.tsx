@@ -577,7 +577,7 @@ function AttendanceContent() {
                       <td className="p-3 font-mono font-semibold">{rec.totalHours} hrs</td>
                       <td className="p-3 capitalize">
                         <Badge variant="outline" className="text-[10px]">
-                          {rec.source.replace('_', ' ')}
+                          {rec.source?.replace(/_/g, ' ') || 'Web Check-in'}
                         </Badge>
                       </td>
                       <td className="p-3">
@@ -585,7 +585,7 @@ function AttendanceContent() {
                           variant={rec.status === 'present' ? 'success' : 'warning'}
                           className="text-[10px] capitalize"
                         >
-                          {rec.status.replace('_', ' ')}
+                          {rec.status?.replace(/_/g, ' ') || 'Present'}
                         </Badge>
                       </td>
                       <td className="p-3">

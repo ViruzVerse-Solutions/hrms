@@ -14,6 +14,11 @@ import {
   Check,
   Lock,
   X,
+  Sliders,
+  Clock,
+  Users,
+  MapPin,
+  Sparkles,
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -27,7 +32,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -60,10 +64,15 @@ export default function LeavesPage() {
 function LeavesContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState(tabParam === 'holidays' ? 'holidays' : 'applications');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (tabParam === 'holidays') return 'holidays';
+    if (tabParam === 'od_requests' || tabParam === 'od') return 'od_requests';
+    return 'applications';
+  });
 
   useEffect(() => {
     if (tabParam === 'holidays') setActiveTab('holidays');
+    else if (tabParam === 'od_requests' || tabParam === 'od') setActiveTab('od_requests');
     else if (tabParam === 'applications') setActiveTab('applications');
   }, [tabParam]);
   const {
@@ -101,12 +110,25 @@ function LeavesContent() {
     reason: '',
   });
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+
   const empId = currentEmployee?.id || currentUser?.employeeId || '';
   const empName = currentEmployee ? `${currentEmployee.firstName} ${currentEmployee.lastName}` : currentUser.name;
+
+  const isHrOrAdmin = currentRole === 'hr_head' || currentRole === 'managing_director' || currentRole === 'chairman' || currentRole === 'compliance_statutory';
 
   const visibleLeaves = currentRole === 'employee'
     ? leaveRequests.filter((l) => l.employeeId === empId || l.employeeName === empName)
     : leaveRequests;
+
+  const filteredLeaves = visibleLeaves.filter((l) => {
+    const matchesSearch = !searchQuery || l.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) || l.reason?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || l.status === statusFilter;
+    const matchesType = typeFilter === 'all' || l.leaveType === typeFilter;
+    return matchesSearch && matchesStatus && matchesType;
+  });
 
   const handleApply = (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,8 +200,14 @@ function LeavesContent() {
 
   const [policyModalOpen, setPolicyModalOpen] = useState(false);
   const [policyForm, setPolicyForm] = useState({
-    leaveType: 'casual' as LeaveType,
-    allocatedDays: 12,
+    casual: 12,
+    sick: 10,
+    earned: 15,
+    maternity: 180,
+    paternity: 15,
+    compensatory_off: 5,
+    bereavement: 5,
+    marriage: 5,
   });
   const [policySuccessMsg, setPolicySuccessMsg] = useState('');
 
@@ -191,12 +219,12 @@ function LeavesContent() {
         'Content-Type': 'application/json',
         'x-user-role': currentRole,
       },
-      body: JSON.stringify(policyForm),
+      body: JSON.stringify({ quotas: policyForm }),
     })
       .then((res) => res.json())
       .then((data) => {
         if (data?.success) {
-          setPolicySuccessMsg(data.message || 'Leave quota policy updated successfully');
+          setPolicySuccessMsg(data.message || 'All company leave quotas updated successfully');
           fetch('/api/leaves', {
             headers: {
               'x-user-role': currentRole,
@@ -207,6 +235,10 @@ function LeavesContent() {
             .then((d) => {
               if (d?.data?.leaveAllocations) setLeaveAllocations(d.data.leaveAllocations);
             });
+          setTimeout(() => {
+            setPolicyModalOpen(false);
+            setPolicySuccessMsg('');
+          }, 1200);
         }
       })
       .catch(() => {});
@@ -306,593 +338,471 @@ function LeavesContent() {
     }
   };
 
+  // Compute summary stats
+  const pendingApprovalsCount = leaveRequests.filter((l) => l.status === 'pending').length;
+  const approvedLeavesCount = leaveRequests.filter((l) => l.status === 'approved').length;
+  const odRequestsList = visibleLeaves.filter(
+    (l) => l.leaveType === 'compensatory_off' || l.reason?.includes('[ON DUTY') || l.reason?.includes('[OD]')
+  );
+
   return (
-    <div className="p-8 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+      {/* 1. Sleek Hero Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-slate-900 p-5 sm:p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div>
-          <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-            <span>Leave Management & Holiday Calendar</span>
-            <Badge variant="outline" className="text-xs font-semibold">
-              Enterprise Governance
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              {currentRole === 'employee' ? 'Leave Portal & Official Holidays' : 'Leave Operations & Holiday Governance'}
+            </h1>
+            <Badge variant="outline" className="text-[11px] font-semibold">
+              {currentRole === 'employee' ? 'ESS Portal' : 'Enterprise HR Operations'}
             </Badge>
-          </h1>
-          <p className="text-xs text-slate-600 mt-1">
-            Apply for time off, manage leave quota policies, and review/approve official company holidays
+          </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
+            {currentRole === 'employee'
+              ? 'Check live quota balances, apply for time off, request outdoor duty, and view company holidays.'
+              : 'Govern company-wide leave quotas, process pending applications, and manage published annual holidays.'}
           </p>
         </div>
 
+        {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          {canConfigureHoliday && (
+          {canConfigurePolicy && (
             <Button
-              onClick={() => setHolidayModalOpen(true)}
               variant="outline"
-              className="gap-1.5 text-xs border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100"
+              size="sm"
+              onClick={() => {
+                setPolicyModalOpen(true);
+                setPolicySuccessMsg('');
+              }}
+              className="gap-1.5 text-xs border-indigo-200 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
             >
-              <FileCheck className="h-4 w-4 text-amber-600" />
-              <span>Configure Holiday Calendar</span>
+              <Sliders className="h-3.5 w-3.5 text-indigo-600" />
+              <span>Configure Leave Quotas</span>
             </Button>
           )}
 
-          {canConfigurePolicy && (
-            <Dialog open={policyModalOpen} onOpenChange={(open) => {
-              setPolicyModalOpen(open);
-              if (open) setPolicySuccessMsg('');
-            }}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="gap-2 shadow-sm text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-                  <AlertTriangle className="h-4 w-4 text-indigo-600" />
-                  <span>Configure Leave Quotas</span>
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Configure Company Leave Quota Policy</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleUpdatePolicy} className="space-y-4 pt-2 text-xs">
-                  {policySuccessMsg && (
-                    <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
-                      {policySuccessMsg}
-                    </div>
-                  )}
-
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">Leave Type</label>
-                    <select
-                      value={policyForm.leaveType}
-                      onChange={(e) => setPolicyForm({ ...policyForm, leaveType: e.target.value as LeaveType })}
-                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                    >
-                      <option value="casual">Casual Leave (CL)</option>
-                      <option value="sick">Sick Leave (SL)</option>
-                      <option value="earned">Earned / Privilege Leave (EL)</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">Annual Quota Allocation (Days)</label>
-                    <input
-                      type="number"
-                      min={1}
-                      max={60}
-                      value={policyForm.allocatedDays}
-                      onChange={(e) => setPolicyForm({ ...policyForm, allocatedDays: Number(e.target.value) })}
-                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2 border-t">
-                    <Button type="button" variant="outline" onClick={() => setPolicyModalOpen(false)}>
-                      Close
-                    </Button>
-                    <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                      Save Quota Policy
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
-          )}
-
-          {/* Apply Leave Modal */}
-          <Dialog open={applyModalOpen} onOpenChange={(open) => {
-            setApplyModalOpen(open);
-            if (open) {
-              setForm({ leaveType: 'casual', fromDate: todayStr, toDate: todayStr, reason: '' });
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setOdModalOpen(true);
               setDateError('');
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button className="gap-2 shadow-md text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
-                <Plus className="h-4 w-4" />
-                <span>Apply for Leave</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Submit Leave Application</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleApply} className="space-y-4 pt-2 text-xs">
-                {dateError && (
-                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
-                    {dateError}
-                  </div>
-                )}
+            }}
+            className="gap-1.5 text-xs border-slate-200 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+          >
+            <Building className="h-3.5 w-3.5 text-slate-500" />
+            <span>Request On-Duty</span>
+          </Button>
 
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">Leave Type</label>
-                  <select
-                    value={form.leaveType}
-                    onChange={(e) => setForm({ ...form, leaveType: e.target.value as LeaveType })}
-                    className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                  >
-                    {(() => {
-                      const getAvailBal = (t: string, defAlloc: number) => {
-                        const alloc = leaveAllocations.find((a) => a.leaveType === t);
-                        const usedReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
-                        const pendReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
-                        const allocated = alloc ? Number(alloc.totalAllocated || (alloc as any).allocatedDays || defAlloc) : defAlloc;
-                        const used = alloc ? Math.max(Number(alloc.used || (alloc as any).usedDays || 0), usedReq) : usedReq;
-                        const pending = alloc ? Math.max(Number(alloc.pending || (alloc as any).pendingDays || 0), pendReq) : pendReq;
-                        return Math.max(0, allocated - (used + pending));
-                      };
-
-                      const empGender = (currentEmployee as any)?.gender || 'female';
-
-                      return (
-                        <>
-                          <option value="casual">Casual Leave (CL) - Balance: {getAvailBal('casual', 12)} Days</option>
-                          <option value="sick">Sick Leave (SL) - Balance: {getAvailBal('sick', 10)} Days</option>
-                          <option value="earned">Earned / Privilege Leave (EL) - Balance: {getAvailBal('earned', 15)} Days</option>
-                          {empGender === 'female' && (
-                            <option value="maternity">Maternity Leave (Female Only) - Balance: 180 Days</option>
-                          )}
-                          {empGender === 'male' && (
-                            <option value="paternity">Paternity Leave (Male Only) - Balance: 15 Days</option>
-                          )}
-                          <option value="unpaid">Loss of Pay (LOP / Unpaid)</option>
-                        </>
-                      );
-                    })()}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">From Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={form.fromDate}
-                      onChange={(e) => setForm({ ...form, fromDate: e.target.value })}
-                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">To Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={form.toDate}
-                      onChange={(e) => setForm({ ...form, toDate: e.target.value })}
-                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">Reason</label>
-                  <textarea
-                    rows={3}
-                    required
-                    placeholder="Enter reason for leave..."
-                    value={form.reason}
-                    onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                    className="w-full p-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2 border-t">
-                  <Button type="button" variant="outline" onClick={() => setApplyModalOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                    Submit Application
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Apply On Duty (OD) Modal */}
-          <Dialog open={odModalOpen} onOpenChange={(open) => {
-            setOdModalOpen(open);
-            if (open) {
-              setOdForm({ fromDate: todayStr, toDate: todayStr, fromTime: '09:00', toTime: '18:00', location: '', reason: '' });
+          <Button
+            size="sm"
+            onClick={() => {
+              setApplyModalOpen(true);
               setDateError('');
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2 shadow-sm text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-semibold">
-                <Building className="h-4 w-4 text-indigo-600" />
-                <span>Request On Duty (OD)</span>
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Submit On-Duty (OD) Request</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleApplyOD} className="space-y-4 pt-2 text-xs">
-                {dateError && (
-                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
-                    {dateError}
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">OD Work Location / Client Site</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Pune Factory Site / Client HQ / Off-site Audit"
-                    value={odForm.location}
-                    onChange={(e) => setOdForm({ ...odForm, location: e.target.value })}
-                    className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">From Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={odForm.fromDate}
-                      onChange={(e) => setOdForm({ ...odForm, fromDate: e.target.value })}
-                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">To Date</label>
-                    <input
-                      type="date"
-                      required
-                      value={odForm.toDate}
-                      onChange={(e) => setOdForm({ ...odForm, toDate: e.target.value })}
-                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">From Time</label>
-                    <input
-                      type="time"
-                      required
-                      value={odForm.fromTime}
-                      onChange={(e) => setOdForm({ ...odForm, fromTime: e.target.value })}
-                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-semibold text-slate-700 dark:text-slate-300">To Time</label>
-                    <input
-                      type="time"
-                      required
-                      value={odForm.toTime}
-                      onChange={(e) => setOdForm({ ...odForm, toTime: e.target.value })}
-                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-semibold text-slate-700 dark:text-slate-300">Purpose / Detailed Reason</label>
-                  <textarea
-                    rows={3}
-                    required
-                    placeholder="Provide details about outdoor duty assignment..."
-                    value={odForm.reason}
-                    onChange={(e) => setOdForm({ ...odForm, reason: e.target.value })}
-                    className="w-full p-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2 border-t">
-                  <Button type="button" variant="outline" onClick={() => setOdModalOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
-                    Submit OD Request
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog>
+            }}
+            className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Apply for Leave</span>
+          </Button>
         </div>
       </div>
 
-      {/* Leave Balances & Holiday Summary Grid */}
-      {(() => {
-        const calcLeaveStats = (type: string, defAlloc: number) => {
-          const alloc = leaveAllocations.find((a) => a.leaveType === type);
-          const approvedCount = visibleLeaves.filter((l) => l.leaveType === type && l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
-          const pendingCount = visibleLeaves.filter((l) => l.leaveType === type && l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+      {/* 2. Role-Aware KPI Summary Cards */}
+      {isHrOrAdmin ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          <Card
+            onClick={() => setActiveTab('applications')}
+            className="cursor-pointer transition-all hover:border-amber-300 border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs"
+          >
+            <CardContent className="p-5">
+              <div className="flex justify-between text-xs font-semibold text-slate-500">
+                <span>Pending Approvals</span>
+                <Clock className="h-4 w-4 text-amber-500" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-2 font-mono">{pendingApprovalsCount}</div>
+              <div className="text-xs text-slate-500 mt-1">Requires supervisor/HR action</div>
+            </CardContent>
+          </Card>
 
-          const totalAllocated = alloc ? Number(alloc.allocatedDays || (alloc as any).totalAllocated || defAlloc) : defAlloc;
-          const used = alloc?.usedDays !== undefined ? Number(alloc.usedDays) : approvedCount;
-          const pending = alloc?.pendingDays !== undefined ? Number(alloc.pendingDays) : pendingCount;
-          const balance = Math.max(0, totalAllocated - used);
+          <Card className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+            <CardContent className="p-5">
+              <div className="flex justify-between text-xs font-semibold text-slate-500">
+                <span>Approved Leaves</span>
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-2 font-mono">{approvedLeavesCount}</div>
+              <div className="text-xs text-slate-500 mt-1">Active leaves in record</div>
+            </CardContent>
+          </Card>
 
-          return { totalAllocated, used, pending, balance };
-        };
+          <Card
+            onClick={() => setActiveTab('od_requests')}
+            className="cursor-pointer transition-all hover:border-indigo-300 border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs"
+          >
+            <CardContent className="p-5">
+              <div className="flex justify-between text-xs font-semibold text-slate-500">
+                <span>Outdoor Duty (OD)</span>
+                <Building className="h-4 w-4 text-indigo-600" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-indigo-600 mt-2 font-mono">{odRequestsList.length}</div>
+              <div className="text-xs text-slate-500 mt-1">Plant visits & client sites</div>
+            </CardContent>
+          </Card>
 
-        const cl = calcLeaveStats('casual', 12);
-        const sl = calcLeaveStats('sick', 10);
-        const el = calcLeaveStats('earned', 15);
+          <Card
+            onClick={() => setActiveTab('holidays')}
+            className="cursor-pointer transition-all hover:border-purple-300 border-purple-200/60 dark:border-purple-900/60 bg-purple-50/30 dark:bg-purple-950/20 shadow-xs"
+          >
+            <CardContent className="p-5">
+              <div className="flex justify-between text-xs font-semibold text-slate-500">
+                <span>Company Holidays</span>
+                <FileCheck className="h-4 w-4 text-purple-600" />
+              </div>
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-2 font-mono">{holidays.length} Days</div>
+              <div className="text-xs text-purple-700 dark:text-purple-400 mt-1 font-medium flex items-center gap-1">
+                <ShieldCheck className="h-3.5 w-3.5 text-purple-600" />
+                <span>Published Calendar 2026</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        /* Regular Employee ESS Balances */
+        (() => {
+          const calcLeaveStats = (type: string, defAlloc: number) => {
+            const alloc = leaveAllocations.find((a) => a.leaveType === type);
+            const approvedCount = visibleLeaves.filter((l) => l.leaveType === type && l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+            const pendingCount = visibleLeaves.filter((l) => l.leaveType === type && l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
 
-        return (
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
-            <Card className="border-slate-200 bg-white">
-              <CardContent className="p-6">
-                <div className="flex justify-between text-xs font-semibold text-slate-500">
-                  <span>Casual Leave (CL)</span>
-                  <Calendar className="h-4 w-4 text-indigo-600" />
-                </div>
-                <div className="text-3xl font-extrabold text-indigo-600 mt-2 font-mono">{cl.balance} / {cl.totalAllocated}</div>
-                <div className="text-xs text-slate-500 mt-1">{cl.used} used • {cl.pending} pending approval</div>
-              </CardContent>
-            </Card>
+            const totalAllocated = alloc ? Number(alloc.allocatedDays || (alloc as any).totalAllocated || defAlloc) : defAlloc;
+            const used = alloc?.usedDays !== undefined ? Number(alloc.usedDays) : approvedCount;
+            const pending = alloc?.pendingDays !== undefined ? Number(alloc.pendingDays) : pendingCount;
+            const balance = Math.max(0, totalAllocated - used);
 
-            <Card className="border-slate-200 bg-white">
-              <CardContent className="p-6">
-                <div className="flex justify-between text-xs font-semibold text-slate-500">
-                  <span>Sick Leave (SL)</span>
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                </div>
-                <div className="text-3xl font-extrabold text-emerald-600 mt-2 font-mono">{sl.balance} / {sl.totalAllocated}</div>
-                <div className="text-xs text-slate-500 mt-1">{sl.used} used • {sl.pending} pending approval</div>
-              </CardContent>
-            </Card>
+            return { totalAllocated, used, pending, balance };
+          };
 
-            <Card className="border-slate-200 bg-white">
-              <CardContent className="p-6">
-                <div className="flex justify-between text-xs font-semibold text-slate-500">
-                  <span>Earned Leave (EL)</span>
-                  <CalendarDays className="h-4 w-4 text-purple-600" />
-                </div>
-                <div className="text-3xl font-extrabold text-purple-600 mt-2 font-mono">{el.balance} / {el.totalAllocated}</div>
-                <div className="text-xs text-slate-500 mt-1">{el.used} used • {el.pending} pending approval</div>
-              </CardContent>
-            </Card>
+          const cl = calcLeaveStats('casual', 12);
+          const sl = calcLeaveStats('sick', 10);
+          const el = calcLeaveStats('earned', 15);
 
-            <Card className="border-slate-200 bg-amber-50/30">
-              <CardContent className="p-6">
-                <div className="flex justify-between text-xs font-semibold text-slate-500">
-                  <span>Holiday Calendar 2026</span>
-                  <FileCheck className="h-4 w-4 text-amber-600" />
-                </div>
-                <div className="text-3xl font-extrabold text-slate-900 mt-2 font-mono">{holidays.length} Days</div>
-                <div className="text-xs text-amber-700 mt-1 font-medium flex items-center gap-1">
-                  <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
-                  <span>Configured & Approved</span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        );
-      })()}
+          return (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+              <Card className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                <CardContent className="p-5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-500">
+                    <span>Casual Leave (CL)</span>
+                    <Calendar className="h-4 w-4 text-indigo-600" />
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-indigo-600 mt-2 font-mono">{cl.balance} / {cl.totalAllocated}</div>
+                  <div className="text-xs text-slate-500 mt-1">{cl.used} used • {cl.pending} pending</div>
+                </CardContent>
+              </Card>
 
-      {/* Navigation Tabs for Leave Applications, Outdoor Duty & Holiday Calendar */}
-      <Tabs defaultValue="applications" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-3 max-w-xl">
-          <TabsTrigger value="applications">Leave Applications</TabsTrigger>
-          <TabsTrigger value="od_requests">Outdoor Duty (OD)</TabsTrigger>
-          <TabsTrigger value="holidays">Holiday Calendar ({holidays.length})</TabsTrigger>
+              <Card className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                <CardContent className="p-5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-500">
+                    <span>Sick Leave (SL)</span>
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-2 font-mono">{sl.balance} / {sl.totalAllocated}</div>
+                  <div className="text-xs text-slate-500 mt-1">{sl.used} used • {sl.pending} pending</div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                <CardContent className="p-5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-500">
+                    <span>Earned Leave (EL)</span>
+                    <CalendarDays className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-purple-600 mt-2 font-mono">{el.balance} / {el.totalAllocated}</div>
+                  <div className="text-xs text-slate-500 mt-1">{el.used} used • {el.pending} pending</div>
+                </CardContent>
+              </Card>
+
+              <Card
+                onClick={() => setActiveTab('holidays')}
+                className="cursor-pointer transition-all hover:border-amber-300 border-amber-200/80 dark:border-amber-900/60 bg-amber-50/40 dark:bg-amber-950/20 shadow-xs"
+              >
+                <CardContent className="p-5">
+                  <div className="flex justify-between text-xs font-semibold text-slate-500">
+                    <span>Holiday Calendar</span>
+                    <FileCheck className="h-4 w-4 text-amber-600" />
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mt-2 font-mono">{holidays.length} Days</div>
+                  <div className="text-xs text-amber-700 dark:text-amber-400 mt-1 font-medium flex items-center gap-1">
+                    <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
+                    <span>View Calendar 2026</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })()
+      )}
+
+      {/* 3. Navigation Tabs */}
+      <Tabs
+        defaultValue="applications"
+        value={activeTab}
+        onValueChange={(val) => {
+          setActiveTab(val);
+          if (typeof window !== 'undefined') {
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', val);
+            window.history.replaceState({}, '', url.toString());
+          }
+        }}
+        className="w-full space-y-5"
+      >
+        <TabsList className="grid grid-cols-1 sm:grid-cols-3 w-full h-auto p-1.5 bg-slate-100/90 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-xs gap-1.5">
+          <TabsTrigger value="applications" className="py-2.5 px-3 text-xs sm:text-sm font-semibold rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-xs transition-all">
+            Leave Applications {pendingApprovalsCount > 0 && isHrOrAdmin && (
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 text-amber-800 font-bold">{pendingApprovalsCount}</span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="od_requests" className="py-2.5 px-3 text-xs sm:text-sm font-semibold rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-xs transition-all">
+            Outdoor Duty (OD) ({odRequestsList.length})
+          </TabsTrigger>
+          <TabsTrigger value="holidays" className="py-2.5 px-3 text-xs sm:text-sm font-semibold rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-xs transition-all">
+            Holiday Calendar ({holidays.length})
+          </TabsTrigger>
         </TabsList>
 
-        {/* 1. Leave Applications Queue */}
+        {/* Tab 1: Leave Applications */}
         <TabsContent value="applications">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base font-bold">Leave Requests & Multi-Tier Approvals</CardTitle>
+          <Card className="border-slate-200/80 dark:border-slate-800">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3">
+              <div>
+                <CardTitle className="text-base font-bold text-slate-900 dark:text-white">Leave Requests & Approvals</CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Formal leave applications, balance tracking, and manager approvals</p>
+              </div>
+
+              {/* Responsive Filter Toolbar */}
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <input
+                  type="text"
+                  placeholder="Search employee / reason..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 px-2.5 rounded-lg border text-xs bg-white dark:bg-slate-900 w-full sm:w-48 outline-none"
+                />
+
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="h-8 px-2 rounded-lg border text-xs bg-white dark:bg-slate-900 outline-none flex-1 sm:flex-initial"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="h-8 px-2 rounded-lg border text-xs bg-white dark:bg-slate-900 outline-none flex-1 sm:flex-initial"
+                >
+                  <option value="all">All Types</option>
+                  <option value="casual">Casual (CL)</option>
+                  <option value="sick">Sick (SL)</option>
+                  <option value="earned">Earned (EL)</option>
+                  <option value="maternity">Maternity</option>
+                  <option value="paternity">Paternity</option>
+                  <option value="compensatory_off">Comp-off</option>
+                </select>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-                    <tr>
-                      <th className="p-3">Employee</th>
-                      <th className="p-3">Leave Type</th>
-                      <th className="p-3">From</th>
-                      <th className="p-3">To</th>
-                      <th className="p-3">Days</th>
-                      <th className="p-3">Reason</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {visibleLeaves.map((req) => {
-                      const canApprove = can('approve', 'attendance_leave');
+              {filteredLeaves.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-500">
+                  {visibleLeaves.length === 0 ? 'No leave applications recorded in database.' : 'No leaves match the selected filter criteria.'}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50/80 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="p-3">Employee</th>
+                        <th className="p-3">Leave Type</th>
+                        <th className="p-3">From</th>
+                        <th className="p-3">To</th>
+                        <th className="p-3">Duration</th>
+                        <th className="p-3">Reason</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {filteredLeaves.map((req) => {
+                        const canApprove = can('approve', 'attendance_leave');
 
-                      return (
-                        <tr key={req.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 font-bold text-slate-900">
-                            {req.employeeName}
-                          </td>
-                          <td className="p-3 capitalize font-semibold text-indigo-600">
-                            {req.leaveType}
-                          </td>
-                          <td className="p-3 text-slate-600 font-medium">{formatDate(req.fromDate)}</td>
-                          <td className="p-3 text-slate-600 font-medium">{formatDate(req.toDate)}</td>
-                          <td className="p-3 font-mono font-bold text-slate-900">{req.daysCount} days</td>
-                          <td className="p-3 text-slate-600 max-w-xs truncate">
-                            {req.reason}
-                          </td>
-                          <td className="p-3">
-                            <Badge
-                              variant={req.status === 'approved' ? 'success' : req.status === 'pending' ? 'warning' : 'destructive'}
-                              className="text-[10px] capitalize"
-                            >
-                              {req.status}
-                            </Badge>
-                          </td>
-                          <td className="p-3 text-right">
-                            {req.status === 'pending' && canApprove ? (
-                              <div className="flex items-center justify-end gap-1.5">
-                                <Button
-                                  size="sm"
-                                  variant="success"
-                                  className="h-7 px-2.5 text-[11px]"
-                                  onClick={() => updateLeaveStatus(req.id, 'approved', 'Approved by Manager')}
-                                >
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  className="h-7 px-2.5 text-[11px]"
-                                  onClick={() => updateLeaveStatus(req.id, 'rejected', 'Staff coverage constraint')}
-                                >
-                                  Reject
-                                </Button>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 text-[11px]">
-                                {req.approverComment || 'Processed'}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                        return (
+                          <tr key={req.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="p-3 font-bold text-slate-900 dark:text-white">
+                              {req.employeeName}
+                            </td>
+                            <td className="p-3 capitalize font-semibold text-indigo-600 dark:text-indigo-400">
+                              {req.leaveType?.replace(/_/g, ' ')}
+                            </td>
+                            <td className="p-3 text-slate-600 dark:text-slate-400 font-medium">{formatDate(req.fromDate)}</td>
+                            <td className="p-3 text-slate-600 dark:text-slate-400 font-medium">{formatDate(req.toDate)}</td>
+                            <td className="p-3 font-mono font-bold text-slate-900 dark:text-slate-200">{req.daysCount} days</td>
+                            <td className="p-3 text-slate-600 dark:text-slate-400 max-w-xs truncate">
+                              {req.reason}
+                            </td>
+                            <td className="p-3">
+                              <Badge
+                                variant={req.status === 'approved' ? 'success' : req.status === 'pending' ? 'warning' : 'destructive'}
+                                className="text-[10px] capitalize"
+                              >
+                                {req.status}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-right">
+                              {req.status === 'pending' && canApprove ? (
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="success"
+                                    className="h-7 px-2.5 text-[11px]"
+                                    onClick={() => updateLeaveStatus(req.id, 'approved', 'Approved by Manager')}
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="h-7 px-2.5 text-[11px]"
+                                    onClick={() => updateLeaveStatus(req.id, 'rejected', 'Staff coverage constraint')}
+                                  >
+                                    Reject
+                                  </Button>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 text-[11px]">
+                                  {req.approverComment || 'Processed'}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* 2. Outdoor Duty (OD) Requests Tab */}
+        {/* Tab 2: Outdoor Duty (OD) */}
         <TabsContent value="od_requests">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+          <Card className="border-slate-200/80 dark:border-slate-800">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
               <div>
-                <CardTitle className="text-base font-bold flex items-center gap-2">
-                  <Building className="h-5 w-5 text-indigo-600" />
-                  <span>Outdoor Duty (OD) Requests & Approvals</span>
+                <CardTitle className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Building className="h-4 w-4 text-indigo-600" />
+                  <span>Outdoor Duty (OD) Logs</span>
                 </CardTitle>
                 <p className="text-xs text-slate-500 mt-0.5">Off-site client work, factory site visits, and external audit assignments</p>
               </div>
-              <Button
-                onClick={() => setOdModalOpen(true)}
-                size="sm"
-                className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Apply for OD</span>
-              </Button>
             </CardHeader>
             <CardContent>
-              {(() => {
-                const odRequestsList = visibleLeaves.filter(
-                  (l) => l.leaveType === 'compensatory_off' || l.reason.includes('[ON DUTY') || l.reason.includes('[OD]')
-                );
-
-                if (odRequestsList.length === 0) {
-                  return (
-                    <div className="py-8 text-center text-xs text-slate-500">
-                      No Outdoor Duty (OD) requests found in database.
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-                        <tr>
-                          <th className="p-3">Employee</th>
-                          <th className="p-3">Location & Purpose</th>
-                          <th className="p-3">From Date</th>
-                          <th className="p-3">To Date</th>
-                          <th className="p-3">Duration</th>
-                          <th className="p-3">Status</th>
-                          <th className="p-3 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {odRequestsList.map((od) => {
-                          const canApprove = can('approve', 'attendance_leave');
-                          return (
-                            <tr key={od.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="p-3 font-bold text-slate-900">{od.employeeName}</td>
-                              <td className="p-3 text-slate-700 max-w-xs">{od.reason}</td>
-                              <td className="p-3 font-medium text-slate-600">{formatDate(od.fromDate)}</td>
-                              <td className="p-3 font-medium text-slate-600">{formatDate(od.toDate)}</td>
-                              <td className="p-3 font-mono font-bold text-slate-900">{od.daysCount} Days</td>
-                              <td className="p-3">
-                                <Badge
-                                  variant={od.status === 'approved' ? 'success' : od.status === 'pending' ? 'warning' : 'destructive'}
-                                  className="text-[10px] capitalize"
-                                >
-                                  {od.status}
-                                </Badge>
-                              </td>
-                              <td className="p-3 text-right">
-                                {od.status === 'pending' && canApprove ? (
-                                  <div className="flex items-center justify-end gap-1.5">
-                                    <Button
-                                      size="sm"
-                                      variant="success"
-                                      className="h-7 px-2.5 text-[11px]"
-                                      onClick={() => updateLeaveStatus(od.id, 'approved', 'Approved OD Duty Assignment')}
-                                    >
-                                      Approve
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="destructive"
-                                      className="h-7 px-2.5 text-[11px]"
-                                      onClick={() => updateLeaveStatus(od.id, 'rejected', 'OD Request Rejected')}
-                                    >
-                                      Reject
-                                    </Button>
-                                  </div>
-                                ) : (
-                                  <span className="text-slate-400 text-[11px]">
-                                    {od.approverComment || 'Processed'}
-                                  </span>
-                                )}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })()}
+              {odRequestsList.length === 0 ? (
+                <div className="py-12 text-center text-xs text-slate-500">
+                  No Outdoor Duty (OD) requests found in database.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50/80 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="p-3">Employee</th>
+                        <th className="p-3">Location & Purpose</th>
+                        <th className="p-3">From Date</th>
+                        <th className="p-3">To Date</th>
+                        <th className="p-3">Duration</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {odRequestsList.map((od) => {
+                        const canApprove = can('approve', 'attendance_leave');
+                        return (
+                          <tr key={od.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
+                            <td className="p-3 font-bold text-slate-900 dark:text-white">{od.employeeName}</td>
+                            <td className="p-3 text-slate-700 dark:text-slate-300 max-w-xs">{od.reason}</td>
+                            <td className="p-3 font-medium text-slate-600 dark:text-slate-400">{formatDate(od.fromDate)}</td>
+                            <td className="p-3 font-medium text-slate-600 dark:text-slate-400">{formatDate(od.toDate)}</td>
+                            <td className="p-3 font-mono font-bold text-slate-900 dark:text-slate-200">{od.daysCount} Days</td>
+                            <td className="p-3">
+                              <Badge
+                                variant={od.status === 'approved' ? 'success' : od.status === 'pending' ? 'warning' : 'destructive'}
+                                className="text-[10px] capitalize"
+                              >
+                                {od.status}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-right">
+                              {od.status === 'pending' && canApprove ? (
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="success"
+                                    className="h-7 px-2.5 text-[11px]"
+                                    onClick={() => updateLeaveStatus(od.id, 'approved', 'Approved OD Duty Assignment')}
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    className="h-7 px-2.5 text-[11px]"
+                                    onClick={() => updateLeaveStatus(od.id, 'rejected', 'OD Request Rejected')}
+                                  >
+                                    Reject
+                                  </Button>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400 text-[11px]">
+                                  {od.approverComment || 'Processed'}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* 3. Official Holiday Calendar Tab */}
+        {/* Tab 3: Official Holiday Calendar */}
         <TabsContent value="holidays">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <FileCheck className="h-5 w-5 text-amber-600" />
-                <span>Official Annual Company Holiday Calendar (2026)</span>
-              </CardTitle>
+          <Card className="border-slate-200/80 dark:border-slate-800">
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3">
+              <div>
+                <CardTitle className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <FileCheck className="h-4 w-4 text-purple-600" />
+                  <span>Official Annual Company Holiday Calendar (2026)</span>
+                </CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Approved national, mandatory, and regional public holidays for all plant & office staff</p>
+              </div>
 
               {canConfigureHoliday && (
                 <Button
                   onClick={() => setHolidayModalOpen(true)}
                   size="sm"
-                  className="gap-1.5 text-xs bg-amber-600 hover:bg-amber-700 text-white"
+                  className="gap-1.5 text-xs bg-purple-600 hover:bg-purple-700 text-white shadow-xs self-start sm:self-auto"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   <span>Add Holiday Entry</span>
@@ -901,64 +811,82 @@ function LeavesContent() {
             </CardHeader>
             <CardContent>
               {loadingHolidays ? (
-                <div className="py-8 text-center text-xs text-slate-500">Loading company holiday calendar...</div>
+                <div className="py-12 text-center text-xs text-slate-500">Loading company holiday calendar...</div>
               ) : holidays.length === 0 ? (
-                <div className="py-8 text-center text-xs text-slate-500">No official company holidays configured in database.</div>
+                <div className="py-12 text-center text-xs text-slate-500">No official company holidays configured in database.</div>
               ) : (
-                <div className="divide-y divide-slate-100">
-                  {holidays.map((h) => (
-                    <div key={h.id} className="py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-slate-900">{h.title}</span>
-                          <Badge variant="outline" className="text-[10px] font-mono capitalize">
-                            {h.category.replace(/_/g, ' ')}
-                          </Badge>
-                          <Badge variant={h.status === 'approved' ? 'success' : h.status === 'pending_approval' ? 'warning' : 'destructive'} className="text-[10px] uppercase">
-                            {h.status}
-                          </Badge>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {holidays.map((h) => {
+                    const holidayDate = new Date(h.date);
+                    const monthName = isNaN(holidayDate.getTime()) ? '' : holidayDate.toLocaleString('default', { month: 'short' }).toUpperCase();
+                    const dayNum = isNaN(holidayDate.getTime()) ? '' : holidayDate.getDate();
+
+                    return (
+                      <div
+                        key={h.id}
+                        className="p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between gap-3"
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Date Block */}
+                          <div className="shrink-0 w-12 h-14 rounded-xl bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 flex flex-col items-center justify-center text-purple-700 dark:text-purple-300">
+                            <span className="text-[10px] font-bold tracking-wider">{monthName || 'DATE'}</span>
+                            <span className="text-base font-black leading-none">{dayNum || '--'}</span>
+                          </div>
+
+                          <div className="space-y-1 min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <h4 className="font-bold text-xs text-slate-900 dark:text-white truncate" title={h.title}>{h.title}</h4>
+                            </div>
+                            <div className="text-[11px] text-slate-500 flex items-center gap-1.5 font-medium">
+                              <span>{h.dayOfWeek}</span>
+                              <span>•</span>
+                              <Badge variant="outline" className="text-[9px] px-1.5 py-0 capitalize">
+                                {h.category?.replace(/_/g, ' ') || 'Mandatory'}
+                              </Badge>
+                            </div>
+                            {h.description && (
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">{h.description}</p>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-xs text-slate-500 flex items-center gap-4">
-                          <span>Date: <strong className="text-slate-800">{formatDate(h.date)} ({h.dayOfWeek})</strong></span>
-                          {h.description && <span>Note: {h.description}</span>}
+
+                        {/* Status & Approvals */}
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
+                          <Badge
+                            variant={h.status === 'approved' ? 'success' : h.status === 'pending_approval' ? 'warning' : 'destructive'}
+                            className="text-[9px] uppercase font-semibold"
+                          >
+                            {h.status?.replace(/_/g, ' ')}
+                          </Badge>
+
+                          {h.status === 'pending_approval' && canApproveHoliday ? (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="sm"
+                                className="h-6 px-2 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white gap-0.5"
+                                onClick={() => handleApproveHoliday(h.id)}
+                              >
+                                <Check className="h-3 w-3" />
+                                <span>Approve</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-6 px-2 text-[10px]"
+                                onClick={() => handleRejectHoliday(h.id)}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-[10px]">
+                              {h.approvedByName ? `Approved by ${h.approvedByName}` : `Created by ${h.createdByName || h.createdByRole || 'HR'}`}
+                            </span>
+                          )}
                         </div>
                       </div>
-
-                      {/* Governance Authority Pill */}
-                      <div className="flex items-center gap-3">
-                        <div className="text-right text-[11px]">
-                          <div className="text-slate-600 font-semibold">
-                            Configured by: <span className="text-indigo-600">{h.createdByName || h.createdByRole}</span>
-                          </div>
-                          <div className="text-slate-400 text-[10px]">
-                            {h.approvedByName ? `Approved by: ${h.approvedByName}` : 'Pending Executive Approval'}
-                          </div>
-                        </div>
-
-                        {h.status === 'pending_approval' && canApproveHoliday && (
-                          <div className="flex items-center gap-1.5">
-                            <Button
-                              size="sm"
-                              className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
-                              onClick={() => handleApproveHoliday(h.id)}
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              <span>Approve & Publish</span>
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-8 text-xs gap-1"
-                              onClick={() => handleRejectHoliday(h.id)}
-                            >
-                              <X className="h-3.5 w-3.5" />
-                              <span>Reject</span>
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -966,44 +894,397 @@ function LeavesContent() {
         </TabsContent>
       </Tabs>
 
-      {/* Configure Holiday Modal */}
+      {/* MODAL 1: Configure Quota Policy */}
+      {canConfigurePolicy && (
+        <Dialog open={policyModalOpen} onOpenChange={setPolicyModalOpen}>
+          <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-4 sm:p-6 max-h-[85vh] overflow-y-auto rounded-2xl sm:rounded-3xl">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-bold">Configure Company Leave Quota Policy</DialogTitle>
+              <p className="text-xs text-slate-500">Configure annual statutory quota allocations for all leave categories simultaneously</p>
+            </DialogHeader>
+            <form onSubmit={handleUpdatePolicy} className="space-y-4 pt-2 text-xs">
+              {policySuccessMsg && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <span>{policySuccessMsg}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1 p-3 rounded-xl border bg-slate-50/50 dark:bg-slate-800/40">
+                  <div className="flex justify-between items-center">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">Casual Leave (CL)</label>
+                    <Badge variant="outline" className="text-[10px]">All Staff</Badge>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={policyForm.casual}
+                    onChange={(e) => setPolicyForm({ ...policyForm, casual: Number(e.target.value) })}
+                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1 p-3 rounded-xl border bg-slate-50/50 dark:bg-slate-800/40">
+                  <div className="flex justify-between items-center">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">Sick / Medical Leave (SL)</label>
+                    <Badge variant="outline" className="text-[10px]">All Staff</Badge>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={policyForm.sick}
+                    onChange={(e) => setPolicyForm({ ...policyForm, sick: Number(e.target.value) })}
+                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1 p-3 rounded-xl border bg-slate-50/50 dark:bg-slate-800/40">
+                  <div className="flex justify-between items-center">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">Earned / Privilege (EL)</label>
+                    <Badge variant="outline" className="text-[10px]">Statutory Annual</Badge>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={policyForm.earned}
+                    onChange={(e) => setPolicyForm({ ...policyForm, earned: Number(e.target.value) })}
+                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1 p-3 rounded-xl border bg-pink-50/40 dark:bg-pink-950/20 border-pink-200/60 dark:border-pink-900/40">
+                  <div className="flex justify-between items-center">
+                    <label className="font-semibold text-pink-900 dark:text-pink-200">Maternity Leave (ML)</label>
+                    <Badge variant="outline" className="text-[10px] bg-pink-100 dark:bg-pink-900 text-pink-700 dark:text-pink-300 border-pink-300">Female Only</Badge>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={365}
+                    value={policyForm.maternity}
+                    onChange={(e) => setPolicyForm({ ...policyForm, maternity: Number(e.target.value) })}
+                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1 p-3 rounded-xl border bg-blue-50/40 dark:bg-blue-950/20 border-blue-200/60 dark:border-blue-900/40">
+                  <div className="flex justify-between items-center">
+                    <label className="font-semibold text-blue-900 dark:text-blue-200">Paternity Leave (PL)</label>
+                    <Badge variant="outline" className="text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300">Male Only</Badge>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={60}
+                    value={policyForm.paternity}
+                    onChange={(e) => setPolicyForm({ ...policyForm, paternity: Number(e.target.value) })}
+                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1 p-3 rounded-xl border bg-slate-50/50 dark:bg-slate-800/40">
+                  <div className="flex justify-between items-center">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">Compensatory Off</label>
+                    <Badge variant="outline" className="text-[10px]">Overtime / Shift</Badge>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={30}
+                    value={policyForm.compensatory_off}
+                    onChange={(e) => setPolicyForm({ ...policyForm, compensatory_off: Number(e.target.value) })}
+                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1 p-3 rounded-xl border bg-slate-50/50 dark:bg-slate-800/40">
+                  <div className="flex justify-between items-center">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">Bereavement Leave</label>
+                    <Badge variant="outline" className="text-[10px]">Compassionate</Badge>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={30}
+                    value={policyForm.bereavement}
+                    onChange={(e) => setPolicyForm({ ...policyForm, bereavement: Number(e.target.value) })}
+                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
+                  />
+                </div>
+
+                <div className="space-y-1 p-3 rounded-xl border bg-slate-50/50 dark:bg-slate-800/40">
+                  <div className="flex justify-between items-center">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">Marriage Leave</label>
+                    <Badge variant="outline" className="text-[10px]">Nuptial</Badge>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    max={30}
+                    value={policyForm.marriage}
+                    onChange={(e) => setPolicyForm({ ...policyForm, marriage: Number(e.target.value) })}
+                    className="w-full h-10 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t">
+                <Button type="button" variant="outline" onClick={() => setPolicyModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                  Save All Quotas
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* MODAL 2: Apply for Leave */}
+      <Dialog open={applyModalOpen} onOpenChange={setApplyModalOpen}>
+        <DialogContent className="max-w-lg w-[95vw] sm:w-full p-4 sm:p-6 max-h-[85vh] overflow-y-auto rounded-2xl sm:rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Submit Leave Application</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleApply} className="space-y-4 pt-2 text-xs">
+            {dateError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                <span>{dateError}</span>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700 dark:text-slate-300">Leave Type</label>
+              <select
+                value={form.leaveType}
+                onChange={(e) => setForm({ ...form, leaveType: e.target.value as LeaveType })}
+                className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+              >
+                {(() => {
+                  const getAvailBal = (t: string, defAlloc: number) => {
+                    const alloc = leaveAllocations.find((a) => a.leaveType === t);
+                    const usedReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+                    const pendReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+                    const allocated = alloc ? Number(alloc.totalAllocated || (alloc as any).allocatedDays || defAlloc) : defAlloc;
+                    const used = alloc ? Math.max(Number(alloc.used || (alloc as any).usedDays || 0), usedReq) : usedReq;
+                    const pending = alloc ? Math.max(Number(alloc.pending || (alloc as any).pendingDays || 0), pendReq) : pendReq;
+                    return Math.max(0, allocated - (used + pending));
+                  };
+
+                  const targetEmp = currentEmployee || employees.find((e) =>
+                    (currentUser?.employeeId && (e.id === currentUser.employeeId || e.employeeCode === currentUser.employeeId)) ||
+                    (currentUser?.email && e.email?.toLowerCase() === currentUser.email.toLowerCase())
+                  );
+                  const empGender = ((targetEmp as any)?.gender || 'male').toLowerCase();
+
+                  return (
+                    <>
+                      <option value="casual">Casual Leave (CL) - Balance: {getAvailBal('casual', 12)} Days</option>
+                      <option value="sick">Sick Leave (SL) - Balance: {getAvailBal('sick', 10)} Days</option>
+                      <option value="earned">Earned / Privilege Leave (EL) - Balance: {getAvailBal('earned', 15)} Days</option>
+                      {empGender === 'female' && (
+                        <option value="maternity">Maternity Leave (Female Only) - Balance: {getAvailBal('maternity', 180)} Days</option>
+                      )}
+                      {empGender === 'male' && (
+                        <option value="paternity">Paternity Leave (Male Only) - Balance: {getAvailBal('paternity', 15)} Days</option>
+                      )}
+                      <option value="compensatory_off">Compensatory Off - Balance: {getAvailBal('compensatory_off', 5)} Days</option>
+                      <option value="bereavement">Bereavement Leave - Balance: {getAvailBal('bereavement', 5)} Days</option>
+                      <option value="unpaid">Loss of Pay (LOP / Unpaid)</option>
+                    </>
+                  );
+                })()}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">From Date</label>
+                <input
+                  type="date"
+                  required
+                  value={form.fromDate}
+                  onChange={(e) => setForm({ ...form, fromDate: e.target.value })}
+                  className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">To Date</label>
+                <input
+                  type="date"
+                  required
+                  value={form.toDate}
+                  onChange={(e) => setForm({ ...form, toDate: e.target.value })}
+                  className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700 dark:text-slate-300">Reason</label>
+              <textarea
+                rows={3}
+                required
+                placeholder="Enter reason for leave..."
+                value={form.reason}
+                onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                className="w-full p-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button type="button" variant="outline" onClick={() => setApplyModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                Submit Application
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 3: Request On Duty (OD) */}
+      <Dialog open={odModalOpen} onOpenChange={setOdModalOpen}>
+        <DialogContent className="max-w-lg w-[95vw] sm:w-full p-4 sm:p-6 max-h-[85vh] overflow-y-auto rounded-2xl sm:rounded-3xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Submit On-Duty (OD) Request</DialogTitle>
+            <p className="text-xs text-slate-500">Log external work assignments, factory plant visits, or offsite audits</p>
+          </DialogHeader>
+          <form onSubmit={handleApplyOD} className="space-y-4 pt-2 text-xs">
+            {dateError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                <span>{dateError}</span>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700 dark:text-slate-300">OD Work Location / Client Site</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Pune Factory Site / Client HQ / Off-site Audit"
+                value={odForm.location}
+                onChange={(e) => setOdForm({ ...odForm, location: e.target.value })}
+                className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">From Date</label>
+                <input
+                  type="date"
+                  required
+                  value={odForm.fromDate}
+                  onChange={(e) => setOdForm({ ...odForm, fromDate: e.target.value })}
+                  className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">To Date</label>
+                <input
+                  type="date"
+                  required
+                  value={odForm.toDate}
+                  onChange={(e) => setOdForm({ ...odForm, toDate: e.target.value })}
+                  className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">From Time</label>
+                <input
+                  type="time"
+                  required
+                  value={odForm.fromTime}
+                  onChange={(e) => setOdForm({ ...odForm, fromTime: e.target.value })}
+                  className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="font-semibold text-slate-700 dark:text-slate-300">To Time</label>
+                <input
+                  type="time"
+                  required
+                  value={odForm.toTime}
+                  onChange={(e) => setOdForm({ ...odForm, toTime: e.target.value })}
+                  className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-semibold text-slate-700 dark:text-slate-300">Purpose / Detailed Reason</label>
+              <textarea
+                rows={3}
+                required
+                placeholder="Provide details about outdoor duty assignment..."
+                value={odForm.reason}
+                onChange={(e) => setOdForm({ ...odForm, reason: e.target.value })}
+                className="w-full p-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t">
+              <Button type="button" variant="outline" onClick={() => setOdModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
+                Submit OD Request
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL 4: Configure Holiday Modal */}
       {holidayModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-slate-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl max-w-lg w-[95vw] sm:w-full p-5 sm:p-6 space-y-4 shadow-xl border border-slate-200 dark:border-slate-800 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-bold text-base text-slate-900">Configure Company Holiday</h3>
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">Configure Company Holiday</h3>
               <button onClick={() => setHolidayModalOpen(false)} className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <form onSubmit={handleAddHoliday} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Holiday Title</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Holiday Title</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. Founders' Day / Ugadi Festival"
-                  className="w-full px-3 py-2 border rounded-lg outline-none"
+                  className="w-full px-3 py-2 border rounded-xl outline-none bg-white dark:bg-slate-900"
                   value={holidayForm.title}
                   onChange={(e) => setHolidayForm({ ...holidayForm, title: e.target.value })}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Holiday Date</label>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Holiday Date</label>
                   <input
                     type="date"
                     required
-                    className="w-full px-3 py-2 border rounded-lg outline-none"
+                    className="w-full px-3 py-2 border rounded-xl outline-none bg-white dark:bg-slate-900"
                     value={holidayForm.date}
                     onChange={(e) => setHolidayForm({ ...holidayForm, date: e.target.value })}
                   />
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Category</label>
+                  <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Category</label>
                   <select
-                    className="w-full px-3 py-2 border rounded-lg outline-none"
+                    className="w-full px-3 py-2 border rounded-xl outline-none bg-white dark:bg-slate-900"
                     value={holidayForm.category}
                     onChange={(e) => setHolidayForm({ ...holidayForm, category: e.target.value })}
                   >
@@ -1016,17 +1297,17 @@ function LeavesContent() {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Description / Notes</label>
+                <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Description / Notes</label>
                 <textarea
                   rows={2}
                   placeholder="Additional directives or plant shift regulations..."
-                  className="w-full px-3 py-2 border rounded-lg outline-none"
+                  className="w-full px-3 py-2 border rounded-xl outline-none bg-white dark:bg-slate-900"
                   value={holidayForm.description}
                   onChange={(e) => setHolidayForm({ ...holidayForm, description: e.target.value })}
                 />
               </div>
 
-              <div className="p-3 bg-amber-50 rounded-xl text-[11px] text-amber-800 space-y-1">
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-xl text-[11px] text-amber-800 dark:text-amber-300 space-y-1">
                 <div className="font-bold flex items-center gap-1">
                   <ShieldCheck className="h-3.5 w-3.5 text-amber-600" />
                   <span>Governance & Approval Matrix</span>
@@ -1041,7 +1322,7 @@ function LeavesContent() {
                 <Button type="button" variant="outline" onClick={() => setHolidayModalOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-amber-600 hover:bg-amber-700 text-white">
+                <Button type="submit" className="bg-purple-600 hover:bg-purple-700 text-white">
                   Save & Submit for Approval
                 </Button>
               </div>

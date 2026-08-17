@@ -28,12 +28,20 @@ import { useAuth } from '@/context/AuthContext';
 import { ModuleKey } from '@/types';
 import { cn } from '@/lib/utils';
 
+interface SubNavItem {
+  title: string;
+  href: string;
+  tabKey?: string;
+  badge?: string;
+}
+
 interface NavItem {
   title: string;
   href: string;
   icon: React.ElementType;
   module: ModuleKey;
   badge?: string;
+  subItems?: SubNavItem[];
 }
 
 const NAV_GROUPS: { groupName: string; items: NavItem[] }[] = [
@@ -51,7 +59,17 @@ const NAV_GROUPS: { groupName: string; items: NavItem[] }[] = [
       { title: 'Employee Directory', href: '/employees', icon: Users, module: 'employee_records' },
       { title: 'Recruitment & Pipeline', href: '/recruitment', icon: UserPlus, module: 'recruitment', badge: 'Active' },
       { title: 'Attendance & Logs', href: '/attendance', icon: CalendarCheck, module: 'attendance_leave' },
-      { title: 'Leave Management', href: '/leaves', icon: CalendarDays, module: 'attendance_leave' },
+      {
+        title: 'Leave & OD Operations',
+        href: '/leaves',
+        icon: CalendarDays,
+        module: 'attendance_leave',
+        subItems: [
+          { title: 'Leave Requests', href: '/leaves?tab=applications', tabKey: 'applications' },
+          { title: 'Outdoor Duty (OD)', href: '/leaves?tab=od_requests', tabKey: 'od_requests' },
+          { title: 'Holiday Calendar', href: '/leaves?tab=holidays', tabKey: 'holidays' },
+        ],
+      },
       { title: 'Payroll & Benefits', href: '/payroll', icon: Wallet, module: 'payroll_benefits' },
       { title: 'Performance & KRAs', href: '/performance', icon: Target, module: 'performance_mgmt' },
       { title: 'Training & Skills', href: '/training', icon: GraduationCap, module: 'training_dev' },
@@ -169,7 +187,7 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                   else if (item.href === '/compliance') displayTitle = 'Policy & Statutory Compliance';
                   else if (item.href === '/payroll') displayTitle = 'Statutory Filings (PF/ESI)';
                   else if (item.href === '/attendance') displayTitle = 'Statutory Muster (Form 25)';
-                  else if (item.href === '/leaves') displayTitle = 'Statutory Leave Registers';
+                  else if (item.href === '/leaves') displayTitle = 'Statutory Leave & OD Muster';
                   else if (item.href === '/engagement') displayTitle = 'POSH & Welfare Committee';
                   else if (item.href === '/training') displayTitle = 'Safety & EHS Training';
                   else if (item.href === '/resignation') displayTitle = 'Exit Clearances & Gratuity';
@@ -180,11 +198,14 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                 if (currentRole === 'employee') {
                   if (item.href === '/employees') {
                     displayTitle = 'My Profile 360 (Self)';
-                    const empSelf = currentEmployee || employees.find((e) => e.email?.toLowerCase() === currentUser?.email?.toLowerCase() || e.employeeCode === 'VV-006');
-                    const empSelfId = empSelf?.id || empSelf?.employeeCode || currentUser?.employeeId || 'VV-006';
+                    const empSelf = currentEmployee || employees.find((e) =>
+                      (currentUser?.employeeId && (e.id === currentUser.employeeId || e.employeeCode === currentUser.employeeId)) ||
+                      (currentUser?.email && e.email?.toLowerCase() === currentUser.email.toLowerCase())
+                    );
+                    const empSelfId = empSelf?.id || empSelf?.employeeCode || currentUser?.employeeId || 'self';
                     targetHref = `/employees/${empSelfId}`;
                   } else if (item.href === '/attendance') displayTitle = 'Attendance Check-In';
-                  else if (item.href === '/leaves') displayTitle = 'My Leaves';
+                  else if (item.href === '/leaves') displayTitle = 'My Leaves & OD Logs';
                   else if (item.href === '/payroll') displayTitle = 'My Payslips';
                   else if (item.href === '/performance') displayTitle = 'My Self-Appraisal';
                   else if (item.href === '/training') displayTitle = 'Training Enrollment';
@@ -196,27 +217,45 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                 const Icon = item.icon;
 
                 return (
-                  <Link
-                    key={item.href}
-                    href={targetHref}
-                    onClick={onCloseMobile}
-                    className={cn(
-                      "flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all group",
-                      isActive
-                        ? "bg-indigo-600 text-white shadow-sm font-bold"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  <div key={item.href} className="space-y-0.5">
+                    <Link
+                      href={targetHref}
+                      onClick={onCloseMobile}
+                      className={cn(
+                        "flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all group",
+                        isActive
+                          ? "bg-indigo-600 text-white shadow-sm font-bold"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      )}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon className={cn("h-4 w-4 shrink-0 transition-transform group-hover:scale-105", isActive ? "text-white" : "text-slate-400 group-hover:text-indigo-600")} />
+                        <span>{displayTitle}</span>
+                      </div>
+                      {item.badge && (
+                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded-md font-bold", isActive ? "bg-white/20 text-white" : "bg-indigo-50 text-indigo-700")}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+
+                    {/* Sub Navigation Items (e.g. Leave, OD, Holiday) */}
+                    {item.subItems && isActive && (
+                      <div className="pl-6 pr-1 py-1 space-y-1">
+                        {item.subItems.map((sub) => (
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            onClick={onCloseMobile}
+                            className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-600 hover:text-indigo-600 hover:bg-indigo-50/70 dark:hover:bg-slate-800 transition-colors"
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-slate-300 group-hover:bg-indigo-600 shrink-0" />
+                            <span>{sub.title}</span>
+                          </Link>
+                        ))}
+                      </div>
                     )}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Icon className={cn("h-4 w-4 shrink-0 transition-transform group-hover:scale-105", isActive ? "text-white" : "text-slate-400 group-hover:text-indigo-600")} />
-                      <span>{displayTitle}</span>
-                    </div>
-                    {item.badge && (
-                      <span className={cn("text-[10px] px-1.5 py-0.5 rounded-md font-bold", isActive ? "bg-white/20 text-white" : "bg-indigo-50 text-indigo-700")}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
+                  </div>
                 );
               })}
             </div>

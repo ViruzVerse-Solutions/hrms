@@ -51,7 +51,7 @@ export function RBACGuard({ module, children, fallback }: RBACGuardProps) {
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700/60">
               <span>Target Module:</span>
-              <span className="font-mono uppercase font-semibold text-slate-800 dark:text-slate-200">{module.replace('_', ' ')}</span>
+              <span className="font-mono uppercase font-semibold text-slate-800 dark:text-slate-200">{module?.replace(/_/g, ' ') || 'SYSTEM'}</span>
             </div>
             <div className="flex justify-between py-1">
               <span>Your Permission:</span>

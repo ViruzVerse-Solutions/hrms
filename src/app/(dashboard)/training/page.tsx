@@ -171,7 +171,7 @@ function TrainingContent() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-500">Mode:</span>
-                      <span className="capitalize font-medium text-slate-900">{prog.mode.replace('_', ' ')}</span>
+                      <span className="capitalize font-medium text-slate-900">{prog.mode?.replace(/_/g, ' ') || 'Internal'}</span>
                     </div>
                   </div>
 

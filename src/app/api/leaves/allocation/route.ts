@@ -13,15 +13,24 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { leaveType, allocatedDays, employeeId } = body;
+    const { leaveType, allocatedDays, quotas, employeeId } = body;
 
-    if (!leaveType || allocatedDays === undefined) {
-      return apiError('Missing required fields: leaveType, allocatedDays', 400);
+    // Convert to normalized quota entries array
+    const quotaList: Array<{ leaveType: string; allocatedDays: number }> = [];
+    if (quotas && typeof quotas === 'object') {
+      if (Array.isArray(quotas)) {
+        quotaList.push(...quotas.map((q: any) => ({ leaveType: q.leaveType, allocatedDays: Number(q.allocatedDays) })));
+      } else {
+        Object.entries(quotas).forEach(([lt, days]) => {
+          quotaList.push({ leaveType: lt, allocatedDays: Number(days) });
+        });
+      }
+    } else if (leaveType && allocatedDays !== undefined) {
+      quotaList.push({ leaveType, allocatedDays: Number(allocatedDays) });
     }
 
-    const numAllocated = Number(allocatedDays);
-    if (isNaN(numAllocated) || numAllocated < 0) {
-      return apiError('Allocated days must be a non-negative number', 400);
+    if (quotaList.length === 0) {
+      return apiError('Missing required fields: provide quotas or leaveType with allocatedDays', 400);
     }
 
     let updatedAllocations: any[] = [];
@@ -35,57 +44,60 @@ export async function POST(req: NextRequest) {
         ? await prisma.employee.findMany({ where: { id: employeeId } })
         : await prisma.employee.findMany({ where: { employmentStatus: { not: 'terminated' } } });
 
-      for (const emp of allEmployees) {
-        // Enforce Gender-based leave allocation rules
-        if (leaveType === 'maternity' && emp.gender !== 'female') {
-          continue; // Maternity leave is restricted to female employees
-        }
-        if (leaveType === 'paternity' && emp.gender !== 'male') {
-          continue; // Paternity leave is restricted to male employees
-        }
+      for (const item of quotaList) {
+        const numAllocated = Math.max(0, Number(item.allocatedDays) || 0);
 
-        const existing = await prisma.leaveAllocation.findFirst({
-          where: { employeeId: emp.id, leaveType: leaveType as any, year },
-        });
+        for (const emp of allEmployees) {
+          // Enforce Gender-based leave allocation rules
+          if (item.leaveType === 'maternity' && emp.gender !== 'female') {
+            continue; // Maternity leave is restricted to female employees
+          }
+          if (item.leaveType === 'paternity' && emp.gender !== 'male') {
+            continue; // Paternity leave is restricted to male employees
+          }
 
-        const used = existing ? Number(existing.usedDays) : 0;
-        const pending = existing ? Number(existing.pendingDays) : 0;
-        const newBalance = Math.max(0, numAllocated - used);
+          const existing = await prisma.leaveAllocation.findFirst({
+            where: { employeeId: emp.id, leaveType: item.leaveType as any, year },
+          });
 
-        const updated = await prisma.leaveAllocation.upsert({
-          where: {
-            employeeId_leaveType_year: {
-              employeeId: emp.id,
-              leaveType: leaveType as any,
-              year,
+          const used = existing ? Number(existing.usedDays) : 0;
+          const pending = existing ? Number(existing.pendingDays) : 0;
+          const newBalance = Math.max(0, numAllocated - used);
+
+          const updated = await prisma.leaveAllocation.upsert({
+            where: {
+              employeeId_leaveType_year: {
+                employeeId: emp.id,
+                leaveType: item.leaveType as any,
+                year,
+              },
             },
-          },
-          create: {
-            organizationId: org.id,
-            employeeId: emp.id,
-            leaveType: leaveType as any,
-            year,
-            allocatedDays: numAllocated,
-            usedDays: used,
-            pendingDays: pending,
-            balanceDays: newBalance,
-          },
-          update: {
-            allocatedDays: numAllocated,
-            balanceDays: newBalance,
-          },
-        });
-        updatedAllocations.push(updated);
+            create: {
+              organizationId: org.id,
+              employeeId: emp.id,
+              leaveType: item.leaveType as any,
+              year,
+              allocatedDays: numAllocated,
+              usedDays: used,
+              pendingDays: pending,
+              balanceDays: newBalance,
+            },
+            update: {
+              allocatedDays: numAllocated,
+              balanceDays: newBalance,
+            },
+          });
+          updatedAllocations.push(updated);
+        }
       }
     }
 
     return apiSuccess(
       {
-        leaveType,
-        allocatedDays: numAllocated,
+        quotas: quotaList,
         updatedCount: updatedAllocations.length,
       },
-      `Leave policy updated: ${leaveType.toUpperCase()} allocated count set to ${numAllocated} days`,
+      `Company leave policy updated for ${quotaList.length} leave categories across active employees`,
       200
     );
   } catch (error: any) {

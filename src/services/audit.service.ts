@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db/prisma';
 import { UserRole } from '@/types';
+import { formatAuditDetails } from '@/lib/utils';
 import crypto from 'crypto';
 
 export const auditService = {
@@ -28,7 +29,7 @@ export const auditService = {
       action: l.action,
       module: l.module,
       resourceId: l.resourceId,
-      details: l.payloadAfter ? JSON.stringify(l.payloadAfter) : l.action,
+      details: formatAuditDetails(l.payloadAfter, l.action),
       previousHash: l.previousHash,
       integrityHash: l.integrityHash,
       ipAddress: l.ipAddress || '127.0.0.1',

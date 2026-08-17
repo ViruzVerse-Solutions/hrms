@@ -87,8 +87,25 @@ export function StatCardsSkeleton({ count = 4 }: { count?: number }) {
   );
 }
 
-// 4. Employee 360 Dossier Header & Tabs Skeleton
-export function DossierSkeleton() {
+// Helper card for layout
+function CardSkeleton() {
+  return (
+    <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+      <FieldSkeleton className="h-5 w-40" />
+      <div className="space-y-3 pt-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
+            <FieldSkeleton className="h-3.5 w-24" />
+            <FieldSkeleton className="h-3.5 w-36" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 4. Employee 360 Profile Header & Tabs Skeleton
+export function ProfileSkeleton() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-in fade-in duration-200">
       {/* Profile Header Card */}
@@ -124,35 +141,16 @@ export function DossierSkeleton() {
         <FieldSkeleton className="h-9 w-28 rounded-xl" />
       </div>
 
-      {/* 2-Column Content Card Skeletons */}
+      {/* Content Grid Skeleton */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
-          <FieldSkeleton className="h-5 w-40" />
-          <div className="space-y-3 pt-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <FieldSkeleton className="h-3.5 w-24" />
-                <FieldSkeleton className="h-3.5 w-36" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="p-6 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
-          <FieldSkeleton className="h-5 w-40" />
-          <div className="space-y-3 pt-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <FieldSkeleton className="h-3.5 w-24" />
-                <FieldSkeleton className="h-3.5 w-36" />
-              </div>
-            ))}
-          </div>
-        </div>
+        <CardSkeleton />
+        <CardSkeleton />
       </div>
     </div>
   );
 }
+
+export const DossierSkeleton = ProfileSkeleton;
 
 // 5. Form Field Skeleton (Modals and Settings)
 export function FormSkeleton({ fields = 6 }: { fields?: number }) {
@@ -178,7 +176,7 @@ export function FormSkeleton({ fields = 6 }: { fields?: number }) {
 interface LoadingStateProps {
   title?: string;
   message?: string;
-  variant?: 'page' | 'dashboard' | 'table' | 'dossier' | 'cards' | 'form' | 'inline' | 'field';
+  variant?: 'page' | 'dashboard' | 'table' | 'profile' | 'dossier' | 'cards' | 'form' | 'inline' | 'field';
   rows?: number;
   cols?: number;
   count?: number;
@@ -194,8 +192,8 @@ export function LoadingState({
     return <FieldSkeleton className="h-4 w-32 rounded-md inline-block align-middle" />;
   }
 
-  if (variant === 'dossier') {
-    return <DossierSkeleton />;
+  if (variant === 'profile' || variant === 'dossier') {
+    return <ProfileSkeleton />;
   }
 
   if (variant === 'form') {

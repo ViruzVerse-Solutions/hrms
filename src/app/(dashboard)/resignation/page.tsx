@@ -203,7 +203,7 @@ function ResignationContent() {
                     {exitCase.employeeName}
                   </h3>
                   <Badge variant="warning" className="text-[10px] capitalize">
-                    {exitCase.status.replace('_', ' ')}
+                    {exitCase.status?.replace(/_/g, ' ') || 'Pending'}
                   </Badge>
                 </div>
                 <p className="text-xs text-slate-500">
