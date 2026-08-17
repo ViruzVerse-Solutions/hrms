@@ -157,12 +157,13 @@ The following matrix maps all **16 application screens** across all **6 roles**,
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
 | `/dashboard` | Executive / Operational Dashboard | **F** (Macro) | **F** (Enterprise) | **F** (Ops) | **V** (Audit) | **V** (Legal) | **S** (Personal) |
 | `/approvals` | Central Approvals Hub (7 Queues) | **A** (Board) | **A** (Executive) | **A** (Full) | **V** (Audit) | **V** (Legal) | **NONE** |
-| `/reports` | Enterprise BI Analytics & Export | **F** (Macro) | **F** (Detailed) | **F** (Ops) | **V** (Audit) | **V** (Statutory) | **NONE** |
+| `/reports` | Management Information System (MIS) | **F** (Executive BI)| **F** (Enterprise) | **F** (Ops MIS) | **V** (Audit BI) | **V** (Statutory) | **NONE** |
+| `/tasks` | Task & Work Allocation Management | **V** (Oversight)| **F** (Assign All)| **F** (Assign All) | **V** (Audit View)| **V** (Compliance)| **S** (My Tasks) |
 | `/employees` | Master Staff Directory | **V** | **F** | **F** | **V** (Ghost Check) | **V** | **NONE** |
 | `/employees/[id]`| 4-Tab Employee 360° Dossier | **V** | **V** (Full) | **F** | **V** (Read-Only) | **V** (Statutory) | **S** (Own ID) |
 | `/recruitment` | Job Requisitions & Kanban ATS | **V** | **A** (Hires) | **F** | **NONE** | **NONE** | **NONE** |
 | `/attendance` | Clock-In, Shifts & Form 25 Muster| **V** | **A** (Overtime) | **F** | **NONE** | **V** (Form 25) | **S** (Clock-In) |
-| `/leaves` | Leave Applications & Calendars | **A** (Holidays)| **A** (Execs) | **F** | **NONE** | **V** (Labor Laws) | **S** (Apply) |
+| `/leaves` | Leave & OD Operations & Calendars | **A** (Holidays)| **A** (Execs) | **F** | **NONE** | **V** (Labor Laws) | **S** (Apply) |
 | `/payroll` | Gross-to-Net Salaries & Payslips| **V** (Budget)| **A** (Disbursal) | **F** | **V** (Forensic) | **E** (PF/ESI) | **S** (Payslips) |
 | `/performance` | Appraisals & 9-Box Talent Matrix | **F** (Exec) | **F** (Calib) | **F** | **NONE** | **NONE** | **S** (Self-Rate) |
 | `/training` | Skills Workshops & Safety EHS | **V** | **V** | **F** | **NONE** | **E** (Safety EHS) | **S** (Enroll) |
@@ -188,6 +189,7 @@ erDiagram
     ORGANIZATION ||--o{ EMPLOYEE : "employs"
     ORGANIZATION ||--o{ COMPANY_POLICY : "publishes"
     ORGANIZATION ||--o{ AUDIT_LOG : "records"
+    ORGANIZATION ||--o{ TASK_ALLOCATION : "organizes"
 
     USER ||--o| EMPLOYEE : "links (1:1)"
     USER ||--o{ USER_SESSION : "authorizes"
@@ -203,6 +205,8 @@ erDiagram
     EMPLOYEE ||--o{ ATTENDANCE_RECORD : "clocks (1:N)"
     EMPLOYEE ||--o{ LEAVE_ALLOCATION : "holds (1:N)"
     EMPLOYEE ||--o{ LEAVE_REQUEST : "applies (1:N)"
+    EMPLOYEE ||--o{ TASK_ALLOCATION : "assigned (1:N)"
+    EMPLOYEE ||--o{ TASK_LOG : "logs (1:N)"
     EMPLOYEE ||--o{ PAYSLIP : "receives (1:N)"
     EMPLOYEE ||--o{ PERFORMANCE_REVIEW : "evaluated (1:N)"
     EMPLOYEE ||--o{ GRIEVANCE_TICKET : "files (1:N)"
@@ -212,6 +216,7 @@ erDiagram
     EMPLOYEE ||--o{ TRAINING_ENROLLMENT : "attends (N:M)"
     EMPLOYEE ||--o{ EMPLOYEE : "manages (Self-Ref 1:N)"
 
+    TASK_ALLOCATION ||--o{ TASK_LOG : "contains (1:N)"
     JOB_REQUISITION ||--o{ CANDIDATE : "attracts (1:N)"
     PAYROLL_RUN ||--o{ PAYSLIP : "generates (1:N)"
     RESIGNATION_EXIT_CASE ||--o{ DEPARTMENT_CLEARANCE : "requires (1:4)"
@@ -348,6 +353,46 @@ sequenceDiagram
     CMP->>CMP: 6. HR & Compliance verify Gratuity & PF transfer forms
     HR->>HR: 7. Generates Full & Final (F&F) settlement statement
     HR->>EMP: 8. Issues Official Relieving & Experience Certificate
+```
+
+---
+
+### Workflow 6: Employee Task Allocation, Progress Logging & Manager Review
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor MGR as Manager / HR Head
+    actor EMP as Regular Employee
+    actor MD as Managing Director / Exec
+
+    MGR->>MGR: 1. Creates & assigns task (/tasks) with priority, deadline & instructions
+    MGR->>EMP: 2. Task notification routed to Employee Self-Service workspace
+    EMP->>EMP: 3. Employee moves task from 'Pending' -> 'In Progress' & logs sub-milestones
+    EMP->>EMP: 4. Updates completion progress (e.g. 100%) & attaches deliverable notes
+    EMP->>MGR: 5. Submits task for review ('Under Review')
+    MGR->>MGR: 6. Manager inspects deliverable & approves ('Completed') with quality score
+    MGR->>MD: 7. Task completion rate & productivity metrics roll up into Department MIS
+```
+
+---
+
+### Workflow 7: Management Information System (MIS) Multi-Dimensional Intelligence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor CH_MD as Chairman / MD
+    actor HR as HR Head
+    actor AUD as Internal Auditor
+    actor CMP as Compliance Officer
+
+    CH_MD->>CH_MD: 1. Accesses MIS Executive BI Hub (/reports)
+    CH_MD->>CH_MD: 2. Slices metrics by Plant Branch, Department & Fiscal Quarter
+    HR->>HR: 3. Analyzes Headcount Growth, Attrition Rate & Leave Quota Burn index
+    AUD->>AUD: 4. Inspects Payroll Budget vs Actual Disbursals & Overtime Cost Spikes
+    CMP->>CMP: 5. Reconciles Statutory Liability Statements (PF/ESI/PT) with Legal Filings
+    CH_MD->>CH_MD: 6. Exports Executive PDF Briefing & CSV Master Ledger
 ```
 
 ---

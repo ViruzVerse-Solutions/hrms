@@ -21,6 +21,7 @@ export type ModuleKey =
   | 'transfer_promotion'
   | 'disciplinary_actions'
   | 'resignation_exit'
+  | 'tasks_work'
   | 'system_settings'
   | 'reports_dashboard';
 
@@ -473,4 +474,86 @@ export interface SystemNotification {
   createdAt: string;
   read: boolean;
   link?: string;
+}
+
+export type TaskPriority = 'urgent' | 'high' | 'medium' | 'low';
+export type TaskStatus = 'pending' | 'in_progress' | 'under_review' | 'completed' | 'blocked';
+export type TaskCategory = 'operational' | 'compliance' | 'project' | 'quality_audit' | 'ad_hoc';
+
+export interface TaskLogItem {
+  id: string;
+  taskId: string;
+  authorId: string;
+  authorName: string;
+  authorRole: UserRole;
+  message: string;
+  progressAt: number;
+  loggedHours: number;
+  createdAt: string;
+}
+
+export interface TaskAllocationItem {
+  id: string;
+  organizationId?: string;
+  title: string;
+  description?: string;
+  category: TaskCategory;
+  priority: TaskPriority;
+  status: TaskStatus;
+  assigneeId: string;
+  assigneeName: string;
+  assigneeDepartment?: string;
+  assigneeDesignation?: string;
+  assignedById: string;
+  assignedByName: string;
+  assignedByRole: UserRole;
+  dueDate: string;
+  estimatedHours: number;
+  actualHours: number;
+  progressPercent: number;
+  deliverableNotes?: string;
+  proofDocumentName?: string;
+  proofDocumentUrl?: string;
+  reviewComments?: string;
+  rating?: number;
+  reviewedAt?: string;
+  logs?: TaskLogItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MISReportData {
+  metrics: {
+    totalHeadcount: number;
+    activeHeadcount: number;
+    attritionRate: number;
+    genderRatio: { male: number; female: number };
+    totalMonthlyPayroll: number;
+    avgMonthlyCTC: number;
+    statutoryLiability: number;
+    overtimeHours: number;
+    attendancePunctuality: number;
+    leaveBurnRate: number;
+    openRequisitions: number;
+    avgTimeToHireDays: number;
+    taskCompletionRate: number;
+    overdueTasksCount: number;
+  };
+  departmentBreakdown: Array<{
+    department: string;
+    headcount: number;
+    payrollShare: number;
+    avgAttendance: number;
+    activeTasks: number;
+  }>;
+  branchBreakdown: Array<{
+    branch: string;
+    headcount: number;
+    totalPayroll: number;
+    attendanceRate: number;
+  }>;
+  headcountGrowth: Array<{ month: string; count: number }>;
+  payrollTrend: Array<{ month: string; gross: number; statutory: number; net: number }>;
+  attendanceTrend: Array<{ date: string; presentRate: number; leaveRate: number; odCount: number }>;
+  tasksPerformance: Array<{ category: string; total: number; completed: number; avgRating: number }>;
 }
