@@ -114,6 +114,14 @@ export const ROLE_PERMISSIONS: Record<ModuleKey, Record<UserRole, PermissionLeve
     compliance_statutory: 'E',
     employee: 'S',
   },
+  tasks_work: {
+    chairman: 'NONE',
+    managing_director: 'F',
+    hr_head: 'F',
+    internal_audit_head: 'NONE',
+    compliance_statutory: 'NONE',
+    employee: 'S',
+  },
   system_settings: {
     chairman: 'V',
     managing_director: 'F',

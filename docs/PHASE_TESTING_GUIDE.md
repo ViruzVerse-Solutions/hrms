@@ -402,6 +402,51 @@ flowchart TD
 
 ---
 
+### 🚀 PHASE 10: Employee Task Allocation & Work Tracking System (`/tasks`)
+
+* **Objective**: Test assigning tasks to staff members with deadlines and priorities, updating progress as an employee, and manager review/approval.
+* **Target Screens**: Task Allocation Hub (`/tasks`), Approvals Hub (`/approvals`).
+
+#### Detailed CRUD Operations to Execute:
+1. **CREATE (Assign Task to Employee)**:
+   - Switch to **Role: HR Head** or **Managing Director**.
+   - Navigate to `/tasks` $\rightarrow$ Click **"Create & Assign Task"**.
+   - Enter: Title (*"Q3 Plant ISO Audit Documentation"*), Assignee (*Vishwadharan R - Quality Inspection*), Priority (*High*), Category (*Compliance*), Due Date (*Upcoming Friday*), Estimated Hours (*16h*).
+   - Click **"Dispatch Task"**.
+   - **Verification**: Task card appears under *"To Do / Pending"* column on the Kanban board.
+2. **UPDATE (Employee Progress Logging)**:
+   - Switch to **Role: Regular Employee (Vishwadharan R)**.
+   - Navigate to `/tasks` (ESS View).
+   - Verify assigned task is visible. Move card to *"In Progress"*, adjust progress slider to *75%*, and add work note (*"Reviewed Sections 1-4, draft uploaded"*).
+   - Once completed, set progress to *100%* and click **"Submit for Manager Review"** (*Under Review*).
+3. **APPROVE (Manager Quality Sign-Off)**:
+   - Switch to **Role: HR Head** or **Managing Director**.
+   - Open `/tasks` or `/approvals`.
+   - Inspect submitted deliverable notes $\rightarrow$ Click **"Approve & Close Task"** with rating (*5/5 Stars*).
+   - **Verification**: Task moves to *"Completed"*, employee productivity score updates.
+
+---
+
+### 🚀 PHASE 11: Management Information System (MIS) Executive Analytics (`/reports`)
+
+* **Objective**: Test multi-dimensional executive slice-and-dice, headcount turnover metrics, payroll budget variance, and legal compliance exports.
+* **Target Screens**: MIS Analytics Hub (`/reports`), Executive Dashboard (`/dashboard`).
+
+#### Detailed CRUD Operations to Execute:
+1. **READ & FILTER (Multi-Dimensional MIS Slicing)**:
+   - Switch to **Role: Chairman** or **Managing Director**.
+   - Navigate to `/reports` (MIS BI Hub).
+   - Filter by: Department (*Manufacturing*), Plant Branch (*Pune Plant*), Date Range (*Last 6 Months*).
+   - **Verification**: KPI tiles dynamically recalculate (Headcount Growth, Attrition Rate, Average Cost per Hire, Overtime Burden Index).
+2. **EXPORT (Executive PDF & CSV Master Ledger)**:
+   - Click **"Export Executive Briefing (PDF)"** $\rightarrow$ Verify formatted executive summary.
+   - Click **"Export Master Raw Data (CSV)"** $\rightarrow$ Verify CSV file contains all filtered records.
+3. **READ-ONLY AUDIT VERIFICATION**:
+   - Switch to **Role: Internal Auditor** $\rightarrow$ Go to `/reports`.
+   - **Verification**: Auditor can inspect financial charts and export verification ledgers, but cannot modify analytics baselines.
+
+---
+
 ## 4. Role Isolation Negative Testing Matrix
 
 Execute these negative test cases to ensure no role can perform another role's tasks:
@@ -413,6 +458,7 @@ Execute these negative test cases to ensure no role can perform another role's t
 | **NEG-03** | `employee` | Attempt to open another worker's profile URL or access `/approvals` | **Blocked**: Direct URL returns HTTP 403; salary fields are strictly masked. | [ ] |
 | **NEG-04** | `chairman` | Attempt to edit daily shift punch minutes or process individual payslips | **Blocked**: Operational edit tools are disabled/hidden. | [ ] |
 | **NEG-05** | `hr_head` | Attempt to disburse payroll without MD signoff | **Blocked**: Button requires MD executive authority. | [ ] |
+| **NEG-06** | `employee` | Attempt to assign tasks to other colleagues in `/tasks` | **Blocked**: Employee view is restricted to "My Assigned Tasks" (Self-Service). | [ ] |
 
 ---
 

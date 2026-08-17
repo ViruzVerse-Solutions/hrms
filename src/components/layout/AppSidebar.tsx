@@ -22,6 +22,7 @@ import {
   CheckSquare,
   ChevronRight,
   Factory,
+  ListTodo,
   X,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -50,13 +51,14 @@ const NAV_GROUPS: { groupName: string; items: NavItem[] }[] = [
     items: [
       { title: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'reports_dashboard' },
       { title: 'Approvals Hub', href: '/approvals', icon: CheckSquare, module: 'reports_dashboard', badge: 'Queue' },
-      { title: 'Analytics & Reports', href: '/reports', icon: BarChart3, module: 'reports_dashboard' },
+      { title: 'MIS & Analytics Hub', href: '/reports', icon: BarChart3, module: 'reports_dashboard' },
     ],
   },
   {
     groupName: 'People & Operations',
     items: [
       { title: 'Employee Directory', href: '/employees', icon: Users, module: 'employee_records' },
+      { title: 'Task Allocation', href: '/tasks', icon: ListTodo, module: 'tasks_work', badge: 'Active' },
       { title: 'Recruitment & Pipeline', href: '/recruitment', icon: UserPlus, module: 'recruitment', badge: 'Active' },
       { title: 'Attendance & Logs', href: '/attendance', icon: CalendarCheck, module: 'attendance_leave' },
       {
@@ -160,6 +162,7 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                 // Customize nav item titles for Chairman
                 if (currentRole === 'chairman') {
                   if (item.href === '/dashboard') displayTitle = 'Executive Board Dashboard';
+                  else if (item.href === '/reports') displayTitle = 'Executive MIS & Board BI';
                   else if (item.href === '/compliance') displayTitle = 'HR Policy Repository';
                   else if (item.href === '/performance') displayTitle = 'Executive KRAs & 9-Box Grid';
                 }
@@ -167,6 +170,7 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                 // Customize nav item titles for Managing Director
                 if (currentRole === 'managing_director') {
                   if (item.href === '/dashboard') displayTitle = 'Executive Dashboard';
+                  else if (item.href === '/reports') displayTitle = 'Enterprise MIS Intelligence';
                   else if (item.href === '/recruitment') displayTitle = 'Recruitment Approvals';
                   else if (item.href === '/payroll') displayTitle = 'Payroll Disbursal';
                   else if (item.href === '/movement') displayTitle = 'Promotions & Transfers';
@@ -175,6 +179,7 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                 // Customize nav item titles for Internal Audit Head
                 if (currentRole === 'internal_audit_head') {
                   if (item.href === '/dashboard') displayTitle = 'Audit Dashboard';
+                  else if (item.href === '/reports') displayTitle = 'Forensic MIS & Audit BI';
                   else if (item.href === '/payroll') displayTitle = 'Salary & Statutory Audit';
                   else if (item.href === '/compliance') displayTitle = 'Policy & Rulebook';
                   else if (item.href === '/disciplinary') displayTitle = 'Disciplinary & Inquiries';
@@ -184,6 +189,7 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                 // Customize nav item titles for Compliance & Statutory Officer
                 if (currentRole === 'compliance_statutory') {
                   if (item.href === '/dashboard') displayTitle = 'Compliance Dashboard';
+                  else if (item.href === '/reports') displayTitle = 'Compliance MIS Registers';
                   else if (item.href === '/compliance') displayTitle = 'Policy & Statutory Compliance';
                   else if (item.href === '/payroll') displayTitle = 'Statutory Filings (PF/ESI)';
                   else if (item.href === '/attendance') displayTitle = 'Statutory Muster (Form 25)';
@@ -204,7 +210,8 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                     );
                     const empSelfId = empSelf?.id || empSelf?.employeeCode || currentUser?.employeeId || 'self';
                     targetHref = `/employees/${empSelfId}`;
-                  } else if (item.href === '/attendance') displayTitle = 'Attendance Check-In';
+                  } else if (item.href === '/tasks') displayTitle = 'My Assigned Tasks';
+                  else if (item.href === '/attendance') displayTitle = 'Attendance Check-In';
                   else if (item.href === '/leaves') displayTitle = 'My Leaves & OD Logs';
                   else if (item.href === '/payroll') displayTitle = 'My Payslips';
                   else if (item.href === '/performance') displayTitle = 'My Self-Appraisal';

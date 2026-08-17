@@ -12,7 +12,13 @@ import {
 } from '@prisma/client';
 import crypto from 'crypto';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DIRECT_URL || process.env.DATABASE_URL,
+    },
+  },
+});
 
 function calculateHash(prevHash: string, payload: any): string {
   const serialized = JSON.stringify(payload);
@@ -26,6 +32,8 @@ async function main() {
     // 0. Purge existing database tables in reverse dependency order
     console.log('🧹 Purging existing tables...');
     await prisma.notification.deleteMany().catch(() => {});
+    await (prisma as any).taskLog.deleteMany().catch(() => {});
+    await (prisma as any).taskAllocation.deleteMany().catch(() => {});
     await prisma.companyHoliday.deleteMany().catch(() => {});
     await prisma.companyPolicy.deleteMany().catch(() => {});
     await prisma.transferPromotionCase.deleteMany().catch(() => {});
@@ -503,6 +511,95 @@ async function main() {
         status: 'upcoming',
       },
     });
+
+    // 12.5 Seed Task Allocations (Strictly assigned to operational employees)
+    console.log('📋 Seeding Task Allocations & Work Deliverables...');
+    const empVishwa = seededEmployees.find((e) => e.employeeCode === 'VV-006');
+    const empHR = seededEmployees.find((e) => e.employeeCode === 'VV-003');
+    const empMD = seededEmployees.find((e) => e.employeeCode === 'VV-002');
+
+    if (empVishwa && empHR && empMD) {
+      await (prisma as any).taskAllocation.create({
+        data: {
+          organizationId: org.id,
+          title: 'Factory Safety & ISO 9001 Calibration Verification',
+          description: 'Audit and calibrate pressure testing rigs and log inspection sign-offs for Campus 2.',
+          category: 'quality_audit',
+          priority: 'urgent',
+          status: 'in_progress',
+          assigneeId: empVishwa.id,
+          assignedById: empHR.id,
+          assignedByName: 'Steffania Rossi',
+          assignedByRole: UserRole.hr_head,
+          dueDate: new Date('2026-08-25'),
+          estimatedHours: 16,
+          actualHours: 8,
+          progressPercent: 50,
+          deliverableNotes: 'Pressure rigs 1 to 4 calibrated. Logs submitted to plant foreman.',
+          proofDocumentName: 'Rig_Calibration_Checklist_Aug2026.pdf',
+          logs: {
+            create: [
+              {
+                authorId: empHR.id,
+                authorName: 'Steffania Rossi',
+                authorRole: UserRole.hr_head,
+                message: 'Task dispatched by Steffania Rossi (hr_head).',
+                progressAt: 0,
+                loggedHours: 0,
+              },
+              {
+                authorId: empVishwa.id,
+                authorName: 'Vishwa Nathan',
+                authorRole: UserRole.employee,
+                message: 'Started work on rig calibration. 8 hours logged.',
+                progressAt: 50,
+                loggedHours: 8,
+              },
+            ],
+          },
+        },
+      });
+
+      await (prisma as any).taskAllocation.create({
+        data: {
+          organizationId: org.id,
+          title: 'Automated Robotic Sorting Arm Benchmarking',
+          description: 'Run 100-cycle stress test on robotic sorting arm in Bengaluru HQ operations bay.',
+          category: 'project',
+          priority: 'high',
+          status: 'pending',
+          assigneeId: empVishwa.id,
+          assignedById: empMD.id,
+          assignedByName: 'Ganesh Ramachandran',
+          assignedByRole: UserRole.managing_director,
+          dueDate: new Date('2026-08-28'),
+          estimatedHours: 12,
+          actualHours: 0,
+          progressPercent: 0,
+        },
+      });
+
+      await (prisma as any).taskAllocation.create({
+        data: {
+          organizationId: org.id,
+          title: 'Warehouse Conveyor Belt Sensor Replacement',
+          description: 'Replace optical proximity sensors on sorting belt 3 and run end-to-end dry run tests.',
+          category: 'operational',
+          priority: 'medium',
+          status: 'under_review',
+          assigneeId: empVishwa.id,
+          assignedById: empHR.id,
+          assignedByName: 'Steffania Rossi',
+          assignedByRole: UserRole.hr_head,
+          dueDate: new Date('2026-08-24'),
+          estimatedHours: 8,
+          actualHours: 7.5,
+          progressPercent: 90,
+          deliverableNotes: 'Sensors installed and calibrated. Dry run passed with zero error rate.',
+          proofDocumentName: 'Conveyor_Sensor_Test_Report.pdf',
+        },
+      });
+    }
 
     // 13. Seed Audit Logs with Cryptographic SHA-256 Hash Chain
     console.log('🔒 Initializing cryptographic audit hash chain...');
