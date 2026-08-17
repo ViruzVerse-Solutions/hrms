@@ -192,7 +192,12 @@ export function AuthProvider({
     }
   };
 
-  const currentEmployee = employees.find((e) => e.userId === currentUser.id || e.id === currentUser.employeeId);
+  const currentEmployee = employees.find(
+    (e) =>
+      (currentUser.employeeId && (e.id === currentUser.employeeId || e.employeeCode === currentUser.employeeId)) ||
+      (currentUser.id && e.userId === currentUser.id) ||
+      (currentUser.email && e.email?.toLowerCase() === currentUser.email?.toLowerCase())
+  );
 
   const hasAccess = (module: ModuleKey) => hasModuleAccess(currentRole, module);
   const can = (action: 'create' | 'read' | 'update' | 'delete' | 'approve' | 'self', module: ModuleKey) =>

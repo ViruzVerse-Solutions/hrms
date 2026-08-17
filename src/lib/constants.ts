@@ -44,6 +44,7 @@ export function getLifecycleStagesForTrack(track: LifecycleTrack = 'standard_sta
 export const CORE_PERSONAS: User[] = [
   {
     id: 'usr_chairman',
+    employeeId: 'VV-001',
     name: 'Devraj Ananth',
     email: 'dev@viruzverse.com',
     avatar: 'https://ui-avatars.com/api/?name=Devraj+Ananth&background=4f46e5&color=ffffff',
@@ -55,6 +56,7 @@ export const CORE_PERSONAS: User[] = [
   },
   {
     id: 'usr_md',
+    employeeId: 'VV-002',
     name: 'Ganesh Ramachandran',
     email: 'ganesh@viruzverse.com',
     avatar: 'https://ui-avatars.com/api/?name=Ganesh+Ramachandran&background=4f46e5&color=ffffff',
@@ -66,6 +68,7 @@ export const CORE_PERSONAS: User[] = [
   },
   {
     id: 'usr_hr_head',
+    employeeId: 'VV-003',
     name: 'Steffania Rossi',
     email: 'steffania@viruzverse.com',
     avatar: 'https://ui-avatars.com/api/?name=Steffania+Rossi&background=4f46e5&color=ffffff',
@@ -77,6 +80,7 @@ export const CORE_PERSONAS: User[] = [
   },
   {
     id: 'usr_internal_audit',
+    employeeId: 'VV-004',
     name: 'Rajeshwari Nair',
     email: 'rajeshwari.nair@viruzverse.com',
     avatar: 'https://ui-avatars.com/api/?name=Rajeshwari+Nair&background=4f46e5&color=ffffff',
@@ -88,6 +92,7 @@ export const CORE_PERSONAS: User[] = [
   },
   {
     id: 'usr_compliance',
+    employeeId: 'VV-005',
     name: 'Senthil Kumar',
     email: 'senthil@viruzverse.com',
     avatar: 'https://ui-avatars.com/api/?name=Senthil+Kumar&background=4f46e5&color=ffffff',
@@ -99,6 +104,7 @@ export const CORE_PERSONAS: User[] = [
   },
   {
     id: 'usr_employee',
+    employeeId: 'VV-006',
     name: 'Vishwa Nathan',
     email: 'vishwa@viruzverse.com',
     avatar: 'https://ui-avatars.com/api/?name=Vishwa+Nathan&background=4f46e5&color=ffffff',

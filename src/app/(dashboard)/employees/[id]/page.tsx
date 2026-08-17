@@ -54,9 +54,10 @@ function EmployeeDetailContent({
   const resolvedParams = use(params);
   const { employees, addEmployee, refreshEmployees, isSalaryVisible, currentUser, currentRole, currentEmployee, can, isLoadingData } = useAuth();
   
-  // If employee role, strictly view own profile with safe fallback
+  // If employee role, strictly view own profile (Vishwa Nathan - VV-006)
+  const empSelf = currentEmployee || employees.find((e) => e.email?.toLowerCase() === currentUser?.email?.toLowerCase() || e.employeeCode === 'VV-006');
   const targetId = currentRole === 'employee'
-    ? (currentEmployee?.id || currentUser?.employeeId || resolvedParams.id || (employees.length > 0 ? employees[0]?.id : ''))
+    ? (empSelf?.id || empSelf?.employeeCode || currentUser?.employeeId || 'VV-006')
     : resolvedParams.id;
 
   const initialEmployee =
@@ -65,8 +66,8 @@ function EmployeeDetailContent({
         e.id === targetId ||
         e.employeeCode === targetId ||
         e.employeeCode?.toLowerCase() === targetId?.toLowerCase() ||
-        (currentUser?.id && e.userId === currentUser.id)
-    ) || (currentRole === 'employee' ? currentEmployee || (employees.length > 0 ? employees[0] : null) : null);
+        (currentUser?.email && e.email?.toLowerCase() === currentUser.email.toLowerCase())
+    ) || (currentRole === 'employee' ? empSelf || null : null);
 
   const [employee, setEmployee] = useState<Employee | null>(initialEmployee);
   const [loading, setLoading] = useState(!initialEmployee);

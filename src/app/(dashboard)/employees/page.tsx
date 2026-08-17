@@ -99,8 +99,9 @@ function EmployeesContent() {
 
   React.useEffect(() => {
     if (currentRole === 'employee') {
-      const selfId = currentEmployee?.id || currentUser?.employeeId || (employees.length > 0 ? employees[0]?.id : null);
-      if (selfId) router.replace(`/employees/${selfId}`);
+      const empSelf = currentEmployee || employees.find((e) => e.email?.toLowerCase() === currentUser?.email?.toLowerCase() || e.employeeCode === 'VV-006');
+      const selfId = empSelf?.id || empSelf?.employeeCode || currentUser?.employeeId || 'VV-006';
+      router.replace(`/employees/${selfId}`);
     }
   }, [currentRole, currentEmployee, currentUser, employees, router]);
 
@@ -240,13 +241,14 @@ function EmployeesContent() {
 
   const filteredEmployees = employees.filter((emp) => {
     if (currentRole === 'employee') {
-      const selfId = currentEmployee?.id || currentUser?.employeeId || (employees.length > 0 ? employees[0]?.id : '');
-      const selfCode = currentEmployee?.employeeCode || currentUser?.employeeId;
+      const empSelf = currentEmployee || employees.find((e) => e.email?.toLowerCase() === currentUser?.email?.toLowerCase() || e.employeeCode === 'VV-006');
+      const selfId = empSelf?.id || currentUser?.employeeId || 'VV-006';
+      const selfCode = empSelf?.employeeCode || 'VV-006';
       return (
         emp.id === selfId ||
         emp.employeeCode === selfId ||
-        (selfCode && emp.employeeCode === selfCode) ||
-        (currentUser?.id && emp.userId === currentUser.id)
+        emp.employeeCode === selfCode ||
+        (currentUser?.email && emp.email?.toLowerCase() === currentUser.email.toLowerCase())
       );
     }
 

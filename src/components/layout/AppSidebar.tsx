@@ -180,8 +180,9 @@ export function AppSidebar({ mobileOpen = false, onCloseMobile }: AppSidebarProp
                 if (currentRole === 'employee') {
                   if (item.href === '/employees') {
                     displayTitle = 'My Profile 360 (Self)';
-                    const empSelfId = currentUser?.employeeId || currentEmployee?.id || (employees.length > 0 ? employees[0]?.id : null);
-                    targetHref = empSelfId ? `/employees/${empSelfId}` : '/employees';
+                    const empSelf = currentEmployee || employees.find((e) => e.email?.toLowerCase() === currentUser?.email?.toLowerCase() || e.employeeCode === 'VV-006');
+                    const empSelfId = empSelf?.id || empSelf?.employeeCode || currentUser?.employeeId || 'VV-006';
+                    targetHref = `/employees/${empSelfId}`;
                   } else if (item.href === '/attendance') displayTitle = 'Attendance Check-In';
                   else if (item.href === '/leaves') displayTitle = 'My Leaves';
                   else if (item.href === '/payroll') displayTitle = 'My Payslips';
