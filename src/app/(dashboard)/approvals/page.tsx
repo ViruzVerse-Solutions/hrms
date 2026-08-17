@@ -482,17 +482,75 @@ function ApprovalsContent() {
                         {/* Right Action Column: Direct Screen Review Link */}
                         <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
                           {canApprove ? (
-                            <Button
-                              size="sm"
-                              className="h-8 px-3.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5 shadow-xs font-semibold"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleNavigateToScreen(item.targetUrl);
-                              }}
-                            >
-                              <span>Review & Act</span>
-                              <ArrowRight className="h-3.5 w-3.5" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="success"
+                                className="h-8 px-3 text-xs font-semibold"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    const res = await fetch('/api/approvals', {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        'x-user-role': currentRole,
+                                      },
+                                      body: JSON.stringify({
+                                        category: item.category,
+                                        itemId: item.id,
+                                        action: 'approve',
+                                      }),
+                                    });
+                                    if (res.ok) fetchApprovals(true);
+                                  } catch (err) {
+                                    console.error(err);
+                                  }
+                                }}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-8 px-3 text-xs font-semibold"
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  try {
+                                    const res = await fetch('/api/approvals', {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        'x-user-role': currentRole,
+                                      },
+                                      body: JSON.stringify({
+                                        category: item.category,
+                                        itemId: item.id,
+                                        action: 'reject',
+                                        rejectionReason: 'Rejected via Approvals Hub',
+                                      }),
+                                    });
+                                    if (res.ok) fetchApprovals(true);
+                                  } catch (err) {
+                                    console.error(err);
+                                  }
+                                }}
+                              >
+                                Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 px-2.5 text-xs text-indigo-700 border-indigo-200 gap-1 font-semibold"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNavigateToScreen(item.targetUrl);
+                                }}
+                              >
+                                <span>Details</span>
+                                <ArrowRight className="h-3 w-3" />
+                              </Button>
+                            </div>
                           ) : (
                             <div className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold">
                               <ShieldCheck className="h-3.5 w-3.5 text-amber-600 shrink-0" />

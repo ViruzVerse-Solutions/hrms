@@ -123,14 +123,13 @@ async function main() {
 
     console.log('✅ Org structure seeded');
 
-    // 5. Seed 6 Personas
+    // 5. Seed 6 Core Personas with exact real-world names
     const personasData = [
       {
-        id: 'emp_006',
         code: 'VV-001',
-        first: 'Alexander',
-        last: 'Sterling',
-        email: 'alexander.sterling@viruzverse.com',
+        first: 'Devraj',
+        last: 'Ananth',
+        email: 'dev@viruzverse.com',
         phone: '+91 98765 43210',
         gender: Gender.male,
         dob: new Date('1968-05-14'),
@@ -147,11 +146,10 @@ async function main() {
         bankAcc: '918237465001',
       },
       {
-        id: 'emp_001',
         code: 'VV-002',
-        first: 'Vikramaditya',
-        last: 'Rathore',
-        email: 'md@viruzverse.com',
+        first: 'Ganesh',
+        last: 'Ramachandran',
+        email: 'ganesh@viruzverse.com',
         phone: '+91 98765 43211',
         gender: Gender.male,
         dob: new Date('1975-08-20'),
@@ -168,11 +166,10 @@ async function main() {
         bankAcc: '918237465002',
       },
       {
-        id: 'emp_004',
         code: 'VV-003',
-        first: 'Eleanor',
-        last: 'Vance',
-        email: 'eleanor.vance@viruzverse.com',
+        first: 'Steffania',
+        last: 'Rossi',
+        email: 'steffania@viruzverse.com',
         phone: '+91 98765 43212',
         gender: Gender.female,
         dob: new Date('1982-11-10'),
@@ -189,13 +186,12 @@ async function main() {
         bankAcc: '918237465003',
       },
       {
-        id: 'emp_003',
         code: 'VV-004',
-        first: 'Marcus',
-        last: 'Chen',
-        email: 'marcus.chen@viruzverse.com',
+        first: 'Rajeshwari',
+        last: 'Nair',
+        email: 'rajeshwari.nair@viruzverse.com',
         phone: '+91 98765 43213',
-        gender: Gender.male,
+        gender: Gender.female,
         dob: new Date('1986-03-25'),
         doj: new Date('2023-01-10'),
         deptId: deptAudit.id,
@@ -210,13 +206,12 @@ async function main() {
         bankAcc: '918237465004',
       },
       {
-        id: 'emp_002',
         code: 'VV-005',
-        first: 'Rajeshwari',
-        last: 'Nair',
-        email: 'rajeshwari.nair@viruzverse.com',
+        first: 'Senthil',
+        last: 'Kumar',
+        email: 'senthil@viruzverse.com',
         phone: '+91 98765 43214',
-        gender: Gender.female,
+        gender: Gender.male,
         dob: new Date('1990-09-18'),
         doj: new Date('2023-07-01'),
         deptId: deptLegal.id,
@@ -231,11 +226,10 @@ async function main() {
         bankAcc: '918237465005',
       },
       {
-        id: 'emp_005',
         code: 'VV-006',
-        first: 'Vishwadharan',
-        last: 'R',
-        email: 'vishwadharan.r@viruzverse.com',
+        first: 'Vishwa',
+        last: 'Nathan',
+        email: 'vishwa@viruzverse.com',
         phone: '+91 98765 43215',
         gender: Gender.male,
         dob: new Date('1995-12-04'),
@@ -259,7 +253,6 @@ async function main() {
     for (const p of personasData) {
       const emp = await prisma.employee.create({
         data: {
-          id: p.id,
           organizationId: org.id,
           employeeCode: p.code,
           firstName: p.first,
@@ -331,18 +324,21 @@ async function main() {
     }
 
     // 7. Seed Leave Requests
-    await prisma.leaveRequest.create({
-      data: {
-        organizationId: org.id,
-        employeeId: 'emp_005', // Vishwadharan
-        leaveType: LeaveTypeEnum.casual,
-        fromDate: new Date('2026-08-20'),
-        toDate: new Date('2026-08-21'),
-        daysCount: 2.0,
-        reason: 'Personal family function',
-        status: LeaveStatus.pending,
-      },
-    });
+    const vishwaEmp = seededEmployees.find((e) => e.email === 'vishwa@viruzverse.com');
+    if (vishwaEmp) {
+      await prisma.leaveRequest.create({
+        data: {
+          organizationId: org.id,
+          employeeId: vishwaEmp.id,
+          leaveType: LeaveTypeEnum.casual,
+          fromDate: new Date('2026-08-20'),
+          toDate: new Date('2026-08-21'),
+          daysCount: 2.0,
+          reason: 'Personal family function',
+          status: LeaveStatus.pending,
+        },
+      });
+    }
 
     // 8. Seed Company Holidays
     const holidays = [
@@ -401,7 +397,7 @@ async function main() {
           content: pol.content,
           status: 'active',
           acknowledgedCount: pol.acknowledgedCount,
-          createdByName: 'Eleanor Vance',
+          createdByName: 'Steffania Rossi',
           createdByRole: UserRole.hr_head,
         },
       });
@@ -514,7 +510,7 @@ async function main() {
 
     const auditEvents = [
       {
-        userName: 'Eleanor Vance',
+        userName: 'Steffania Rossi',
         userRole: UserRole.hr_head,
         action: 'SYSTEM_BOOTSTRAP_INITIALIZED',
         module: 'system_settings',
@@ -522,7 +518,7 @@ async function main() {
         payloadAfter: { event: 'Tenancy initialized for Viruzverse Solutions', domain: org.domain },
       },
       {
-        userName: 'Eleanor Vance',
+        userName: 'Steffania Rossi',
         userRole: UserRole.hr_head,
         action: 'EMPLOYEE_MASTER_SEEDED',
         module: 'employee_records',
@@ -530,7 +526,7 @@ async function main() {
         payloadAfter: { count: seededEmployees.length, status: 'Active Service' },
       },
       {
-        userName: 'Eleanor Vance',
+        userName: 'Steffania Rossi',
         userRole: UserRole.hr_head,
         action: 'PAYROLL_RUN_CALCULATED',
         module: 'payroll_benefits',
@@ -538,12 +534,12 @@ async function main() {
         payloadAfter: { cycle: '2026-08', totalGross: 2800000, employees: 6 },
       },
       {
-        userName: 'Dr. Vikramaditya Rathore',
+        userName: 'Ganesh Ramachandran',
         userRole: UserRole.managing_director,
         action: 'PAYROLL_RUN_APPROVED',
         module: 'payroll_benefits',
         resourceId: payrollRun.id,
-        payloadAfter: { cycle: '2026-08', approvedBy: 'Dr. Vikramaditya Rathore' },
+        payloadAfter: { cycle: '2026-08', approvedBy: 'Ganesh Ramachandran' },
       },
     ];
 

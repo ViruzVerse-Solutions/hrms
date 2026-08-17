@@ -42,6 +42,7 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
     currentEmployee,
     notifications,
     markNotificationRead,
+    isLoadingData,
   } = useAuth();
 
   const [notifOpen, setNotifOpen] = useState(false);
@@ -151,9 +152,17 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
               )}
             </div>
             <DropdownMenuSeparator />
-            <div className="max-h-72 overflow-y-auto space-y-1">
-              {notifications.length === 0 ? (
-                <div className="p-4 text-center text-xs text-slate-400">No new notifications</div>
+            <div className="max-h-72 overflow-y-auto space-y-1 p-1">
+              {isLoadingData ? (
+                <div className="space-y-2 p-2">
+                  <div className="h-8 bg-slate-100 animate-pulse rounded-lg" />
+                  <div className="h-8 bg-slate-100 animate-pulse rounded-lg" />
+                  <div className="h-8 bg-slate-100 animate-pulse rounded-lg" />
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="p-4 text-center text-xs text-slate-400 font-medium">
+                  No new notifications in database
+                </div>
               ) : (
                 notifications.map((notif) => (
                   <div

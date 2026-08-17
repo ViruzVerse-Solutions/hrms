@@ -58,6 +58,27 @@ function PayrollContent() {
   const [selectedMonth, setSelectedMonth] = useState(payrollRuns[0]?.period || '2026-08');
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [datePeriodFilter, setDatePeriodFilter] = useState('all');
+
+  // Compute available date periods starting from employee onboarding date up to current month
+  const onboardingDateStr = (currentEmployee as any)?.dateOfJoining || (currentEmployee as any)?.dateOfJoining || '2024-01-01';
+  const availableDatePeriods = useMemo(() => {
+    const periods: string[] = ['all'];
+    try {
+      const joinDate = new Date(onboardingDateStr);
+      const now = new Date();
+      let curr = new Date(now.getFullYear(), now.getMonth(), 1);
+      const start = new Date(joinDate.getFullYear(), joinDate.getMonth(), 1);
+
+      while (curr >= start) {
+        const yyyy = curr.getFullYear();
+        const mm = String(curr.getMonth() + 1).padStart(2, '0');
+        periods.push(`${yyyy}-${mm}`);
+        curr.setMonth(curr.getMonth() - 1);
+      }
+    } catch {}
+    return periods;
+  }, [onboardingDateStr]);
 
   // Interactive Salary Structure Configurator State (HR configures, MD sanctions)
   const [config, setConfig] = useState({
@@ -100,9 +121,10 @@ function PayrollContent() {
         ps.employeeCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
         ps.designation.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesDept = departmentFilter === 'all' || ps.department === departmentFilter;
-      return matchesSearch && matchesDept;
+      const matchesDate = datePeriodFilter === 'all' || ps.period === datePeriodFilter;
+      return matchesSearch && matchesDept && matchesDate;
     });
-  }, [basePayslips, searchQuery, departmentFilter]);
+  }, [basePayslips, searchQuery, departmentFilter, datePeriodFilter]);
 
   const departmentsList = useMemo(() => {
     const set = new Set(basePayslips.map((p) => p.department).filter(Boolean));
@@ -454,9 +476,21 @@ function PayrollContent() {
 
         {/* Payslips Archive Table */}
         <Card className="border-slate-200/90 shadow-2xs">
-          <CardHeader className="py-4 px-6 border-b bg-slate-50/50 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-bold text-slate-900">Payslip Archive</CardTitle>
-            <span className="text-xs text-slate-400 font-medium">Historical salary statements</span>
+          <CardHeader className="py-4 px-6 border-b bg-slate-50/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle className="text-sm font-bold text-slate-900">Payslip Archive</CardTitle>
+              <span className="text-xs text-slate-400 font-medium">Historical salary statements (From Onboarding Date: {onboardingDateStr})</span>
+            </div>
+            <select
+              value={datePeriodFilter}
+              onChange={(e) => setDatePeriodFilter(e.target.value)}
+              className="h-9 px-3 rounded-xl text-xs bg-white border border-slate-200 text-slate-700 font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+            >
+              <option value="all">All Date Periods</option>
+              {availableDatePeriods.filter((p) => p !== 'all').map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -508,6 +542,8 @@ function PayrollContent() {
           open={payslipModalOpen}
           onOpenChange={setPayslipModalOpen}
           payslip={selectedPayslip}
+          allPayslips={basePayslips}
+          onSelectPayslip={(p) => setSelectedPayslip(p)}
         />
       </div>
     );
@@ -669,7 +705,7 @@ function PayrollContent() {
                 </div>
 
                 {/* Department Dropdown Filter */}
-                <div className="w-full md:w-64 shrink-0">
+                <div className="w-full md:w-48 shrink-0">
                   <select
                     value={departmentFilter}
                     onChange={(e) => setDepartmentFilter(e.target.value)}
@@ -678,6 +714,20 @@ function PayrollContent() {
                     <option value="all">All Departments ({departmentsList.length})</option>
                     {departmentsList.map((d) => (
                       <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Date Period Filter from Onboarding Date */}
+                <div className="w-full md:w-52 shrink-0">
+                  <select
+                    value={datePeriodFilter}
+                    onChange={(e) => setDatePeriodFilter(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl text-xs bg-white border border-slate-200 text-slate-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 shadow-2xs font-medium"
+                  >
+                    <option value="all">All Periods (From Onboarding)</option>
+                    {availableDatePeriods.filter((p) => p !== 'all').map((p) => (
+                      <option key={p} value={p}>{p}</option>
                     ))}
                   </select>
                 </div>
@@ -1194,22 +1244,85 @@ function PayrollContent() {
         open={payslipModalOpen}
         onOpenChange={setPayslipModalOpen}
         payslip={selectedPayslip}
+        allPayslips={basePayslips}
+        onSelectPayslip={(p) => setSelectedPayslip(p)}
       />
     </div>
   );
 }
 
-// Clean Printable Payslip Modal
+// Clean Printable & Downloadable Payslip Modal
 function PayslipDialog({
   open,
   onOpenChange,
   payslip,
+  allPayslips = [],
+  onSelectPayslip,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   payslip: Payslip | null;
+  allPayslips?: Payslip[];
+  onSelectPayslip?: (p: Payslip) => void;
 }) {
   if (!payslip) return null;
+
+  const prevPayslip = useMemo(() => {
+    if (!allPayslips.length) return null;
+    const idx = allPayslips.findIndex((p) => p.id === payslip.id);
+    if (idx !== -1 && idx < allPayslips.length - 1) {
+      return allPayslips[idx + 1];
+    }
+    return null;
+  }, [payslip, allPayslips]);
+
+  const handleDownload = () => {
+    const text = `====================================================
+VIRUZVERSE SOLUTIONS PRIVATE LIMITED
+OFFICIAL PAYSLIP STATEMENT - ${payslip.period}
+====================================================
+Employee Name : ${payslip.employeeName}
+Employee Code : ${payslip.employeeCode}
+Designation   : ${payslip.designation}
+Department    : ${payslip.department}
+
+----------------------------------------------------
+EARNINGS (₹)
+----------------------------------------------------
+Basic Pay          : ${payslip.breakup?.basic || 0}
+HRA                : ${payslip.breakup?.hra || 0}
+Special Allowance  : ${payslip.breakup?.specialAllowance || 0}
+Conveyance         : ${payslip.breakup?.conveyance || 0}
+Medical Allowance  : ${payslip.breakup?.medicalAllowance || 0}
+GROSS EARNINGS     : ${payslip.breakup?.grossEarnings || 0}
+
+----------------------------------------------------
+STATUTORY DEDUCTIONS (₹)
+----------------------------------------------------
+EPF (Employee 12%) : ${payslip.breakup?.pfEmployee || 0}
+ESIC Contribution  : ${payslip.breakup?.esiEmployee || 0}
+Professional Tax   : ${payslip.breakup?.professionalTax || 0}
+Income Tax TDS     : ${payslip.breakup?.tds || 0}
+TOTAL DEDUCTIONS   : ${payslip.breakup?.totalDeductions || 0}
+
+====================================================
+NET TAKE-HOME SALARY : ₹${payslip.breakup?.netPay || 0}
+====================================================
+Payment Mode : Bank Transfer (Direct Bank Credit)
+Status       : ${payslip.paymentStatus || 'Processed'}
+Generated    : ${new Date().toISOString()}
+`;
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Payslip_${payslip.employeeCode}_${payslip.period}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -1220,11 +1333,26 @@ function PayslipDialog({
             <div>
               <div className="text-base font-extrabold text-indigo-700">Viruzverse Solutions Private Limited</div>
               <div className="text-xs text-slate-500 mt-0.5">Official Payslip Statement for <strong>{payslip.period}</strong></div>
+              {prevPayslip && onSelectPayslip && (
+                <button
+                  type="button"
+                  onClick={() => onSelectPayslip(prevPayslip)}
+                  className="mt-1 text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>&larr; Previous Payslip ({prevPayslip.period})</span>
+                </button>
+              )}
             </div>
-            <Button size="sm" onClick={() => window.print()} className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white w-full sm:w-auto font-medium h-9 rounded-xl">
-              <Printer className="h-3.5 w-3.5" />
-              <span>Print Payslip</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={handleDownload} variant="outline" className="gap-1.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-medium h-9 rounded-xl">
+                <Download className="h-3.5 w-3.5" />
+                <span>Download</span>
+              </Button>
+              <Button size="sm" onClick={() => window.print()} className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium h-9 rounded-xl">
+                <Printer className="h-3.5 w-3.5" />
+                <span>Print</span>
+              </Button>
+            </div>
           </div>
 
           {/* Details */}

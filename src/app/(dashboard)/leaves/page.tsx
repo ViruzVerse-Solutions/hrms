@@ -83,11 +83,21 @@ function LeavesContent() {
   const todayStr = new Date().toISOString().split('T')[0];
 
   const [applyModalOpen, setApplyModalOpen] = useState(false);
+  const [odModalOpen, setOdModalOpen] = useState(false);
   const [dateError, setDateError] = useState('');
   const [form, setForm] = useState({
     leaveType: 'casual' as LeaveType,
     fromDate: todayStr,
     toDate: todayStr,
+    reason: '',
+  });
+
+  const [odForm, setOdForm] = useState({
+    fromDate: todayStr,
+    toDate: todayStr,
+    fromTime: '09:00',
+    toTime: '18:00',
+    location: '',
     reason: '',
   });
 
@@ -128,6 +138,38 @@ function LeavesContent() {
     });
     setApplyModalOpen(false);
     setForm({ leaveType: 'casual', fromDate: todayStr, toDate: todayStr, reason: '' });
+  };
+
+  const handleApplyOD = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (odForm.fromDate < todayStr) {
+      setDateError('On Duty start date cannot be in the past.');
+      return;
+    }
+    if (odForm.toDate < odForm.fromDate) {
+      setDateError('On Duty end date cannot be earlier than start date.');
+      return;
+    }
+    setDateError('');
+
+    const d1 = new Date(odForm.fromDate);
+    const d2 = new Date(odForm.toDate);
+    const diffTime = Math.abs(d2.getTime() - d1.getTime());
+    const daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+    addLeaveRequest({
+      employeeId: empId,
+      employeeName: empName,
+      leaveType: 'compensatory_off',
+      fromDate: odForm.fromDate,
+      toDate: odForm.toDate,
+      daysCount: Math.max(1, daysCount),
+      reason: `[ON DUTY (OD) - ${odForm.location || 'Client Location'} | ${odForm.fromTime} to ${odForm.toTime}] ${odForm.reason}`,
+      approverId: currentEmployee?.reportingManagerId || '',
+      approverName: currentEmployee?.reportingManagerName || 'Reporting Manager',
+    });
+    setOdModalOpen(false);
+    setOdForm({ fromDate: todayStr, toDate: todayStr, fromTime: '09:00', toTime: '18:00', location: '', reason: '' });
   };
 
   const canConfigurePolicy = currentRole === 'hr_head' || currentRole === 'managing_director' || currentRole === 'chairman';
@@ -395,12 +437,19 @@ function LeavesContent() {
                         return Math.max(0, allocated - (used + pending));
                       };
 
+                      const empGender = (currentEmployee as any)?.gender || 'female';
+
                       return (
                         <>
                           <option value="casual">Casual Leave (CL) - Balance: {getAvailBal('casual', 12)} Days</option>
                           <option value="sick">Sick Leave (SL) - Balance: {getAvailBal('sick', 10)} Days</option>
                           <option value="earned">Earned / Privilege Leave (EL) - Balance: {getAvailBal('earned', 15)} Days</option>
-                          <option value="maternity">Maternity Leave - Balance: 180 Days</option>
+                          {empGender === 'female' && (
+                            <option value="maternity">Maternity Leave (Female Only) - Balance: 180 Days</option>
+                          )}
+                          {empGender === 'male' && (
+                            <option value="paternity">Paternity Leave (Male Only) - Balance: 15 Days</option>
+                          )}
                           <option value="unpaid">Loss of Pay (LOP / Unpaid)</option>
                         </>
                       );
@@ -449,6 +498,113 @@ function LeavesContent() {
                   </Button>
                   <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
                     Submit Application
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Apply On Duty (OD) Modal */}
+          <Dialog open={odModalOpen} onOpenChange={(open) => {
+            setOdModalOpen(open);
+            if (open) {
+              setOdForm({ fromDate: todayStr, toDate: todayStr, fromTime: '09:00', toTime: '18:00', location: '', reason: '' });
+              setDateError('');
+            }
+          }}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2 shadow-sm text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-semibold">
+                <Building className="h-4 w-4 text-indigo-600" />
+                <span>Request On Duty (OD)</span>
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Submit On-Duty (OD) Request</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleApplyOD} className="space-y-4 pt-2 text-xs">
+                {dateError && (
+                  <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
+                    {dateError}
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">OD Work Location / Client Site</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Pune Factory Site / Client HQ / Off-site Audit"
+                    value={odForm.location}
+                    onChange={(e) => setOdForm({ ...odForm, location: e.target.value })}
+                    className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">From Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={odForm.fromDate}
+                      onChange={(e) => setOdForm({ ...odForm, fromDate: e.target.value })}
+                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">To Date</label>
+                    <input
+                      type="date"
+                      required
+                      value={odForm.toDate}
+                      onChange={(e) => setOdForm({ ...odForm, toDate: e.target.value })}
+                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">From Time</label>
+                    <input
+                      type="time"
+                      required
+                      value={odForm.fromTime}
+                      onChange={(e) => setOdForm({ ...odForm, fromTime: e.target.value })}
+                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold text-slate-700 dark:text-slate-300">To Time</label>
+                    <input
+                      type="time"
+                      required
+                      value={odForm.toTime}
+                      onChange={(e) => setOdForm({ ...odForm, toTime: e.target.value })}
+                      className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-slate-700 dark:text-slate-300">Purpose / Detailed Reason</label>
+                  <textarea
+                    rows={3}
+                    required
+                    placeholder="Provide details about outdoor duty assignment..."
+                    value={odForm.reason}
+                    onChange={(e) => setOdForm({ ...odForm, reason: e.target.value })}
+                    className="w-full p-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t">
+                  <Button type="button" variant="outline" onClick={() => setOdModalOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold">
+                    Submit OD Request
                   </Button>
                 </div>
               </form>
@@ -528,11 +684,12 @@ function LeavesContent() {
         );
       })()}
 
-      {/* Navigation Tabs for Leave Applications & Holiday Calendar */}
+      {/* Navigation Tabs for Leave Applications, Outdoor Duty & Holiday Calendar */}
       <Tabs defaultValue="applications" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-2 max-w-md">
+        <TabsList className="grid grid-cols-3 max-w-xl">
           <TabsTrigger value="applications">Leave Applications</TabsTrigger>
-          <TabsTrigger value="holidays">Company Holiday Calendar ({holidays.length})</TabsTrigger>
+          <TabsTrigger value="od_requests">Outdoor Duty (OD)</TabsTrigger>
+          <TabsTrigger value="holidays">Holiday Calendar ({holidays.length})</TabsTrigger>
         </TabsList>
 
         {/* 1. Leave Applications Queue */}
@@ -618,7 +775,111 @@ function LeavesContent() {
           </Card>
         </TabsContent>
 
-        {/* 2. Official Holiday Calendar Tab */}
+        {/* 2. Outdoor Duty (OD) Requests Tab */}
+        <TabsContent value="od_requests">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-bold flex items-center gap-2">
+                  <Building className="h-5 w-5 text-indigo-600" />
+                  <span>Outdoor Duty (OD) Requests & Approvals</span>
+                </CardTitle>
+                <p className="text-xs text-slate-500 mt-0.5">Off-site client work, factory site visits, and external audit assignments</p>
+              </div>
+              <Button
+                onClick={() => setOdModalOpen(true)}
+                size="sm"
+                className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-semibold"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Apply for OD</span>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                const odRequestsList = visibleLeaves.filter(
+                  (l) => l.leaveType === 'compensatory_off' || l.reason.includes('[ON DUTY') || l.reason.includes('[OD]')
+                );
+
+                if (odRequestsList.length === 0) {
+                  return (
+                    <div className="py-8 text-center text-xs text-slate-500">
+                      No Outdoor Duty (OD) requests found in database.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                        <tr>
+                          <th className="p-3">Employee</th>
+                          <th className="p-3">Location & Purpose</th>
+                          <th className="p-3">From Date</th>
+                          <th className="p-3">To Date</th>
+                          <th className="p-3">Duration</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {odRequestsList.map((od) => {
+                          const canApprove = can('approve', 'attendance_leave');
+                          return (
+                            <tr key={od.id} className="hover:bg-slate-50 transition-colors">
+                              <td className="p-3 font-bold text-slate-900">{od.employeeName}</td>
+                              <td className="p-3 text-slate-700 max-w-xs">{od.reason}</td>
+                              <td className="p-3 font-medium text-slate-600">{formatDate(od.fromDate)}</td>
+                              <td className="p-3 font-medium text-slate-600">{formatDate(od.toDate)}</td>
+                              <td className="p-3 font-mono font-bold text-slate-900">{od.daysCount} Days</td>
+                              <td className="p-3">
+                                <Badge
+                                  variant={od.status === 'approved' ? 'success' : od.status === 'pending' ? 'warning' : 'destructive'}
+                                  className="text-[10px] capitalize"
+                                >
+                                  {od.status}
+                                </Badge>
+                              </td>
+                              <td className="p-3 text-right">
+                                {od.status === 'pending' && canApprove ? (
+                                  <div className="flex items-center justify-end gap-1.5">
+                                    <Button
+                                      size="sm"
+                                      variant="success"
+                                      className="h-7 px-2.5 text-[11px]"
+                                      onClick={() => updateLeaveStatus(od.id, 'approved', 'Approved OD Duty Assignment')}
+                                    >
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      className="h-7 px-2.5 text-[11px]"
+                                      onClick={() => updateLeaveStatus(od.id, 'rejected', 'OD Request Rejected')}
+                                    >
+                                      Reject
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <span className="text-slate-400 text-[11px]">
+                                    {od.approverComment || 'Processed'}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* 3. Official Holiday Calendar Tab */}
         <TabsContent value="holidays">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">

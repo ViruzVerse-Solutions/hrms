@@ -95,3 +95,36 @@ export async function POST(req: NextRequest) {
     return apiError(error?.message || 'Failed to submit grievance', 500);
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const userCtx = getApiUserContext(req);
+    const accessError = requireModuleAccess(userCtx, 'engagement_welfare');
+    if (accessError) return accessError;
+
+    if (!['hr_head', 'managing_director', 'compliance_statutory'].includes(userCtx.role)) {
+      return apiError('Only HR Head, MD, or Compliance Officer can update grievance status', 403);
+    }
+
+    const body = await req.json();
+    const { ticketId, status, resolution } = body;
+
+    if (!ticketId || !status) {
+      return apiError('Missing required fields: ticketId, status', 400);
+    }
+
+    if (prisma) {
+      await prisma.grievanceTicket.update({
+        where: { id: ticketId },
+        data: {
+          status: status as any,
+          resolution: resolution || undefined,
+        },
+      });
+    }
+
+    return apiSuccess({ ticketId, status, resolution }, 'Grievance ticket status updated successfully');
+  } catch (error: any) {
+    return apiError(error?.message || 'Failed to update grievance ticket', 500);
+  }
+}

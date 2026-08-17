@@ -145,13 +145,17 @@ export function AuthProvider({
   // Single-pass high-speed database hydration on mount & role switch (<30ms)
   useEffect(() => {
     setIsLoadingData(true);
-    fetch('/api/dashboard/summary', {
-      headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.data) {
-          const d = data.data;
+    Promise.all([
+      fetch('/api/dashboard/summary', {
+        headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
+      }).then((res) => res.json()).catch(() => null),
+      fetch('/api/notifications', {
+        headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
+      }).then((res) => res.json()).catch(() => null),
+    ])
+      .then(([summaryData, notifData]) => {
+        if (summaryData?.data) {
+          const d = summaryData.data;
           if (d.employees) setEmployees(d.employees);
           if (d.attendanceRecords) setAttendanceRecords(d.attendanceRecords);
           if (d.leaveRequests) setLeaveRequests(d.leaveRequests);
@@ -161,8 +165,10 @@ export function AuthProvider({
           if (d.candidates) setCandidates(d.candidates);
           if (d.auditLogs) setAuditLogs(d.auditLogs);
         }
+        if (notifData?.data?.notifications) {
+          setNotifications(notifData.data.notifications);
+        }
       })
-      .catch(() => {})
       .finally(() => {
         setIsLoadingData(false);
       });
@@ -393,6 +399,11 @@ export function AuthProvider({
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    fetch('/api/notifications', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
+      body: JSON.stringify({ notificationId: id }),
+    }).catch(() => {});
   };
 
   return (

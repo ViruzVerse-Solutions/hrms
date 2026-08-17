@@ -36,6 +36,14 @@ export async function POST(req: NextRequest) {
         : await prisma.employee.findMany({ where: { employmentStatus: { not: 'terminated' } } });
 
       for (const emp of allEmployees) {
+        // Enforce Gender-based leave allocation rules
+        if (leaveType === 'maternity' && emp.gender !== 'female') {
+          continue; // Maternity leave is restricted to female employees
+        }
+        if (leaveType === 'paternity' && emp.gender !== 'male') {
+          continue; // Paternity leave is restricted to male employees
+        }
+
         const existing = await prisma.leaveAllocation.findFirst({
           where: { employeeId: emp.id, leaveType: leaveType as any, year },
         });

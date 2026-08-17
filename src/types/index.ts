@@ -171,7 +171,7 @@ export interface AttendanceRecord {
   regularizationReason?: string;
 }
 
-export type LeaveType = 'casual' | 'sick' | 'earned' | 'maternity' | 'paternity' | 'bereavement' | 'unpaid';
+export type LeaveType = 'casual' | 'sick' | 'earned' | 'maternity' | 'paternity' | 'bereavement' | 'unpaid' | 'compensatory_off';
 
 export interface LeaveRequest {
   id: string;
@@ -250,6 +250,7 @@ export interface Payslip {
   lopDays: number;
   breakup: SalaryBreakup;
   paymentMode: 'bank_transfer' | 'cheque' | 'cash';
+  paymentStatus?: string;
   status: 'published' | 'draft';
 }
 
@@ -346,7 +347,7 @@ export interface GrievanceTicket {
   subject: string;
   description: string;
   priority: 'low' | 'medium' | 'high' | 'critical';
-  status: 'submitted' | 'under_investigation' | 'action_pending' | 'resolved' | 'closed';
+  status: 'open' | 'submitted' | 'investigating' | 'under_investigation' | 'action_pending' | 'resolved' | 'closed';
   slaDeadline: string;
   assignedToName?: string;
   resolutionNotes?: string;
