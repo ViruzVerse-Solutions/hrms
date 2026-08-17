@@ -450,15 +450,17 @@ export interface TransferPromotionCase {
 
 export interface AuditLogItem {
   id: string;
-  userId: string;
+  userId?: string;
   userName: string;
   role: UserRole;
+  userRole?: UserRole;
   action: string;
-  module: ModuleKey;
-  entityId: string;
-  details: string;
+  module: ModuleKey | string;
+  entityId?: string;
+  resourceId?: string;
+  details?: string;
   timestamp: string;
-  ipAddress: string;
+  ipAddress?: string;
   integrityHash?: string;
 }
 

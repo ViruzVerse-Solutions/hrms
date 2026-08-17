@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/api-response';
 import { getApiUserContext } from '@/lib/auth/rbac-guard-api';
 import { prisma } from '@/lib/db/prisma';
+import { formatAuditDetails } from '@/lib/utils';
 
 export async function GET(req: NextRequest) {
   try {
@@ -218,7 +219,7 @@ export async function GET(req: NextRequest) {
         id: p.id,
         payrollRunId: p.payrollRunId || 'pr_001',
         employeeId: p.employeeId,
-        employeeCode: p.employee?.employeeCode || 'VV-006',
+        employeeCode: p.employee?.employeeCode || '',
         employeeName: p.employee ? `${p.employee.firstName} ${p.employee.lastName}` : 'Employee',
         designation: p.employee?.designation?.title || 'Staff',
         department: p.employee?.department?.name || 'Operations',
@@ -296,11 +297,13 @@ export async function GET(req: NextRequest) {
       })),
       auditLogs: auditLogs.map((l: any) => ({
         id: l.id,
-        userName: l.userName,
+        userName: l.userName || 'System User',
         userRole: l.userRole,
-        action: l.action,
-        module: l.module,
-        timestamp: l.createdAt.toISOString(),
+        role: l.userRole,
+        action: l.action || 'system_event',
+        module: l.module || 'system_settings',
+        details: formatAuditDetails(l.payloadAfter, l.action),
+        timestamp: l.createdAt ? l.createdAt.toISOString() : new Date().toISOString(),
       })),
       branches,
       departments,

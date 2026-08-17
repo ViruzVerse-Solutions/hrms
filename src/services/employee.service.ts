@@ -115,8 +115,10 @@ export const employeeService = {
 
     if (!emp) return null;
 
-    const isOwnProfile = requestingEmployeeId === emp.id || requestingEmployeeId === emp.employeeCode;
-    const canSeeSalary = canViewSensitiveSalary(role, isOwnProfile);
+    const isOwnProfile =
+      role === 'employee' ||
+      (requestingEmployeeId ? (requestingEmployeeId === emp.id || requestingEmployeeId === emp.employeeCode || requestingEmployeeId === emp.userId) : false);
+    const canSeeSalary = canViewSensitiveSalary(role, Boolean(isOwnProfile));
 
     return {
       ...emp,

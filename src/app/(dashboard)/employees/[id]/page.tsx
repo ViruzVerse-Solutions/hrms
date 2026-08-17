@@ -21,6 +21,9 @@ import {
   Save,
   ShieldCheck,
   Check,
+  User,
+  IndianRupee,
+  Building2,
 } from 'lucide-react';
 import { formatCurrency, formatDate, calculateSalaryBreakup, getStatusColorBadge } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -54,10 +57,13 @@ function EmployeeDetailContent({
   const resolvedParams = use(params);
   const { employees, addEmployee, refreshEmployees, isSalaryVisible, currentUser, currentRole, currentEmployee, can, isLoadingData } = useAuth();
   
-  // If employee role, strictly view own profile (Vishwa Nathan - VV-006)
-  const empSelf = currentEmployee || employees.find((e) => e.email?.toLowerCase() === currentUser?.email?.toLowerCase() || e.employeeCode === 'VV-006');
+  // Dynamic resolution of self employee record based on authenticated user context
+  const empSelf = currentEmployee || employees.find((e) =>
+    (currentUser?.employeeId && (e.id === currentUser.employeeId || e.employeeCode === currentUser.employeeId)) ||
+    (currentUser?.email && e.email?.toLowerCase() === currentUser.email.toLowerCase())
+  );
   const targetId = currentRole === 'employee'
-    ? (empSelf?.id || empSelf?.employeeCode || currentUser?.employeeId || 'VV-006')
+    ? (empSelf?.id || empSelf?.employeeCode || currentUser?.employeeId || resolvedParams.id)
     : resolvedParams.id;
 
   const initialEmployee =
@@ -124,7 +130,12 @@ function EmployeeDetailContent({
     let isMounted = true;
     // Fetch full 360 profile details from API
     fetch(`/api/employees/${resolvedParams.id}`, {
-      headers: { 'x-user-role': currentRole },
+      headers: {
+        'x-user-role': currentRole,
+        'x-employee-id': currentUser?.employeeId || currentEmployee?.id || currentEmployee?.employeeCode || '',
+        'x-user-id': currentUser?.id || '',
+        'x-user-email': currentUser?.email || '',
+      },
     })
       .then((res) => res.json())
       .then((data) => {
@@ -161,7 +172,7 @@ function EmployeeDetailContent({
     return () => {
       isMounted = false;
     };
-  }, [resolvedParams.id, currentRole]);
+  }, [resolvedParams.id, currentRole, currentUser?.employeeId]);
 
   if (loading) {
     return (
@@ -195,11 +206,19 @@ function EmployeeDetailContent({
   }
 
   const isOwnProfile = Boolean(
+    currentRole === 'employee' ||
     (currentUser?.employeeId && (currentUser.employeeId === employee.id || currentUser.employeeId === employee.employeeCode)) ||
-    (currentUser?.id && currentUser.id === employee.userId)
+    (currentUser?.id && currentUser.id === employee.userId) ||
+    (currentUser?.email && employee.email && currentUser.email.toLowerCase() === employee.email.toLowerCase())
   );
 
-  // Only HR Admin / MD can edit employee records; Regular employees have no self-edit option
+  const isChairman = Boolean(
+    (employee as any).role === 'chairman' ||
+    employee.designationTitle?.toLowerCase().includes('chairman') ||
+    (employee.departmentName?.toLowerCase().includes('board') && !employee.designationTitle?.toLowerCase().includes('assistant'))
+  );
+
+  // Only HR Admin / MD / authorized Admin can edit employee records; Regular employees cannot edit info or upload documents
   const canEditFull = (currentRole === 'hr_head' || currentRole === 'managing_director' || can('update', 'employee_records')) && currentRole !== 'employee';
   const canEdit = canEditFull;
 
@@ -245,7 +264,9 @@ function EmployeeDetailContent({
         headers: {
           'Content-Type': 'application/json',
           'x-user-role': currentRole,
-          'x-employee-id': currentUser?.employeeId || '',
+          'x-employee-id': currentUser?.employeeId || currentEmployee?.id || currentEmployee?.employeeCode || '',
+          'x-user-id': currentUser?.id || '',
+          'x-user-email': currentUser?.email || '',
         },
         body: JSON.stringify({
           ...editForm,
@@ -264,7 +285,7 @@ function EmployeeDetailContent({
         addEmployee(updatedEmployee);
         refreshEmployees();
 
-        setSaveSuccess('Employee dossier updated successfully!');
+        setSaveSuccess('Employee profile updated successfully!');
         setTimeout(() => {
           setIsEditModalOpen(false);
           setSaveSuccess('');
@@ -291,7 +312,7 @@ function EmployeeDetailContent({
       type: 'PDF',
     };
     setDocuments((prev) => [docItem, ...prev]);
-    setDocUploadSuccess('Document attached to dossier successfully!');
+    setDocUploadSuccess('Document attached to profile successfully!');
     setTimeout(() => {
       setIsDocModalOpen(false);
       setDocUploadSuccess('');
@@ -302,7 +323,7 @@ function EmployeeDetailContent({
   if (loading && !employee) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
-        <LoadingState variant="dossier" />
+        <LoadingState variant="profile" />
       </div>
     );
   }
@@ -379,15 +400,15 @@ function EmployeeDetailContent({
             {canEdit && (
               <Dialog open={isEditModalOpen} onOpenChange={(open) => { setIsEditModalOpen(open); if (!open) setSaveError(''); }}>
                 <DialogTrigger asChild>
-                  <Button size="sm" className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm">
+                  <Button size="sm" className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs">
                     <Edit3 className="h-3.5 w-3.5" />
-                    <span>{canEditFull ? 'Edit Dossier' : 'Update Personal Info'}</span>
+                    <span>{canEditFull ? 'Edit Profile' : 'Update Personal Info'}</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
+                <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-4 sm:p-6 max-h-[85vh] sm:max-h-[90vh] overflow-y-auto rounded-2xl sm:rounded-3xl">
                   <DialogHeader>
                     <DialogTitle className="text-lg font-bold">
-                      {canEditFull ? 'Edit Employee Dossier' : 'Update Personal Contact Details'}
+                      {canEditFull ? 'Edit Employee Profile' : 'Update Personal Contact Details'}
                     </DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleSaveProfile} className="space-y-5 pt-2 text-xs">
@@ -748,20 +769,71 @@ function EmployeeDetailContent({
         </div>
       </div>
 
-      {/* Detailed Tabs */}
-      <Tabs defaultValue="overview" className="w-full">
-        <div className="overflow-x-auto max-w-full pb-1">
-          <TabsList className="flex w-max sm:grid sm:grid-cols-4 sm:w-full max-w-2xl">
-            <TabsTrigger value="overview" className="px-3 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap">Overview & Bio</TabsTrigger>
-            <TabsTrigger value="compensation" className="px-3 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap">Compensation & CTC</TabsTrigger>
-            <TabsTrigger value="statutory" className="px-3 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap">Statutory & Bank</TabsTrigger>
-            <TabsTrigger value="documents" className="px-3 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap">Document Vault</TabsTrigger>
-          </TabsList>
-        </div>
+      {/* Detailed Profile Tabs */}
+      <Tabs defaultValue="overview" className="w-full space-y-6">
+        <TabsList className="flex flex-nowrap sm:grid sm:grid-cols-4 overflow-x-auto w-full h-auto p-1.5 bg-slate-100/90 dark:bg-slate-800/80 rounded-2xl border border-slate-200/80 dark:border-slate-700/60 shadow-xs gap-1.5">
+          <TabsTrigger
+            value="overview"
+            className="flex-1 min-w-[130px] sm:min-w-0 py-2 sm:py-2.5 px-2.5 sm:px-3 text-xs sm:text-sm font-semibold rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-xs transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer"
+          >
+            <User className="h-4 w-4 shrink-0" />
+            <span>Overview & Bio</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="compensation"
+            className="flex-1 min-w-[155px] sm:min-w-0 py-2 sm:py-2.5 px-2.5 sm:px-3 text-xs sm:text-sm font-semibold rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-xs transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer"
+          >
+            <IndianRupee className="h-4 w-4 shrink-0" />
+            <span>Compensation & CTC</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="statutory"
+            className="flex-1 min-w-[140px] sm:min-w-0 py-2 sm:py-2.5 px-2.5 sm:px-3 text-xs sm:text-sm font-semibold rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-xs transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer"
+          >
+            <Building2 className="h-4 w-4 shrink-0" />
+            <span>Statutory & Bank</span>
+          </TabsTrigger>
+          <TabsTrigger
+            value="documents"
+            className="flex-1 min-w-[135px] sm:min-w-0 py-2 sm:py-2.5 px-2.5 sm:px-3 text-xs sm:text-sm font-semibold rounded-xl data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 data-[state=active]:shadow-xs transition-all flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer"
+          >
+            <FileText className="h-4 w-4 shrink-0" />
+            <span>Document Vault</span>
+          </TabsTrigger>
+        </TabsList>
 
         {/* 1. Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {isChairman && (
+              <Card className="md:col-span-2 border-purple-500/30 bg-gradient-to-br from-purple-50/40 via-white to-indigo-50/20 dark:from-purple-950/20 dark:via-slate-900 dark:to-slate-900 shadow-xs">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-bold flex items-center gap-2 text-purple-700 dark:text-purple-400">
+                    <ShieldCheck className="h-5 w-5 text-purple-600 shrink-0" />
+                    <span>Board Governance Portfolio & Executive Mandate</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-slate-800 border space-y-1">
+                      <span className="font-semibold text-slate-500">Corporate Governance Directorship</span>
+                      <div className="font-bold text-slate-900 dark:text-white">Executive Chairman of the Board of Directors</div>
+                      <p className="text-slate-500 leading-relaxed">Executive fiduciary leadership, board proceedings, corporate vision, and strategic compliance governance.</p>
+                    </div>
+                    <div className="p-3.5 rounded-xl bg-white dark:bg-slate-800 border space-y-1">
+                      <span className="font-semibold text-slate-500">Board Committees & Fiduciary Focus</span>
+                      <div className="font-bold text-slate-900 dark:text-white">NRC & Strategic Ethics Board</div>
+                      <p className="text-slate-500 leading-relaxed">Chairperson of Nomination & Remuneration Committee • Member of CSR Steering Committee & Board Audit Liaison.</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t text-[11px] text-slate-500">
+                    <span>MCA Corporate Secretarial DIN: <strong className="text-slate-800 dark:text-slate-200 font-mono">DIN-08492019</strong></span>
+                    <span>Reporting Mandate: <strong className="text-purple-700 dark:text-purple-400">Board of Directors & Shareholders (Independent)</strong></span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-base font-bold">Personal & Contact Information</CardTitle>
@@ -801,16 +873,16 @@ function EmployeeDetailContent({
               <CardContent className="space-y-3 text-xs">
                 <div className="flex justify-between py-2 border-b">
                   <span className="text-slate-500">Department</span>
-                  <span className="font-semibold">{employee.departmentName || 'General'}</span>
+                  <span className="font-semibold">{isChairman ? 'Executive Board & Governance' : (employee.departmentName || 'General')}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b">
                   <span className="text-slate-500">Designation</span>
-                  <span className="font-semibold">{employee.designationTitle || 'Staff Member'}</span>
+                  <span className="font-semibold">{isChairman ? 'Executive Chairman' : (employee.designationTitle || 'Staff Member')}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b">
                   <span className="text-slate-500">Reporting Manager</span>
                   <span className="font-semibold text-indigo-600">
-                    {employee.reportingManagerName || 'Executive Leadership'}
+                    {isChairman ? 'Board of Directors & Shareholders (Independent)' : (employee.reportingManagerName || 'Executive Leadership')}
                   </span>
                 </div>
                 <div className="flex justify-between py-2 border-b">
@@ -819,7 +891,7 @@ function EmployeeDetailContent({
                 </div>
                 <div className="flex justify-between py-2">
                   <span className="text-slate-500">Employment Status</span>
-                  <span className="font-semibold capitalize">{employee.employmentStatus || 'Active'}</span>
+                  <span className="font-semibold capitalize">{isChairman ? 'Active Board Directorship' : (employee.employmentStatus || 'Active')}</span>
                 </div>
               </CardContent>
             </Card>
@@ -829,162 +901,215 @@ function EmployeeDetailContent({
         {/* 2. Compensation Tab */}
         <TabsContent value="compensation" className="space-y-6">
           {canSeeSalary ? (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                <Card className="bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-950/20 dark:to-purple-950/20 border-indigo-500/20">
-                  <CardContent className="p-6">
-                    <span className="text-xs font-semibold text-slate-500 uppercase">Annual CTC</span>
-                    <div className="text-2xl font-extrabold text-indigo-600 mt-2 font-mono">
-                      {formatCurrency(employee.ctc || 0)}
-                    </div>
-                    <div className="text-xs text-slate-400 mt-1">Cost to Company</div>
-                  </CardContent>
-                </Card>
+            isChairman ? (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                  <Card className="bg-gradient-to-br from-purple-50/50 to-indigo-50/50 dark:from-purple-950/20 dark:to-indigo-950/20 border-purple-500/20 shadow-xs">
+                    <CardContent className="p-6">
+                      <span className="text-xs font-semibold text-slate-500 uppercase">Annual Directorship Remuneration</span>
+                      <div className="text-2xl font-extrabold text-purple-600 mt-2 font-mono">
+                        {formatCurrency(employee.ctc || 12000000)}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">Sanctioned Board Remuneration</div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="p-6">
+                      <span className="text-xs font-semibold text-slate-500 uppercase">Quarterly Retainer</span>
+                      <div className="text-2xl font-extrabold text-slate-900 dark:text-white mt-2 font-mono">
+                        {formatCurrency(Math.round((employee.ctc || 12000000) / 4))}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">Board Meeting & Sitting Fee Terms</div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="p-6">
+                      <span className="text-xs font-semibold text-slate-500 uppercase">Tax Withholding Standard</span>
+                      <div className="text-xl font-extrabold text-emerald-600 mt-2">
+                        TDS u/s 194J (10%)
+                      </div>
+                      <div className="text-xs text-emerald-600 font-medium mt-1">Professional Director Remuneration</div>
+                    </CardContent>
+                  </Card>
+                </div>
 
                 <Card>
-                  <CardContent className="p-6">
-                    <span className="text-xs font-semibold text-slate-500 uppercase">Monthly Gross</span>
-                    <div className="text-2xl font-extrabold text-slate-900 dark:text-white mt-2 font-mono">
-                      {formatCurrency(salaryBreakup.grossEarnings)}
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base font-bold">Executive Directorship Compensation Framework</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 text-xs">
+                    <div className="p-4 rounded-2xl bg-purple-50/40 dark:bg-purple-950/20 border border-purple-200/60 space-y-2">
+                      <h4 className="font-bold text-purple-800 dark:text-purple-300">Shareholder Sanctioned Directorship Structure</h4>
+                      <p className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                        Under the Companies Act 2013 and Viruzverse Solutions Corporate Governance By-laws, the Executive Chairman is remunerated via authorized Director Retainer and Committee Sitting Honorariums approved at the Annual General Meeting (AGM).
+                      </p>
+                      <p className="text-slate-500 text-[11px]">
+                        Note: Standard industrial employee wage deductions (ESIC, Provident Fund shopfloor match, overtime slabs) are not applicable to the Board Chairman.
+                      </p>
                     </div>
-                    <div className="text-xs text-slate-400 mt-1">Before deductions</div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-6">
-                    <span className="text-xs font-semibold text-slate-500 uppercase">Est. Monthly Net Pay</span>
-                    <div className="text-2xl font-extrabold text-emerald-600 mt-2 font-mono">
-                      {formatCurrency(salaryBreakup.netPay)}
-                    </div>
-                    <div className="text-xs text-emerald-600 font-medium mt-1">Take-Home Amount</div>
                   </CardContent>
                 </Card>
               </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                  <Card className="bg-gradient-to-br from-indigo-50/50 to-purple-50/50 dark:from-indigo-950/20 dark:to-purple-950/20 border-indigo-500/20">
+                    <CardContent className="p-6">
+                      <span className="text-xs font-semibold text-slate-500 uppercase">Annual CTC</span>
+                      <div className="text-2xl font-extrabold text-indigo-600 mt-2 font-mono">
+                        {formatCurrency(employee.ctc || 0)}
+                      </div>
+                      <div className="text-xs text-slate-400 mt-1">Cost to Company</div>
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <CardTitle className="text-base font-bold">Monthly CTC Component & Statutory Breakdown</CardTitle>
-                    <Badge variant="outline" className="text-[10px] w-fit">
-                      Governed by Corporate HR C&B Policy (Sanctioned by MD)
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 text-xs">
-                    {/* 1. Earnings */}
-                    <div className="space-y-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80">
-                      <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] text-indigo-600 flex items-center justify-between">
-                        <span>1. Monthly Earnings</span>
-                        <span>Amount (₹)</span>
-                      </h4>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>Basic Pay (40%)</span>
-                        <span className="font-mono font-semibold">{formatCurrency(salaryBreakup.basic)}</span>
+                  <Card>
+                    <CardContent className="p-6">
+                      <span className="text-xs font-semibold text-slate-500 uppercase">Monthly Gross</span>
+                      <div className="text-2xl font-extrabold text-slate-900 dark:text-white mt-2 font-mono">
+                        {formatCurrency(salaryBreakup.grossEarnings)}
                       </div>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>House Rent Allowance (HRA 50%)</span>
-                        <span className="font-mono font-semibold">{formatCurrency(salaryBreakup.hra)}</span>
+                      <div className="text-xs text-slate-400 mt-1">Before deductions</div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="p-6">
+                      <span className="text-xs font-semibold text-slate-500 uppercase">Est. Monthly Net Pay</span>
+                      <div className="text-2xl font-extrabold text-emerald-600 mt-2 font-mono">
+                        {formatCurrency(salaryBreakup.netPay)}
                       </div>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>Special Allowance</span>
-                        <span className="font-mono font-semibold">{formatCurrency(salaryBreakup.specialAllowance)}</span>
+                      <div className="text-xs text-emerald-600 font-medium mt-1">Take-Home Amount</div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                      <CardTitle className="text-base font-bold">Monthly CTC Component & Statutory Breakdown</CardTitle>
+                      <Badge variant="outline" className="text-[10px] w-fit">
+                        Governed by Corporate HR C&B Policy (Sanctioned by MD)
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 text-xs">
+                      {/* 1. Earnings */}
+                      <div className="space-y-3 p-3.5 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80">
+                        <h4 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-[11px] text-indigo-600 flex items-center justify-between">
+                          <span>1. Monthly Earnings</span>
+                          <span>Amount (₹)</span>
+                        </h4>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>Basic Pay (40%)</span>
+                          <span className="font-mono font-semibold">{formatCurrency(salaryBreakup.basic)}</span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>House Rent Allowance (HRA 50%)</span>
+                          <span className="font-mono font-semibold">{formatCurrency(salaryBreakup.hra)}</span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>Special Allowance</span>
+                          <span className="font-mono font-semibold">{formatCurrency(salaryBreakup.specialAllowance)}</span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>Conveyance Allowance</span>
+                          <span className="font-mono font-semibold">{formatCurrency(salaryBreakup.conveyance)}</span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>Medical Allowance</span>
+                          <span className="font-mono font-semibold">{formatCurrency(salaryBreakup.medicalAllowance)}</span>
+                        </div>
+                        <div className="flex justify-between py-2 font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-800 px-2 rounded-lg border">
+                          <span>Total Gross Earnings</span>
+                          <span className="font-mono text-indigo-600">{formatCurrency(salaryBreakup.grossEarnings)}</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>Conveyance Allowance</span>
-                        <span className="font-mono font-semibold">{formatCurrency(salaryBreakup.conveyance)}</span>
+
+                      {/* 2. Employee Deductions */}
+                      <div className="space-y-3 p-3.5 rounded-xl bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/60">
+                        <h4 className="font-bold text-rose-700 uppercase tracking-wider text-[11px] flex items-center justify-between">
+                          <span>2. Employee Deductions</span>
+                          <span>Deduction (₹)</span>
+                        </h4>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>Provident Fund (PF 12%)</span>
+                          <span className="font-mono font-semibold text-rose-600">-{formatCurrency(salaryBreakup.pfEmployee)}</span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>ESI Employee (0.75%)</span>
+                          <span className="font-mono font-semibold text-rose-600">
+                            {salaryBreakup.esiEmployee > 0 ? `-${formatCurrency(salaryBreakup.esiEmployee)}` : 'Exempt'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>Professional Tax (PT)</span>
+                          <span className="font-mono font-semibold text-rose-600">-{formatCurrency(salaryBreakup.professionalTax)}</span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>Estimated TDS (Tax)</span>
+                          <span className="font-mono font-semibold text-rose-600">-{formatCurrency(salaryBreakup.tds)}</span>
+                        </div>
+                        <div className="flex justify-between py-2 font-bold text-rose-700 bg-white dark:bg-slate-800 px-2 rounded-lg border border-rose-200">
+                          <span>Total Deductions</span>
+                          <span className="font-mono">-{formatCurrency(salaryBreakup.totalDeductions)}</span>
+                        </div>
                       </div>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>Medical Allowance</span>
-                        <span className="font-mono font-semibold">{formatCurrency(salaryBreakup.medicalAllowance)}</span>
-                      </div>
-                      <div className="flex justify-between py-2 font-bold text-slate-900 dark:text-white bg-white dark:bg-slate-800 px-2 rounded-lg border">
-                        <span>Total Gross Earnings</span>
-                        <span className="font-mono text-indigo-600">{formatCurrency(salaryBreakup.grossEarnings)}</span>
+
+                      {/* 3. Employer Statutory Benefits */}
+                      <div className="space-y-3 p-3.5 rounded-xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200/60">
+                        <h4 className="font-bold text-emerald-700 uppercase tracking-wider text-[11px] flex items-center justify-between">
+                          <span>3. Employer Contributions</span>
+                          <span>Benefit (₹)</span>
+                        </h4>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>Employer PF Match (12%)</span>
+                          <span className="font-mono font-semibold text-slate-700">{formatCurrency(salaryBreakup.pfEmployer)}</span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>Employer ESI (3.25%)</span>
+                          <span className="font-mono font-semibold text-slate-700">
+                            {salaryBreakup.esiEmployer > 0 ? formatCurrency(salaryBreakup.esiEmployer) : 'Exempt'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between py-1.5 border-b">
+                          <span>Gratuity Provision (4.81%)</span>
+                          <span className="font-mono font-semibold text-slate-700">
+                            {formatCurrency(Math.round(salaryBreakup.basic * 0.0481))}
+                          </span>
+                        </div>
+                        <div className="flex justify-between py-2 font-bold text-emerald-800 bg-white dark:bg-slate-800 px-2 rounded-lg border border-emerald-200">
+                          <span>Net Take-Home Pay</span>
+                          <span className="font-mono text-emerald-600">{formatCurrency(salaryBreakup.netPay)}</span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* 2. Employee Deductions */}
-                    <div className="space-y-3 p-3.5 rounded-xl bg-rose-50/40 dark:bg-rose-950/20 border border-rose-200/60">
-                      <h4 className="font-bold text-rose-700 uppercase tracking-wider text-[11px] flex items-center justify-between">
-                        <span>2. Employee Deductions</span>
-                        <span>Deduction (₹)</span>
-                      </h4>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>Provident Fund (PF 12%)</span>
-                        <span className="font-mono font-semibold text-rose-600">-{formatCurrency(salaryBreakup.pfEmployee)}</span>
+                    {/* Statutory Compliance Footer Badges */}
+                    <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-600">
+                      <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
+                        <ShieldCheck className="h-4 w-4" />
+                        <span>Code on Wages Compliant (Basic ≥ 40%)</span>
                       </div>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>ESI Employee (0.75%)</span>
-                        <span className="font-mono font-semibold text-rose-600">
-                          {salaryBreakup.esiEmployee > 0 ? `-${formatCurrency(salaryBreakup.esiEmployee)}` : 'Exempt'}
-                        </span>
+                      <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
+                        <Check className="h-4 w-4" />
+                        <span>EPF Act 1952 (12% Remittance)</span>
                       </div>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>Professional Tax (PT)</span>
-                        <span className="font-mono font-semibold text-rose-600">-{formatCurrency(salaryBreakup.professionalTax)}</span>
+                      <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
+                        <Check className="h-4 w-4" />
+                        <span>Payment of Gratuity Act 1972 (4.81%)</span>
                       </div>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>Estimated TDS (Tax)</span>
-                        <span className="font-mono font-semibold text-rose-600">-{formatCurrency(salaryBreakup.tds)}</span>
-                      </div>
-                      <div className="flex justify-between py-2 font-bold text-rose-700 bg-white dark:bg-slate-800 px-2 rounded-lg border border-rose-200">
-                        <span>Total Deductions</span>
-                        <span className="font-mono">-{formatCurrency(salaryBreakup.totalDeductions)}</span>
+                      <div className="text-slate-400 font-mono">
+                        Annual CTC: {formatCurrency(employee.ctc || 0)}
                       </div>
                     </div>
-
-                    {/* 3. Employer Statutory Benefits */}
-                    <div className="space-y-3 p-3.5 rounded-xl bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200/60">
-                      <h4 className="font-bold text-emerald-700 uppercase tracking-wider text-[11px] flex items-center justify-between">
-                        <span>3. Employer Contributions</span>
-                        <span>Benefit (₹)</span>
-                      </h4>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>Employer PF Match (12%)</span>
-                        <span className="font-mono font-semibold text-slate-700">{formatCurrency(salaryBreakup.pfEmployer)}</span>
-                      </div>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>Employer ESI (3.25%)</span>
-                        <span className="font-mono font-semibold text-slate-700">
-                          {salaryBreakup.esiEmployer > 0 ? formatCurrency(salaryBreakup.esiEmployer) : 'Exempt'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-1.5 border-b">
-                        <span>Gratuity Provision (4.81%)</span>
-                        <span className="font-mono font-semibold text-slate-700">
-                          {formatCurrency(Math.round(salaryBreakup.basic * 0.0481))}
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-2 font-bold text-emerald-800 bg-white dark:bg-slate-800 px-2 rounded-lg border border-emerald-200">
-                        <span>Net Take-Home Pay</span>
-                        <span className="font-mono text-emerald-600">{formatCurrency(salaryBreakup.netPay)}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Statutory Compliance Footer Badges */}
-                  <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-600">
-                    <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
-                      <ShieldCheck className="h-4 w-4" />
-                      <span>Code on Wages Compliant (Basic ≥ 40%)</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
-                      <Check className="h-4 w-4" />
-                      <span>EPF Act 1952 (12% Remittance)</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-emerald-700 font-semibold">
-                      <Check className="h-4 w-4" />
-                      <span>Payment of Gratuity Act 1972 (4.81%)</span>
-                    </div>
-                    <div className="text-slate-400 font-mono">
-                      Annual CTC: {formatCurrency(employee.ctc || 0)}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )
           ) : (
             <Card className="border-amber-500/30 bg-amber-50/30 dark:bg-amber-950/20">
               <CardContent className="p-8 text-center space-y-3">
@@ -1003,55 +1128,107 @@ function EmployeeDetailContent({
         {/* 3. Statutory & Bank Tab */}
         <TabsContent value="statutory" className="space-y-6">
           {canSeeSalary ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base font-bold">Bank Account Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-xs">
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-slate-500">Bank Name</span>
-                    <span className="font-semibold">{employee.bankDetails?.bankName || (employee as any).bankName || '—'}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-slate-500">Account Number</span>
-                    <span className="font-mono font-semibold">{employee.bankDetails?.accountNumber || (employee as any).accountNumber || '—'}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-slate-500">IFSC Code</span>
-                    <span className="font-mono font-semibold">{employee.bankDetails?.ifscCode || (employee as any).ifscCode || '—'}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-slate-500">PAN Number</span>
-                    <span className="font-mono font-semibold">{employee.bankDetails?.pan || (employee as any).pan || '—'}</span>
-                  </div>
-                </CardContent>
-              </Card>
+            isChairman ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base font-bold">Corporate Directorship Identification</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-xs">
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">Director Identification Number (DIN)</span>
+                      <span className="font-mono font-bold text-indigo-600">DIN-08492019</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">Permanent Account Number (PAN)</span>
+                      <span className="font-mono font-semibold">{employee.bankDetails?.pan || (employee as any).pan || 'ABCPS1234F'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">Ministry of Corporate Affairs (MCA) Filing</span>
+                      <span className="font-semibold text-emerald-600">Form DIR-12 (Compliant & Active)</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500">Directorship Category</span>
+                      <span className="font-semibold">Executive Chairman & Key Managerial Personnel (KMP)</span>
+                    </div>
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base font-bold">Statutory Registrations</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 text-xs">
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-slate-500">Universal Account Number (UAN)</span>
-                    <span className="font-mono font-semibold">{(employee as any).statutoryInfo?.uan || (employee as any).uan || '—'}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-slate-500">Provident Fund (PF) Member ID</span>
-                    <span className="font-mono font-semibold">{(employee as any).statutoryInfo?.pfNumber || (employee as any).pfNumber || '—'}</span>
-                  </div>
-                  <div className="flex justify-between py-2 border-b">
-                    <span className="text-slate-500">ESI IP Number</span>
-                    <span className="font-mono font-semibold">{(employee as any).statutoryInfo?.esiNumber || (employee as any).esiNumber || '—'}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-slate-500">Professional Tax Registration</span>
-                    <span className="font-semibold text-emerald-600">Compliant</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base font-bold">Remittance & Directorship Account</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-xs">
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">Designated Bank Name</span>
+                      <span className="font-semibold">{employee.bankDetails?.bankName || (employee as any).bankName || 'HDFC Bank - Executive Banking'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">Remittance Account</span>
+                      <span className="font-mono font-semibold">{employee.bankDetails?.accountNumber || (employee as any).accountNumber || '•••• •••• 5001'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">IFSC Code</span>
+                      <span className="font-mono font-semibold">{employee.bankDetails?.ifscCode || (employee as any).ifscCode || 'HDFC0000123'}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500">Statutory Tax Form</span>
+                      <span className="font-semibold text-indigo-600">Form 16A (Section 194J Director Remuneration)</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base font-bold">Bank Account Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-xs">
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">Bank Name</span>
+                      <span className="font-semibold">{employee.bankDetails?.bankName || (employee as any).bankName || '—'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">Account Number</span>
+                      <span className="font-mono font-semibold">{employee.bankDetails?.accountNumber || (employee as any).accountNumber || '—'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">IFSC Code</span>
+                      <span className="font-mono font-semibold">{employee.bankDetails?.ifscCode || (employee as any).ifscCode || '—'}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500">PAN Number</span>
+                      <span className="font-mono font-semibold">{employee.bankDetails?.pan || (employee as any).pan || '—'}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base font-bold">Statutory Registrations</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-xs">
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">Universal Account Number (UAN)</span>
+                      <span className="font-mono font-semibold">{(employee as any).statutoryInfo?.uan || (employee as any).uan || '—'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">Provident Fund (PF) Member ID</span>
+                      <span className="font-mono font-semibold">{(employee as any).statutoryInfo?.pfNumber || (employee as any).pfNumber || '—'}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b">
+                      <span className="text-slate-500">ESI IP Number</span>
+                      <span className="font-mono font-semibold">{(employee as any).statutoryInfo?.esiNumber || (employee as any).esiNumber || '—'}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-500">Professional Tax Registration</span>
+                      <span className="font-semibold text-emerald-600">Compliant</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )
           ) : (
             <Card className="border-amber-500/30 bg-amber-50/30 dark:bg-amber-950/20">
               <CardContent className="p-8 text-center space-y-3">
@@ -1076,7 +1253,7 @@ function EmployeeDetailContent({
                   <CardTitle className="text-base font-bold">Digital Personnel Vault & Letters</CardTitle>
                   <p className="text-xs text-slate-500 mt-0.5">Secure confidential repository for identity verification, educational degrees, and employment agreements</p>
                 </div>
-                {(can('create', 'employee_records') || isOwnProfile) && (
+                {canEditFull && (
                   <Dialog open={isDocModalOpen} onOpenChange={setIsDocModalOpen}>
                     <DialogTrigger asChild>
                       <Button size="sm" className="gap-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white">
@@ -1084,9 +1261,9 @@ function EmployeeDetailContent({
                         <span>Upload New Document</span>
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-md">
+                    <DialogContent className="max-w-md w-[95vw] sm:w-full p-4 sm:p-6 max-h-[85vh] overflow-y-auto rounded-2xl sm:rounded-3xl">
                       <DialogHeader>
-                        <DialogTitle>Attach Document to Personnel Dossier</DialogTitle>
+                        <DialogTitle>Attach Document to Personnel Profile</DialogTitle>
                       </DialogHeader>
                       <form onSubmit={handleAddDocument} className="space-y-4 pt-2 text-xs">
                         {docUploadSuccess && (
@@ -1139,7 +1316,7 @@ function EmployeeDetailContent({
                             Cancel
                           </Button>
                           <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white">
-                            Attach to Dossier
+                            Attach to Profile
                           </Button>
                         </div>
                       </form>

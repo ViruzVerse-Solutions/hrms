@@ -28,7 +28,7 @@ import {
   ChevronRight,
   BarChart3,
 } from 'lucide-react';
-import { formatCurrency, formatDate } from '@/lib/utils';
+import { formatCurrency, formatDate, formatAuditDetails } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -603,22 +603,35 @@ export default function DashboardPage() {
               </Link>
             </CardHeader>
             <CardContent className="divide-y divide-slate-100">
-              {auditLogs.map((log) => (
-                <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
-                  <div className="space-y-0.5">
-                    <div className="font-semibold text-slate-900 flex items-center gap-2">
-                      <Badge variant="outline" className="text-[10px] uppercase font-mono">
-                        {log.action}
-                      </Badge>
-                      <span>{log.details}</span>
+              {auditLogs.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-400">No activity logs recorded yet.</div>
+              ) : (
+                auditLogs.map((log) => {
+                  const roleStr = log.role || log.userRole || 'system';
+                  const moduleStr = log.module || 'system';
+                  const actionStr = log.action || 'Activity';
+                  const detailsStr = formatAuditDetails(log.details, actionStr);
+
+                  return (
+                    <div key={log.id} className="py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+                      <div className="space-y-0.5">
+                        <div className="font-semibold text-slate-900 flex items-center gap-2">
+                          <Badge variant="outline" className="text-[10px] uppercase font-mono">
+                            {actionStr?.replace(/_/g, ' ')}
+                          </Badge>
+                          <span className="text-slate-800">{detailsStr}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          User: {log.userName || 'System'} ({roleStr?.replace(/_/g, ' ') || 'User'}) • Module: {moduleStr?.replace(/_/g, ' ') || 'General'}
+                        </div>
+                      </div>
+                      <span className="text-[11px] text-slate-400 font-mono">
+                        {log.timestamp ? new Date(log.timestamp).toLocaleTimeString() : 'Recent'}
+                      </span>
                     </div>
-                    <div className="text-[11px] text-slate-400">
-                      User: {log.userName} ({log.role.replace(/_/g, ' ')}) • Module: {log.module.replace(/_/g, ' ')}
-                    </div>
-                  </div>
-                  <span className="text-[11px] text-slate-400 font-mono">{new Date(log.timestamp).toLocaleTimeString()}</span>
-                </div>
-              ))}
+                  );
+                })
+              )}
             </CardContent>
           </Card>
         </div>
@@ -794,7 +807,7 @@ export default function DashboardPage() {
                         <span>{p.title}</span>
                       </div>
                       <p className="text-slate-500">
-                        Category: <strong className="capitalize">{p.category.replace(/_/g, ' ')}</strong> • Effective: {p.effectiveDate}
+                        Category: <strong className="capitalize">{p.category?.replace(/_/g, ' ') || 'General'}</strong> • Effective: {p.effectiveDate}
                       </p>
                     </div>
                   ))

@@ -406,7 +406,7 @@ function ComplianceContent() {
                       )}
                     </div>
                     <div className="text-xs text-slate-500 flex items-center gap-4 flex-wrap">
-                      <span>Category: <strong className="capitalize">{p.category.replace(/_/g, ' ')}</strong></span>
+                      <span>Category: <strong className="capitalize">{p.category?.replace(/_/g, ' ') || 'Statutory'}</strong></span>
                       <span>Effective: {formatDate(p.effectiveDate)}</span>
                     </div>
                   </div>
@@ -646,7 +646,7 @@ function ComplianceContent() {
               </div>
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold">Category</span>
-                <div className="font-semibold text-slate-900 capitalize">{pdfPreviewPolicy.category.replace(/_/g, ' ')}</div>
+                <div className="font-semibold text-slate-900 capitalize">{pdfPreviewPolicy.category?.replace(/_/g, ' ') || 'Statutory'}</div>
               </div>
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-bold">Version</span>

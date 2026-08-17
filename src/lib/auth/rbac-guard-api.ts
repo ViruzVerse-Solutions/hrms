@@ -15,7 +15,9 @@ export interface AuthenticatedUserContext {
 
 export async function getApiUserContextAsync(req: NextRequest): Promise<AuthenticatedUserContext> {
   const roleHeader = req.headers.get('x-user-role') as UserRole | null;
-  const employeeHeader = req.headers.get('x-employee-id');
+  const employeeHeader = req.headers.get('x-employee-id') || undefined;
+  const userHeader = req.headers.get('x-user-id') || undefined;
+  const emailHeader = req.headers.get('x-user-email') || undefined;
 
   const validRoles: UserRole[] = [
     'chairman',
@@ -29,8 +31,8 @@ export async function getApiUserContextAsync(req: NextRequest): Promise<Authenti
   const role: UserRole = roleHeader && validRoles.includes(roleHeader) ? roleHeader : 'hr_head';
 
   try {
-    // 1. If explicit employeeId / code header passed
-    if (employeeHeader) {
+    // 1. If explicit employeeId / code header passed, query database
+    if (employeeHeader && prisma) {
       const emp = await prisma.employee.findFirst({
         where: {
           OR: [
@@ -52,36 +54,67 @@ export async function getApiUserContextAsync(req: NextRequest): Promise<Authenti
       }
     }
 
-    // 2. Lookup by role in database
-    const user = await prisma.user.findFirst({
-      where: { activeRole: role },
-      include: { employee: true },
-    });
+    // 2. If explicit user ID or email header passed, query database
+    if ((userHeader || emailHeader) && prisma) {
+      const user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(userHeader ? [{ id: userHeader }] : []),
+            ...(emailHeader ? [{ email: emailHeader }] : []),
+          ],
+        },
+        include: { employee: true },
+      });
+      if (user) {
+        return {
+          userId: user.id,
+          employeeId: user.employee?.id || user.employeeId || undefined,
+          employeeCode: user.employee?.employeeCode,
+          employeeName: user.employee ? `${user.employee.firstName} ${user.employee.lastName}` : user.name,
+          email: user.email,
+          role: (user.activeRole as UserRole) || role,
+        };
+      }
+    }
 
-    if (user) {
-      return {
-        userId: user.id,
-        employeeId: user.employee?.id || user.employeeId || undefined,
-        employeeCode: user.employee?.employeeCode,
-        employeeName: user.employee ? `${user.employee.firstName} ${user.employee.lastName}` : user.name,
-        email: user.email,
-        role: user.activeRole as UserRole,
-      };
+    // 3. Dynamic lookup by active role in database
+    if (prisma) {
+      const user = await prisma.user.findFirst({
+        where: { activeRole: role },
+        include: { employee: true },
+      });
+
+      if (user) {
+        return {
+          userId: user.id,
+          employeeId: user.employee?.id || user.employeeId || undefined,
+          employeeCode: user.employee?.employeeCode,
+          employeeName: user.employee ? `${user.employee.firstName} ${user.employee.lastName}` : user.name,
+          email: user.email,
+          role: user.activeRole as UserRole,
+        };
+      }
     }
   } catch (error) {
     console.error('Database context resolution warning:', error);
   }
 
   return {
-    userId: 'usr_default',
-    employeeName: 'Authenticated User',
-    email: 'user@viruzverse.com',
+    userId: userHeader || employeeHeader || '',
+    employeeName: '',
+    email: emailHeader || '',
     role,
+    employeeId: employeeHeader,
+    employeeCode: employeeHeader,
   };
 }
 
 export function getApiUserContext(req: NextRequest): AuthenticatedUserContext {
   const roleHeader = req.headers.get('x-user-role') as UserRole | null;
+  const employeeHeader = req.headers.get('x-employee-id') || undefined;
+  const userHeader = req.headers.get('x-user-id') || undefined;
+  const emailHeader = req.headers.get('x-user-email') || undefined;
+
   const validRoles: UserRole[] = [
     'chairman',
     'managing_director',
@@ -91,9 +124,12 @@ export function getApiUserContext(req: NextRequest): AuthenticatedUserContext {
     'employee',
   ];
   const role: UserRole = roleHeader && validRoles.includes(roleHeader) ? roleHeader : 'hr_head';
+
   return {
-    userId: 'usr_default',
-    email: 'user@viruzverse.com',
+    userId: userHeader || employeeHeader || '',
+    employeeId: employeeHeader,
+    employeeCode: employeeHeader,
+    email: emailHeader || '',
     role,
   };
 }

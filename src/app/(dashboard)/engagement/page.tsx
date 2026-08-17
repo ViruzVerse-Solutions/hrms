@@ -264,12 +264,12 @@ function EngagementContent() {
                         {grv.isAnonymous ? 'Anonymous' : (grv.employeeName || 'Identified Employee')}
                       </Badge>
                       <Badge variant="outline" className="text-[10px] capitalize">
-                        {grv.category.replace('_', ' ')}
+                        {grv.category?.replace(/_/g, ' ') || 'General'}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={grv.status === 'resolved' ? 'success' : grv.status === 'open' ? 'warning' : 'info'} className="text-[10px] capitalize">
-                        {grv.status.replace('_', ' ')}
+                        {grv.status?.replace(/_/g, ' ') || 'Open'}
                       </Badge>
                       {canManageGrievances && grv.status !== 'resolved' && (
                         <div className="flex items-center gap-1.5">

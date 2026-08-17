@@ -168,3 +168,96 @@ export function getStatusColorBadge(status: string): { bg: string; text: string;
       return { bg: 'bg-slate-500/10 text-slate-600 dark:text-slate-400', text: 'text-slate-600', border: 'border-slate-500/20' };
   }
 }
+
+/**
+ * Parses and formats raw JSON or structured audit payloads into human-readable sentences.
+ */
+export function formatAuditDetails(rawDetails: any, action?: string): string {
+  if (!rawDetails && !action) return "System activity recorded";
+  
+  let data: any = rawDetails;
+  
+  if (typeof rawDetails === 'string') {
+    const trimmed = rawDetails.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+      try {
+        data = JSON.parse(trimmed);
+      } catch {
+        data = rawDetails;
+      }
+    }
+  }
+
+  if (typeof data === 'object' && data !== null) {
+    if (data.details && typeof data.details === 'string') return formatAuditDetails(data.details);
+    if (data.description && typeof data.description === 'string') return data.description;
+    if (data.message && typeof data.message === 'string') return data.message;
+    if (data.event && typeof data.event === 'string') {
+      return data.domain ? `${data.event} (${data.domain})` : data.event;
+    }
+    if (data.cycle && data.approvedBy) {
+      return `Payroll cycle ${data.cycle} approved by ${data.approvedBy}`;
+    }
+    if (data.cycle && (data.totalGross !== undefined || data.employees !== undefined)) {
+      const grossStr = data.totalGross !== undefined ? ` • Total Gross: ${formatCurrency(Number(data.totalGross))}` : '';
+      const countStr = data.employees !== undefined ? `${data.employees} employees` : '';
+      return `Payroll cycle ${data.cycle} calculated${countStr ? ` for ${countStr}` : ''}${grossStr}`;
+    }
+    if (data.count !== undefined && data.status) {
+      return `${data.count} records processed (${data.status})`;
+    }
+    if (data.code && data.name) {
+      return `Employee ${data.name} (${data.code})`;
+    }
+    if (data.name && data.updatedBy) {
+      const roleName = String(data.updatedBy).replace(/_/g, ' ');
+      return `Employee record for ${data.name} updated by ${roleName}`;
+    }
+    if (data.candidateId && data.stage) {
+      return `Candidate stage advanced to ${String(data.stage).replace(/_/g, ' ')}`;
+    }
+    if (data.title && data.headcount !== undefined) {
+      return `Job requisition for ${data.title} (${data.headcount} position${data.headcount === 1 ? '' : 's'})`;
+    }
+    if (data.title && data.version) {
+      return `Policy ${data.title} (v${data.version})${data.status ? ` - ${data.status}` : ''}`;
+    }
+    if (data.caseNumber && data.currentStage) {
+      return `Disciplinary case #${data.caseNumber} moved to ${String(data.currentStage).replace(/_/g, ' ')}`;
+    }
+    if (data.selfRating && data.cycleName) {
+      return `Self-appraisal submitted for ${data.cycleName} (Rating: ${data.selfRating}/5)`;
+    }
+
+    // Generic formatting for other key-value objects
+    const pairs = Object.entries(data)
+      .filter(([_, v]) => v !== undefined && v !== null && typeof v !== 'object')
+      .map(([k, v]) => {
+        const readableKey = k
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/_/g, ' ')
+          .trim()
+          .toLowerCase()
+          .replace(/\b\w/g, (c) => c.toUpperCase());
+        return `${readableKey}: ${v}`;
+      });
+
+    if (pairs.length > 0) {
+      return pairs.join(' • ');
+    }
+  }
+
+  if (typeof rawDetails === 'string' && rawDetails.trim().length > 0) {
+    return rawDetails.trim();
+  }
+
+  if (action) {
+    return action
+      .replace(/_/g, ' ')
+      .toLowerCase()
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  return "System activity recorded";
+}
+

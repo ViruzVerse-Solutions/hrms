@@ -330,16 +330,16 @@ function DisciplinaryContent() {
                         {c.severity}
                       </Badge>
                       <Badge variant="secondary" className="text-[10px] capitalize">
-                        {c.currentStage.replace(/_/g, ' ')}
+                        {c.currentStage?.replace(/_/g, ' ') || 'Show Cause'}
                       </Badge>
                     </div>
                     <div className="text-xs text-slate-500 flex items-center gap-4 flex-wrap">
-                      <span>Violation: <strong className="capitalize text-slate-700">{c.violationType.replace(/_/g, ' ')}</strong></span>
+                      <span>Violation: <strong className="capitalize text-slate-700">{c.violationType?.replace(/_/g, ' ') || 'Misconduct'}</strong></span>
                       <span>Incident Date: {formatDate(c.incidentDate)}</span>
                       <span>Reported By: <strong>{c.reportedBy}</strong></span>
                       {c.actionTaken && (
                         <span className="text-rose-600 font-semibold">
-                          Action: {c.actionTaken.replace(/_/g, ' ')}
+                          Action: {c.actionTaken?.replace(/_/g, ' ')}
                         </span>
                       )}
                     </div>

@@ -28,7 +28,7 @@ import {
   Database,
   Hash,
 } from 'lucide-react';
-import { formatDateTime } from '@/lib/utils';
+import { formatDateTime, formatAuditDetails } from '@/lib/utils';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -470,21 +470,21 @@ function SettingsContent() {
                           {formatDateTime(log.timestamp)}
                         </td>
                         <td className="p-3 font-semibold text-slate-900 whitespace-nowrap">
-                          <div>{log.userName}</div>
+                          <div>{log.userName || 'System User'}</div>
                           <div className="text-[10px] text-slate-400 capitalize">
-                            {ROLE_LABELS[log.role]?.title || log.role.replace(/_/g, ' ')}
+                            {ROLE_LABELS[log.role]?.title || log.role?.replace(/_/g, ' ') || log.userRole?.replace(/_/g, ' ') || 'User'}
                           </div>
                         </td>
                         <td className="p-3 text-[11px] text-indigo-600 uppercase font-bold whitespace-nowrap">
-                          {log.module.replace(/_/g, ' ')}
+                          {log.module?.replace(/_/g, ' ') || 'SYSTEM'}
                         </td>
                         <td className="p-3 font-bold text-slate-800 whitespace-nowrap">
                           <Badge variant="outline" className="text-[10px]">
-                            {log.action.replace(/_/g, ' ')}
+                            {log.action?.replace(/_/g, ' ') || 'LOG'}
                           </Badge>
                         </td>
                         <td className="p-3 text-slate-700 max-w-md">
-                          <div className="font-medium text-slate-900">{log.details}</div>
+                          <div className="font-medium text-slate-900">{formatAuditDetails(log.details, log.action)}</div>
                         </td>
                         <td className="p-3 text-right whitespace-nowrap">
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
