@@ -15,10 +15,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   Info,
-  Database,
-  RefreshCw,
-  Zap,
-  ZapOff,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -33,7 +29,6 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { ROLE_LABELS } from '@/lib/rbac';
 import { getPersonaAvatar } from '@/lib/constants';
-import { isDevCacheBypassed, setDevCacheBypass, clearAllCache } from '@/lib/cache';
 
 interface AppHeaderProps {
   onToggleMobileMenu?: () => void;
@@ -51,29 +46,6 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
   } = useAuth();
 
   const [notifOpen, setNotifOpen] = useState(false);
-  const [cacheBypassed, setCacheBypassed] = useState(false);
-  const [cacheNotice, setCacheNotice] = useState('');
-
-  useEffect(() => {
-    setCacheBypassed(isDevCacheBypassed());
-    const handleCacheChange = () => setCacheBypassed(isDevCacheBypassed());
-    window.addEventListener('hrms_cache_status_change', handleCacheChange);
-    return () => window.removeEventListener('hrms_cache_status_change', handleCacheChange);
-  }, []);
-
-  const handleToggleCache = () => {
-    const nextState = !cacheBypassed;
-    setDevCacheBypass(nextState);
-    setCacheBypassed(nextState);
-    setCacheNotice(nextState ? 'Cache Bypassed for Dev' : '2-Hour Local Cache Active');
-    setTimeout(() => setCacheNotice(''), 3000);
-  };
-
-  const handlePurgeCache = () => {
-    clearAllCache();
-    setCacheNotice('Local Cache Purged');
-    setTimeout(() => setCacheNotice(''), 3000);
-  };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -110,80 +82,8 @@ export function AppHeader({ onToggleMobileMenu }: AppHeaderProps) {
         </div>
       </div>
 
-      {/* Right: Cache Controls + Role Switcher + Notifications + Profile */}
+      {/* Right: Role Switcher + Notifications + Profile */}
       <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-        {/* Dev Cache Manager Pill */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              className={`h-8 sm:h-9 px-2 sm:px-2.5 gap-1 rounded-xl border text-xs font-semibold shadow-2xs transition-colors ${
-                cacheBypassed
-                  ? 'border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100'
-                  : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-              }`}
-            >
-              {cacheBypassed ? (
-                <ZapOff className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-              ) : (
-                <Zap className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-              )}
-              <span className="hidden xl:inline">
-                {cacheBypassed ? 'Cache: Bypassed' : 'Cache: 2h TTL'}
-              </span>
-              <span className="xl:hidden text-[11px]">
-                {cacheBypassed ? 'No-Cache' : '2h Cache'}
-              </span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64 p-2 bg-white border border-slate-200 shadow-xl rounded-2xl">
-            <DropdownMenuLabel className="text-xs font-bold text-slate-800 flex items-center justify-between px-2 py-1.5">
-              <div className="flex items-center gap-1.5">
-                <Database className="h-3.5 w-3.5 text-indigo-600" />
-                <span>Local Cache Manager</span>
-              </div>
-              <Badge variant={cacheBypassed ? 'outline' : 'secondary'} className="text-[10px]">
-                {cacheBypassed ? 'Dev Mode' : 'Active (2h)'}
-              </Badge>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <div className="p-2 text-[11px] text-slate-600 leading-relaxed bg-slate-50 rounded-xl mb-1.5 border border-slate-100">
-              {cacheBypassed
-                ? 'Local cache is disabled. API requests fetch fresh data on every render (Recommended for Development).'
-                : 'API responses are cached locally for 2 hours to accelerate page navigation.'}
-            </div>
-            {cacheNotice && (
-              <div className="px-2 py-1 text-[10px] font-bold text-emerald-600 animate-pulse">
-                {cacheNotice}
-              </div>
-            )}
-            <DropdownMenuItem
-              onClick={handleToggleCache}
-              className="flex items-center gap-2 p-2 rounded-xl cursor-pointer hover:bg-slate-100 text-xs font-semibold"
-            >
-              {cacheBypassed ? (
-                <>
-                  <Zap className="h-4 w-4 text-emerald-600" />
-                  <span>Enable 2-Hour Cache</span>
-                </>
-              ) : (
-                <>
-                  <ZapOff className="h-4 w-4 text-amber-600" />
-                  <span>Bypass Cache (Dev Team)</span>
-                </>
-              )}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={handlePurgeCache}
-              className="flex items-center gap-2 p-2 rounded-xl cursor-pointer hover:bg-rose-50 text-rose-600 text-xs font-semibold"
-            >
-              <RefreshCw className="h-4 w-4" />
-              <span>Purge Local Storage Cache</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         {/* Interactive Role Switcher Pill */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
