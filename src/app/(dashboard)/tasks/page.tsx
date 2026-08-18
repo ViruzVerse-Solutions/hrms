@@ -8,6 +8,7 @@ import { apiClient } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { LoadingState } from '@/components/ui/LoadingState';
 import {
   CheckSquare,
   Clock,
@@ -68,6 +69,11 @@ function TasksContent() {
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [viewDetailModalOpen, setViewDetailModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskAllocationItem | null>(null);
+
+  const [createError, setCreateError] = useState('');
+  const [updateError, setUpdateError] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const todayStr = new Date().toISOString().split('T')[0];
 
   // Forms with clean empty initial state (no pre-filled defaults, pure placeholders)
   const [createForm, setCreateForm] = useState({
@@ -139,7 +145,7 @@ function TasksContent() {
   // Fetch tasks
   const fetchTasks = async () => {
     try {
-      setLoading(true);
+      if (tasks.length === 0) setLoading(true);
       const json = await apiClient.tasks.getAll(currentRole);
       if (json.success && json.data?.tasks) {
         setTasks(json.data.tasks);
@@ -161,7 +167,16 @@ function TasksContent() {
       const tags = e.detail?.tags || [];
       if (tags.length === 0 || tags.includes('tasks') || tags.includes('dashboard')) {
         apiClient.tasks.getAll(currentRole).then((json) => {
-          if (json.success && json.data?.tasks) setTasks(json.data.tasks);
+          if (json.success && json.data?.tasks) {
+            setTasks((current) => {
+              const serverTasks: TaskAllocationItem[] = json.data.tasks;
+              const serverIds = new Set(serverTasks.map((t) => t.id));
+              const pendingOptimistic = current.filter(
+                (t) => t.id.startsWith('temp_task_') && !serverIds.has(t.id)
+              );
+              return [...pendingOptimistic, ...serverTasks];
+            });
+          }
         });
       }
     };
@@ -180,9 +195,9 @@ function TasksContent() {
     );
   };
 
-  // Quick Action: Employee starts working on task (Optimistic update + DB sync)
+  // Quick Action: Employee starts working on task (0ms Instant Optimistic update + DB sync)
   const handleQuickStart = async (task: TaskAllocationItem) => {
-    // Instant optimistic update
+    // Instant optimistic update (0ms UI latency)
     setTasks((prev) =>
       prev.map((t) => (t.id === task.id ? { ...t, status: 'in_progress', progressPercent: 50 } : t))
     );
@@ -192,59 +207,134 @@ function TasksContent() {
         status: 'in_progress',
         logMessage: 'Work initiated on deliverable.',
       }, currentRole);
-      if (json.success) {
-        fetchTasks();
+      if (json.success && json.data?.task) {
+        setTasks((prev) => prev.map((t) => (t.id === task.id ? json.data.task : t)));
       }
     } catch (err) {
       console.error('Failed to start task:', err);
     }
   };
 
-  // Handle Create Task (Assigned strictly to operational employees)
+  // Handle Create Task (0ms Instant Optimistic dispatch with strict field validation)
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreateError('');
+
+    if (!createForm.title.trim()) {
+      setCreateError('Deliverable Title is required. Please provide a title.');
+      return;
+    }
+    if (!createForm.assigneeId) {
+      setCreateError('Please select an operational staff member to assign this task.');
+      return;
+    }
+    if (!createForm.dueDate) {
+      setCreateError('Target Due Date is mandatory. Please pick a date.');
+      return;
+    }
+    if (createForm.dueDate < todayStr) {
+      setCreateError('Target Due Date cannot be in the past.');
+      return;
+    }
+
     const assignedEmp = employeeOnlyList.find(
       (emp) => emp.id === createForm.assigneeId || emp.employeeCode === createForm.assigneeId
     );
 
+    const tempId = `temp_task_${Date.now()}`;
+    const optimisticTask: TaskAllocationItem = {
+      id: tempId,
+      title: createForm.title.trim(),
+      description: createForm.description.trim(),
+      category: createForm.category,
+      priority: createForm.priority,
+      status: 'pending',
+      progressPercent: 0,
+      assigneeId: createForm.assigneeId,
+      assigneeName: assignedEmp ? `${assignedEmp.firstName} ${assignedEmp.lastName}` : 'Assigned Employee',
+      assigneeDepartment: assignedEmp?.departmentName || assignedEmp?.departmentId || 'Operations',
+      assigneeDesignation: assignedEmp?.designationTitle || assignedEmp?.designationId || 'Staff Member',
+      assignedById: currentUser?.employeeId || currentRole,
+      assignedByName: currentUser?.name || 'Administrator',
+      assignedByRole: currentRole,
+      dueDate: createForm.dueDate,
+      estimatedHours: Number(createForm.estimatedHours || 8),
+      actualHours: 0,
+      logs: [
+        {
+          id: `log_${Date.now()}`,
+          taskId: tempId,
+          authorId: currentUser?.employeeId || currentRole,
+          authorName: currentUser?.name || 'Administrator',
+          authorRole: currentRole,
+          message: 'Task assigned and published.',
+          progressAt: 0,
+          loggedHours: 0,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    // 0ms Instant UI Reflection
+    setTasks((prev) => [optimisticTask, ...prev]);
+    setCreateModalOpen(false);
+    const formPayload = { ...createForm };
+    setCreateForm({
+      title: '',
+      description: '',
+      category: 'operational',
+      priority: 'medium',
+      assigneeId: '',
+      dueDate: '',
+      estimatedHours: '',
+    });
+
     try {
       const json = await apiClient.tasks.create({
-        ...createForm,
-        estimatedHours: Number(createForm.estimatedHours || 8),
+        ...formPayload,
+        estimatedHours: Number(formPayload.estimatedHours || 8),
         assigneeName: assignedEmp ? `${assignedEmp.firstName} ${assignedEmp.lastName}` : 'Assigned Employee',
         assigneeDepartment: assignedEmp?.departmentName || assignedEmp?.departmentId || 'Operations',
         assigneeDesignation: assignedEmp?.designationTitle || assignedEmp?.designationId || 'Staff Member',
       }, currentRole);
-      if (json.success) {
-        setCreateModalOpen(false);
-        setCreateForm({
-          title: '',
-          description: '',
-          category: 'operational',
-          priority: 'medium',
-          assigneeId: '',
-          dueDate: '',
-          estimatedHours: '',
-        });
+      if (json.success && json.data?.task) {
+        setTasks((prev) => prev.map((t) => (t.id === tempId ? json.data.task : t)));
+      } else {
         fetchTasks();
       }
     } catch (err) {
       console.error('Failed to create task:', err);
+      fetchTasks();
     }
   };
 
-  // Handle Update Progress & Proof Attachment (Employee Self)
+  // Handle Update Progress & Proof Attachment (0ms Instant Optimistic update)
   const handleUpdateProgress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTask) return;
+    setUpdateError('');
 
-    // Instant optimistic update
+    const targetStatus = updateForm.status;
+    const progress =
+      targetStatus === 'completed'
+        ? 100
+        : targetStatus === 'under_review'
+        ? 90
+        : targetStatus === 'in_progress'
+        ? 50
+        : 0;
+
+    // Instant optimistic update (0ms latency)
     setTasks((prev) =>
       prev.map((t) =>
         t.id === selectedTask.id
           ? {
               ...t,
-              status: updateForm.status,
+              status: targetStatus,
+              progressPercent: progress,
+              actualHours: Number(updateForm.actualHours || t.actualHours || 0),
               deliverableNotes: updateForm.deliverableNotes || t.deliverableNotes,
               proofDocumentName: updateForm.proofDocumentName || t.proofDocumentName,
               proofDocumentUrl: updateForm.proofDocumentUrl || t.proofDocumentUrl,
@@ -253,27 +343,32 @@ function TasksContent() {
       )
     );
 
+    const taskId = selectedTask.id;
+    const formPayload = { ...updateForm };
+    setUpdateModalOpen(false);
+    setSelectedTask(null);
+
     try {
-      const json = await apiClient.tasks.update(selectedTask.id, {
-        ...updateForm,
-        actualHours: Number(updateForm.actualHours || 0),
+      const json = await apiClient.tasks.update(taskId, {
+        ...formPayload,
+        actualHours: Number(formPayload.actualHours || 0),
       }, currentRole);
-      if (json.success) {
-        setUpdateModalOpen(false);
-        setSelectedTask(null);
-        fetchTasks();
+      if (json.success && json.data?.task) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? json.data.task : t)));
       }
     } catch (err) {
       console.error('Failed to update task progress:', err);
+      fetchTasks();
     }
   };
 
-  // Handle Manager / Higher Profile Review Sign-Off
+  // Handle Manager / Higher Profile Review Sign-Off (0ms Instant Optimistic completion)
   const handleReviewTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTask) return;
+    setReviewError('');
 
-    // Instant optimistic update
+    // Instant optimistic update (0ms latency)
     setTasks((prev) =>
       prev.map((t) =>
         t.id === selectedTask.id
@@ -288,15 +383,19 @@ function TasksContent() {
       )
     );
 
+    const taskId = selectedTask.id;
+    const formPayload = { ...reviewForm };
+    setReviewModalOpen(false);
+    setSelectedTask(null);
+
     try {
-      const json = await apiClient.tasks.review(selectedTask.id, reviewForm, currentRole);
-      if (json.success) {
-        setReviewModalOpen(false);
-        setSelectedTask(null);
-        fetchTasks();
+      const json = await apiClient.tasks.review(taskId, formPayload, currentRole);
+      if (json.success && json.data?.task) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? json.data.task : t)));
       }
     } catch (err) {
       console.error('Failed to review task:', err);
+      fetchTasks();
     }
   };
 
@@ -402,7 +501,11 @@ function TasksContent() {
               <span>All Deliverables</span>
               <CheckSquare className="h-4 w-4 text-indigo-600" />
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-indigo-600 mt-2 font-mono">{totalCount}</div>
+            {loading && tasks.length === 0 ? (
+              <div className="h-8 w-16 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse mt-2" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold text-indigo-600 mt-2 font-mono">{totalCount}</div>
+            )}
             <div className="text-[11px] text-slate-400 mt-1">Total assigned scope</div>
           </CardContent>
         </Card>
@@ -418,7 +521,11 @@ function TasksContent() {
               <span>In Progress</span>
               <TrendingUp className="h-4 w-4 text-blue-600" />
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-blue-600 mt-2 font-mono">{inProgressCount}</div>
+            {loading && tasks.length === 0 ? (
+              <div className="h-8 w-16 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse mt-2" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold text-blue-600 mt-2 font-mono">{inProgressCount}</div>
+            )}
             <div className="text-[11px] text-slate-400 mt-1">Being actively executed</div>
           </CardContent>
         </Card>
@@ -434,7 +541,11 @@ function TasksContent() {
               <span>Under Review</span>
               <Clock className="h-4 w-4 text-amber-600" />
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-2 font-mono">{underReviewCount}</div>
+            {loading && tasks.length === 0 ? (
+              <div className="h-8 w-16 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse mt-2" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold text-amber-600 mt-2 font-mono">{underReviewCount}</div>
+            )}
             <div className="text-[11px] text-slate-400 mt-1">Awaiting verification</div>
           </CardContent>
         </Card>
@@ -450,7 +561,11 @@ function TasksContent() {
               <span>Completed</span>
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-2 font-mono">{completedCount}</div>
+            {loading && tasks.length === 0 ? (
+              <div className="h-8 w-16 bg-slate-200 dark:bg-slate-800 rounded-lg animate-pulse mt-2" />
+            ) : (
+              <div className="text-2xl sm:text-3xl font-extrabold text-emerald-600 mt-2 font-mono">{completedCount}</div>
+            )}
             <div className="text-[11px] text-slate-400 mt-1">Signed-off and verified</div>
           </CardContent>
         </Card>
@@ -503,7 +618,11 @@ function TasksContent() {
       </div>
 
       {/* 4. Kanban / List Board */}
-      {viewMode === 'kanban' ? (
+      {loading && tasks.length === 0 ? (
+        <div className="py-4">
+          <LoadingState variant={viewMode === 'kanban' ? 'kanban' : 'table'} rows={4} count={4} />
+        </div>
+      ) : viewMode === 'kanban' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-start">
           {/* Column 1: To Do */}
           <KanbanColumn
@@ -797,6 +916,13 @@ function TasksContent() {
             </div>
 
             <form onSubmit={handleCreateTask} className="p-6 space-y-4 text-xs">
+              {createError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>{createError}</span>
+                </div>
+              )}
+
               <div>
                 <label className="font-bold block mb-1.5 text-slate-700 dark:text-slate-200">Deliverable Title *</label>
                 <input
@@ -804,7 +930,10 @@ function TasksContent() {
                   required
                   placeholder="e.g. Factory Pressure Rig Safety Calibration & ISO Sign-Off"
                   value={createForm.title}
-                  onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, title: e.target.value });
+                    setCreateError('');
+                  }}
                   className="w-full h-10 px-3.5 rounded-xl border text-xs bg-white dark:bg-slate-900 outline-none placeholder:text-slate-400"
                 />
               </div>
@@ -816,7 +945,10 @@ function TasksContent() {
                 <select
                   required
                   value={createForm.assigneeId}
-                  onChange={(e) => setCreateForm({ ...createForm, assigneeId: e.target.value })}
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, assigneeId: e.target.value });
+                    setCreateError('');
+                  }}
                   className="w-full h-10 px-3.5 rounded-xl border text-xs bg-white dark:bg-slate-900 outline-none font-semibold"
                 >
                   <option value="">Select Operational Staff Member...</option>
@@ -864,8 +996,12 @@ function TasksContent() {
                   <input
                     type="date"
                     required
+                    min={todayStr}
                     value={createForm.dueDate}
-                    onChange={(e) => setCreateForm({ ...createForm, dueDate: e.target.value })}
+                    onChange={(e) => {
+                      setCreateForm({ ...createForm, dueDate: e.target.value });
+                      setCreateError('');
+                    }}
                     className="w-full h-10 px-3.5 rounded-xl border text-xs bg-white dark:bg-slate-900 outline-none"
                   />
                 </div>
@@ -924,6 +1060,13 @@ function TasksContent() {
             </div>
 
             <form onSubmit={handleUpdateProgress} className="p-6 space-y-4 text-xs">
+              {updateError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>{updateError}</span>
+                </div>
+              )}
+
               <div className="p-3.5 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/50 rounded-xl flex items-center justify-between">
                 <div>
                   <div className="text-xs text-indigo-700 dark:text-indigo-300 font-bold">Automatic Progress Calculation</div>
@@ -1041,6 +1184,13 @@ function TasksContent() {
             </div>
 
             <form onSubmit={handleReviewTask} className="p-6 space-y-4 text-xs">
+              {reviewError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>{reviewError}</span>
+                </div>
+              )}
+
               <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-xl space-y-2 border border-slate-100 dark:border-slate-700">
                 <div className="font-bold text-sm text-slate-800 dark:text-slate-200">{selectedTask.title}</div>
                 <div className="text-slate-500">

@@ -11,6 +11,15 @@ import { attendanceService } from '@/services/attendance.service';
 import { serverCache } from '@/lib/server-cache';
 import { getApprovalItemDetails } from '@/lib/leave-utils';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+  Pragma: 'no-cache',
+  Expires: '0',
+};
+
 export async function GET(req: NextRequest) {
   try {
     const userCtx = await getApiUserContextAsync(req);
@@ -226,18 +235,21 @@ export async function GET(req: NextRequest) {
       disciplinary: pendingDisciplinary.length,
     };
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        items: allItems,
-        counts,
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          items: allItems,
+          counts,
+        },
       },
-    });
+      { headers: NO_CACHE_HEADERS }
+    );
   } catch (error: any) {
     console.error('Error fetching pending approvals:', error);
     return NextResponse.json(
       { success: false, error: error?.message || 'Failed to fetch pending approval items' },
-      { status: 500 }
+      { status: 500, headers: NO_CACHE_HEADERS }
     );
   }
 }

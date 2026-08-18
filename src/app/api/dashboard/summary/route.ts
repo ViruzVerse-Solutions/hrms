@@ -3,7 +3,9 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 import { getApiUserContext } from '@/lib/auth/rbac-guard-api';
 import { prisma } from '@/lib/db/prisma';
 import { formatAuditDetails } from '@/lib/utils';
-import { serverCache } from '@/lib/server-cache';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(req: NextRequest) {
   try {
@@ -22,12 +24,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const cacheKey = `dashboard_summary_${userCtx.role}_${userCtx.employeeId || 'all'}`;
-
-    const data = await serverCache.fetchWithCache(
-      cacheKey,
-      async () => {
-        // Parallel high-performance database fetch
+    // Parallel high-performance database fetch
         const [
           employees,
           attendanceToday,
@@ -330,7 +327,7 @@ export async function GET(req: NextRequest) {
           };
         });
 
-        return {
+    return apiSuccess({
           employees: formattedEmployees,
           attendanceRecords: formattedAttendance,
           leaveRequests: formattedLeaves,
@@ -392,13 +389,7 @@ export async function GET(req: NextRequest) {
             pendingLeaves: formattedLeaves.filter((l: any) => l.status === 'pending').length,
             activeRequisitions: requisitions.filter((r: any) => r.status === 'active').length,
           },
-        };
-      },
-      5 * 60 * 1000, // 5 minutes TTL (instant purge on any write)
-      ['dashboard']
-    );
-
-    return apiSuccess(data);
+        });
   } catch (error: any) {
     return apiError(error?.message || 'Failed to fetch dashboard summary', 500);
   }

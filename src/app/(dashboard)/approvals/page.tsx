@@ -60,9 +60,6 @@ const CATEGORY_STYLES: Record<ApprovalCategory, { bg: string; text: string; bord
   disciplinary: { bg: 'bg-red-50 text-red-700', text: 'text-red-700', border: 'border-red-200', icon: AlertTriangle },
 };
 
-// In-memory cache for instant screen navigation
-let cachedApprovals: { role: string; data: { items: PendingItem[]; counts: Record<string, number> }; timestamp: number } | null = null;
-
 export default function ApprovalsPage() {
   return (
     <RBACGuard module="reports_dashboard">
@@ -75,10 +72,9 @@ function ApprovalsContent() {
   const router = useRouter();
   const { currentRole, roleDetails } = useAuth();
 
-  const isCacheValid = cachedApprovals && cachedApprovals.role === currentRole && (Date.now() - cachedApprovals.timestamp < 60000);
-  const [items, setItems] = useState<PendingItem[]>(isCacheValid ? cachedApprovals!.data.items : []);
-  const [counts, setCounts] = useState<Record<string, number>>(isCacheValid ? cachedApprovals!.data.counts : {});
-  const [isLoading, setIsLoading] = useState(!isCacheValid);
+  const [items, setItems] = useState<PendingItem[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
 
   const fetchApprovals = async (force = false) => {
@@ -90,7 +86,6 @@ function ApprovalsContent() {
         const newCounts = data.data.counts || {};
         setItems(newItems);
         setCounts(newCounts);
-        cachedApprovals = { role: currentRole, data: { items: newItems, counts: newCounts }, timestamp: Date.now() };
       }
     } catch (err) {
       console.error('Failed to fetch approval queue:', err);

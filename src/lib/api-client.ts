@@ -47,6 +47,7 @@ export async function fetchApi<T = any>(
           try {
             const bgRes = await fetch(endpoint, {
               ...fetchInit,
+              cache: 'no-store',
               headers: {
                 'Content-Type': 'application/json',
                 ...(fetchInit.headers || {}),
@@ -72,6 +73,7 @@ export async function fetchApi<T = any>(
   try {
     const res = await fetch(endpoint, {
       ...fetchInit,
+      cache: 'no-store',
       headers,
     });
 
@@ -226,44 +228,48 @@ export const apiClient = {
 
       return fetchApi(endpoint, {
         headers: role ? { 'x-user-role': role } : {},
-        useCache: true,
+        useCache: false,
         tags: ['tasks', 'dashboard'],
       });
     },
     create: async (data: any, role?: string) => {
-      invalidateCacheTags(['tasks', 'dashboard']);
-      invalidateCache('api_/api/tasks');
-      return fetchApi('/api/tasks', {
+      const res = await fetchApi('/api/tasks', {
         method: 'POST',
         headers: role ? { 'x-user-role': role } : {},
         body: JSON.stringify(data),
       });
-    },
-    update: async (id: string, data: any, role?: string) => {
       invalidateCacheTags(['tasks', 'dashboard']);
       invalidateCache('api_/api/tasks');
-      return fetchApi(`/api/tasks/${id}`, {
+      return res;
+    },
+    update: async (id: string, data: any, role?: string) => {
+      const res = await fetchApi(`/api/tasks/${id}`, {
         method: 'PATCH',
         headers: role ? { 'x-user-role': role } : {},
         body: JSON.stringify(data),
       });
-    },
-    review: async (id: string, data: any, role?: string) => {
       invalidateCacheTags(['tasks', 'dashboard']);
       invalidateCache('api_/api/tasks');
-      return fetchApi(`/api/tasks/${id}`, {
+      return res;
+    },
+    review: async (id: string, data: any, role?: string) => {
+      const res = await fetchApi(`/api/tasks/${id}`, {
         method: 'PATCH',
         headers: role ? { 'x-user-role': role } : {},
         body: JSON.stringify({ action: 'review', ...data }),
       });
-    },
-    delete: async (id: string, role?: string) => {
       invalidateCacheTags(['tasks', 'dashboard']);
       invalidateCache('api_/api/tasks');
-      return fetchApi(`/api/tasks/${id}`, {
+      return res;
+    },
+    delete: async (id: string, role?: string) => {
+      const res = await fetchApi(`/api/tasks/${id}`, {
         method: 'DELETE',
         headers: role ? { 'x-user-role': role } : {},
       });
+      invalidateCacheTags(['tasks', 'dashboard']);
+      invalidateCache('api_/api/tasks');
+      return res;
     },
   },
 

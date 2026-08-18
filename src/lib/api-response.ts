@@ -9,6 +9,12 @@ export interface ApiResponse<T = any> {
   timestamp: string;
 }
 
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+  Pragma: 'no-cache',
+  Expires: '0',
+};
+
 export function apiSuccess<T>(data: T, message = 'Success', statusCode = 200) {
   return NextResponse.json<ApiResponse<T>>(
     {
@@ -17,7 +23,10 @@ export function apiSuccess<T>(data: T, message = 'Success', statusCode = 200) {
       message,
       timestamp: new Date().toISOString(),
     },
-    { status: statusCode }
+    {
+      status: statusCode,
+      headers: NO_CACHE_HEADERS,
+    }
   );
 }
 
@@ -29,7 +38,10 @@ export function apiError(error: string, statusCode = 400) {
       statusCode,
       timestamp: new Date().toISOString(),
     },
-    { status: statusCode }
+    {
+      status: statusCode,
+      headers: NO_CACHE_HEADERS,
+    }
   );
 }
 

@@ -172,16 +172,66 @@ export function FormSkeleton({ fields = 6 }: { fields?: number }) {
   );
 }
 
-// 6. Master Layout-Aware Skeleton Component
-interface LoadingStateProps {
+// 5. Kanban Board Column Skeleton
+export function KanbanSkeleton({ columns = 4 }: { columns?: number }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-start">
+      {Array.from({ length: columns }).map((_, colIdx) => (
+        <div
+          key={colIdx}
+          className="bg-slate-50/80 dark:bg-slate-800/40 rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 space-y-3.5"
+        >
+          <div className="flex items-center justify-between pb-1 border-b border-slate-200/50 dark:border-slate-700/50">
+            <div className="flex items-center gap-2">
+              <FieldSkeleton className="h-2.5 w-2.5 rounded-full" />
+              <FieldSkeleton className="h-4 w-24" />
+            </div>
+            <FieldSkeleton className="h-5 w-6 rounded-full" />
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 2 + (colIdx % 2) }).map((_, cardIdx) => (
+              <div
+                key={cardIdx}
+                className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-2.5 shadow-xs"
+              >
+                <div className="flex justify-between items-center">
+                  <FieldSkeleton className="h-4 w-16 rounded-md" />
+                  <FieldSkeleton className="h-4 w-12 rounded-full" />
+                </div>
+                <FieldSkeleton className="h-4 w-4/5" />
+                <FieldSkeleton className="h-3 w-3/5" />
+                <div className="pt-2 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
+                  <FieldSkeleton className="h-5 w-24 rounded-full" />
+                  <FieldSkeleton className="h-4 w-14" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export interface LoadingStateProps {
   title?: string;
   message?: string;
-  variant?: 'page' | 'dashboard' | 'table' | 'profile' | 'dossier' | 'cards' | 'form' | 'inline' | 'field';
+  variant?:
+    | 'table'
+    | 'cards'
+    | 'dashboard'
+    | 'profile'
+    | 'dossier'
+    | 'form'
+    | 'kanban'
+    | 'field'
+    | 'inline';
   rows?: number;
   cols?: number;
   count?: number;
 }
 
+// 6. Master Layout-Aware Skeleton Component
 export function LoadingState({
   variant = 'table',
   rows = 5,
@@ -202,6 +252,10 @@ export function LoadingState({
 
   if (variant === 'cards') {
     return <StatCardsSkeleton count={count} />;
+  }
+
+  if (variant === 'kanban') {
+    return <KanbanSkeleton columns={count} />;
   }
 
   if (variant === 'dashboard') {
