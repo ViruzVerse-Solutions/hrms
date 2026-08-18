@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { isOdRecord, formatLeaveTypeLabel, compareLeavesChronologically } from '@/lib/leave-utils';
 
 interface CompanyHolidayItem {
   id: string;
@@ -81,6 +82,7 @@ function LeavesContent() {
     setLeaveAllocations,
     addLeaveRequest,
     updateLeaveStatus,
+    refreshLeaves,
     currentUser,
     currentEmployee,
     currentRole,
@@ -89,7 +91,29 @@ function LeavesContent() {
     isLoadingData,
   } = useAuth();
 
+  useEffect(() => {
+    refreshLeaves();
+
+    const handleSync = () => {
+      refreshLeaves();
+    };
+
+    window.addEventListener('hrms_data_mutation', handleSync);
+    window.addEventListener('hrms_cache_invalidated', handleSync);
+    return () => {
+      window.removeEventListener('hrms_data_mutation', handleSync);
+      window.removeEventListener('hrms_cache_invalidated', handleSync);
+    };
+  }, [currentRole, refreshLeaves]);
+
   const todayStr = new Date().toISOString().split('T')[0];
+
+  const [optimisticStatus, setOptimisticStatus] = useState<Record<string, { status: 'pending' | 'approved' | 'rejected' | 'cancelled'; comment?: string }>>({});
+
+  const handleProcessLeave = async (id: string, status: 'approved' | 'rejected', comment?: string) => {
+    setOptimisticStatus((prev) => ({ ...prev, [id]: { status, comment } }));
+    await updateLeaveStatus(id, status, comment);
+  };
 
   const [applyModalOpen, setApplyModalOpen] = useState(false);
   const [odModalOpen, setOdModalOpen] = useState(false);
@@ -115,35 +139,62 @@ function LeavesContent() {
   const [typeFilter, setTypeFilter] = useState('all');
 
   const empId = currentEmployee?.id || currentUser?.employeeId || '';
+  const empCode = currentEmployee?.employeeCode || currentUser?.employeeId || '';
   const empName = currentEmployee ? `${currentEmployee.firstName} ${currentEmployee.lastName}` : currentUser.name;
 
   const isHrOrAdmin = currentRole === 'hr_head' || currentRole === 'managing_director' || currentRole === 'chairman' || currentRole === 'compliance_statutory';
 
   const visibleLeaves = currentRole === 'employee'
-    ? leaveRequests.filter((l) => l.employeeId === empId || l.employeeName === empName)
+    ? leaveRequests.filter((l) => {
+        if (!l) return false;
+        if (l.id && l.id.startsWith('lr_')) return true;
+        if (empId && (l.employeeId === empId || l.employeeId === currentEmployee?.id)) return true;
+        if (empCode && (l.employeeCode === empCode || l.employeeId === empCode || l.employeeCode === currentUser?.employeeId)) return true;
+        if (empName && l.employeeName && l.employeeName.toLowerCase().trim() === empName.toLowerCase().trim()) return true;
+        return !isHrOrAdmin;
+      })
     : leaveRequests;
 
-  const filteredLeaves = visibleLeaves.filter((l) => {
-    const matchesSearch = !searchQuery || l.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) || l.reason?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || l.status === statusFilter;
-    const matchesType = typeFilter === 'all' || l.leaveType === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
+  // Reactively calculate status based on active mutations / approvals
+  const effectiveLeaves = visibleLeaves.map((l) => {
+    const opt = optimisticStatus[l.id];
+    return opt ? { ...l, status: opt.status, approverComment: opt.comment || l.approverComment } : l;
   });
+
+  const effectiveAllLeaves = leaveRequests.map((l) => {
+    const opt = optimisticStatus[l.id];
+    return opt ? { ...l, status: opt.status, approverComment: opt.comment || l.approverComment } : l;
+  });
+
+  const regularLeaves = effectiveLeaves.filter((l) => !isOdRecord(l));
+
+  const filteredLeaves = regularLeaves
+    .filter((l) => {
+      const matchesSearch = !searchQuery || l.employeeName?.toLowerCase().includes(searchQuery.toLowerCase()) || l.reason?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || l.status === statusFilter;
+      const matchesType = typeFilter === 'all' || l.leaveType === typeFilter;
+      return matchesSearch && matchesStatus && matchesType;
+    })
+    .sort(compareLeavesChronologically);
 
   const handleApply = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.fromDate || !form.toDate) {
+      setDateError('Please select valid From and To dates.');
+      return;
+    }
     if (form.fromDate < todayStr) {
-      setDateError('Leave start date cannot be in the past. Please select today or a future date.');
+      setDateError('Leave can only be applied for today or future dates.');
       return;
     }
     if (form.toDate < form.fromDate) {
-      setDateError('Leave end date cannot be earlier than start date.');
+      setDateError('The "To Date" must be greater than or equal to the "From Date".');
       return;
     }
     setDateError('');
 
-    const d1 = new Date(form.fromDate);
-    const d2 = new Date(form.toDate);
+    const d1 = new Date(`${form.fromDate}T00:00:00`);
+    const d2 = new Date(`${form.toDate}T00:00:00`);
     const diffTime = Math.abs(d2.getTime() - d1.getTime());
     const daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
@@ -159,23 +210,28 @@ function LeavesContent() {
       approverName: currentEmployee?.reportingManagerName || 'Reporting Manager',
     });
     setApplyModalOpen(false);
+    setActiveTab('applications');
     setForm({ leaveType: 'casual', fromDate: todayStr, toDate: todayStr, reason: '' });
   };
 
   const handleApplyOD = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!odForm.fromDate || !odForm.toDate) {
+      setDateError('Please select valid From and To dates for Outdoor Duty.');
+      return;
+    }
     if (odForm.fromDate < todayStr) {
-      setDateError('On Duty start date cannot be in the past.');
+      setDateError('On Duty start date can only be today or future dates.');
       return;
     }
     if (odForm.toDate < odForm.fromDate) {
-      setDateError('On Duty end date cannot be earlier than start date.');
+      setDateError('The "To Date" must be greater than or equal to the "From Date".');
       return;
     }
     setDateError('');
 
-    const d1 = new Date(odForm.fromDate);
-    const d2 = new Date(odForm.toDate);
+    const d1 = new Date(`${odForm.fromDate}T00:00:00`);
+    const d2 = new Date(`${odForm.toDate}T00:00:00`);
     const diffTime = Math.abs(d2.getTime() - d1.getTime());
     const daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 
@@ -191,6 +247,7 @@ function LeavesContent() {
       approverName: currentEmployee?.reportingManagerName || 'Reporting Manager',
     });
     setOdModalOpen(false);
+    setActiveTab('od_requests');
     setOdForm({ fromDate: todayStr, toDate: todayStr, fromTime: '09:00', toTime: '18:00', location: '', reason: '' });
   };
 
@@ -338,12 +395,32 @@ function LeavesContent() {
     }
   };
 
-  // Compute summary stats
-  const pendingApprovalsCount = leaveRequests.filter((l) => l.status === 'pending').length;
-  const approvedLeavesCount = leaveRequests.filter((l) => l.status === 'approved').length;
-  const odRequestsList = visibleLeaves.filter(
-    (l) => l.leaveType === 'compensatory_off' || l.reason?.includes('[ON DUTY') || l.reason?.includes('[OD]')
-  );
+  // Compute summary stats with live reactive state
+  const pendingApprovalsCount = effectiveAllLeaves.filter((l) => l.status === 'pending' && !isOdRecord(l)).length;
+  const approvedLeavesCount = effectiveAllLeaves.filter((l) => l.status === 'approved' && !isOdRecord(l)).length;
+  const odRequestsList = effectiveLeaves
+    .filter((l) => isOdRecord(l))
+    .sort(compareLeavesChronologically);
+
+  const calcLeaveStats = (type: string) => {
+    const alloc = leaveAllocations.find((a) => a.leaveType === type);
+    const approvedCount = effectiveLeaves
+      .filter((l) => l.leaveType === type && l.status === 'approved' && !isOdRecord(l))
+      .reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+    const pendingCount = effectiveLeaves
+      .filter((l) => l.leaveType === type && l.status === 'pending' && !isOdRecord(l))
+      .reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+
+    const totalAllocated = alloc?.allocatedDays !== undefined
+      ? Number(alloc.allocatedDays)
+      : ((alloc as any)?.totalAllocated !== undefined ? Number((alloc as any).totalAllocated) : 0);
+
+    const used = approvedCount;
+    const pending = pendingCount;
+    const balance = Math.max(0, totalAllocated - used);
+
+    return { totalAllocated, used, pending, balance };
+  };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
@@ -382,35 +459,51 @@ function LeavesContent() {
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setOdModalOpen(true);
-              setDateError('');
-            }}
-            className="gap-1.5 text-xs border-slate-200 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
-          >
-            <Building className="h-3.5 w-3.5 text-slate-500" />
-            <span>Request On-Duty</span>
-          </Button>
+          {currentRole === 'employee' && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setOdModalOpen(true);
+                  setDateError('');
+                }}
+                className="gap-1.5 text-xs border-slate-200 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                <Building className="h-3.5 w-3.5 text-slate-500" />
+                <span>Request On-Duty</span>
+              </Button>
 
-          <Button
-            size="sm"
-            onClick={() => {
-              setApplyModalOpen(true);
-              setDateError('');
-            }}
-            className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Apply for Leave</span>
-          </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setApplyModalOpen(true);
+                  setDateError('');
+                }}
+                className="gap-1.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Apply for Leave</span>
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
       {/* 2. Role-Aware KPI Summary Cards */}
-      {isHrOrAdmin ? (
+      {isLoadingData && leaveRequests.length === 0 ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+              <CardContent className="p-5 space-y-3">
+                <div className="h-3 w-28 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+                <div className="h-7 w-24 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+                <div className="h-3 w-36 bg-slate-100 dark:bg-slate-800/60 rounded animate-pulse" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : isHrOrAdmin ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
           <Card
             onClick={() => setActiveTab('applications')}
@@ -471,22 +564,25 @@ function LeavesContent() {
       ) : (
         /* Regular Employee ESS Balances */
         (() => {
-          const calcLeaveStats = (type: string, defAlloc: number) => {
-            const alloc = leaveAllocations.find((a) => a.leaveType === type);
-            const approvedCount = visibleLeaves.filter((l) => l.leaveType === type && l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
-            const pendingCount = visibleLeaves.filter((l) => l.leaveType === type && l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+          if (isLoadingData && leaveAllocations.length === 0) {
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+                {[1, 2, 3, 4].map((i) => (
+                  <Card key={i} className="border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+                    <CardContent className="p-5 space-y-3">
+                      <div className="h-3 w-28 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+                      <div className="h-7 w-24 bg-slate-200 dark:bg-slate-800 rounded animate-pulse" />
+                      <div className="h-3 w-36 bg-slate-100 dark:bg-slate-800/60 rounded animate-pulse" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            );
+          }
 
-            const totalAllocated = alloc ? Number(alloc.allocatedDays || (alloc as any).totalAllocated || defAlloc) : defAlloc;
-            const used = alloc?.usedDays !== undefined ? Number(alloc.usedDays) : approvedCount;
-            const pending = alloc?.pendingDays !== undefined ? Number(alloc.pendingDays) : pendingCount;
-            const balance = Math.max(0, totalAllocated - used);
-
-            return { totalAllocated, used, pending, balance };
-          };
-
-          const cl = calcLeaveStats('casual', 12);
-          const sl = calcLeaveStats('sick', 10);
-          const el = calcLeaveStats('earned', 15);
+          const cl = calcLeaveStats('casual');
+          const sl = calcLeaveStats('sick');
+          const el = calcLeaveStats('earned');
 
           return (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
@@ -618,7 +714,11 @@ function LeavesContent() {
               </div>
             </CardHeader>
             <CardContent>
-              {filteredLeaves.length === 0 ? (
+              {isLoadingData && leaveRequests.length === 0 ? (
+                <div className="py-8">
+                  <LoadingState variant="table" rows={4} />
+                </div>
+              ) : filteredLeaves.length === 0 ? (
                 <div className="py-12 text-center text-xs text-slate-500">
                   {visibleLeaves.length === 0 ? 'No leave applications recorded in database.' : 'No leaves match the selected filter criteria.'}
                 </div>
@@ -639,7 +739,9 @@ function LeavesContent() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {filteredLeaves.map((req) => {
-                        const canApprove = can('approve', 'attendance_leave');
+                        const canApprove = can('approve', 'attendance_leave') || isHrOrAdmin;
+                        const effStatus = optimisticStatus[req.id]?.status || req.status;
+                        const effComment = optimisticStatus[req.id]?.comment || req.approverComment;
 
                         return (
                           <tr key={req.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
@@ -657,20 +759,20 @@ function LeavesContent() {
                             </td>
                             <td className="p-3">
                               <Badge
-                                variant={req.status === 'approved' ? 'success' : req.status === 'pending' ? 'warning' : 'destructive'}
-                                className="text-[10px] capitalize"
+                                variant={effStatus === 'approved' ? 'success' : effStatus === 'pending' ? 'warning' : 'destructive'}
+                                className="text-[10px] capitalize font-bold"
                               >
-                                {req.status}
+                                {effStatus}
                               </Badge>
                             </td>
                             <td className="p-3 text-right">
-                              {req.status === 'pending' && canApprove ? (
+                              {effStatus === 'pending' && canApprove ? (
                                 <div className="flex items-center justify-end gap-1.5">
                                   <Button
                                     size="sm"
                                     variant="success"
                                     className="h-7 px-2.5 text-[11px]"
-                                    onClick={() => updateLeaveStatus(req.id, 'approved', 'Approved by Manager')}
+                                    onClick={() => handleProcessLeave(req.id, 'approved', 'Approved by Manager')}
                                   >
                                     Approve
                                   </Button>
@@ -678,14 +780,14 @@ function LeavesContent() {
                                     size="sm"
                                     variant="destructive"
                                     className="h-7 px-2.5 text-[11px]"
-                                    onClick={() => updateLeaveStatus(req.id, 'rejected', 'Staff coverage constraint')}
+                                    onClick={() => handleProcessLeave(req.id, 'rejected', 'Staff coverage constraint')}
                                   >
                                     Reject
                                   </Button>
                                 </div>
                               ) : (
-                                <span className="text-slate-400 text-[11px]">
-                                  {req.approverComment || 'Processed'}
+                                <span className="text-slate-500 font-medium text-[11px]">
+                                  {effComment || (effStatus === 'approved' ? 'Approved' : effStatus === 'rejected' ? 'Rejected' : 'Processed')}
                                 </span>
                               )}
                             </td>
@@ -713,7 +815,11 @@ function LeavesContent() {
               </div>
             </CardHeader>
             <CardContent>
-              {odRequestsList.length === 0 ? (
+              {isLoadingData && leaveRequests.length === 0 ? (
+                <div className="py-8">
+                  <LoadingState variant="table" rows={3} />
+                </div>
+              ) : odRequestsList.length === 0 ? (
                 <div className="py-12 text-center text-xs text-slate-500">
                   No Outdoor Duty (OD) requests found in database.
                 </div>
@@ -733,7 +839,10 @@ function LeavesContent() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                       {odRequestsList.map((od) => {
-                        const canApprove = can('approve', 'attendance_leave');
+                        const canApprove = can('approve', 'attendance_leave') || isHrOrAdmin;
+                        const effStatus = optimisticStatus[od.id]?.status || od.status;
+                        const effComment = optimisticStatus[od.id]?.comment || od.approverComment;
+
                         return (
                           <tr key={od.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
                             <td className="p-3 font-bold text-slate-900 dark:text-white">{od.employeeName}</td>
@@ -743,20 +852,20 @@ function LeavesContent() {
                             <td className="p-3 font-mono font-bold text-slate-900 dark:text-slate-200">{od.daysCount} Days</td>
                             <td className="p-3">
                               <Badge
-                                variant={od.status === 'approved' ? 'success' : od.status === 'pending' ? 'warning' : 'destructive'}
-                                className="text-[10px] capitalize"
+                                variant={effStatus === 'approved' ? 'success' : effStatus === 'pending' ? 'warning' : 'destructive'}
+                                className="text-[10px] capitalize font-bold"
                               >
-                                {od.status}
+                                {effStatus}
                               </Badge>
                             </td>
                             <td className="p-3 text-right">
-                              {od.status === 'pending' && canApprove ? (
+                              {effStatus === 'pending' && canApprove ? (
                                 <div className="flex items-center justify-end gap-1.5">
                                   <Button
                                     size="sm"
                                     variant="success"
                                     className="h-7 px-2.5 text-[11px]"
-                                    onClick={() => updateLeaveStatus(od.id, 'approved', 'Approved OD Duty Assignment')}
+                                    onClick={() => handleProcessLeave(od.id, 'approved', 'Approved OD Duty Assignment')}
                                   >
                                     Approve
                                   </Button>
@@ -764,14 +873,14 @@ function LeavesContent() {
                                     size="sm"
                                     variant="destructive"
                                     className="h-7 px-2.5 text-[11px]"
-                                    onClick={() => updateLeaveStatus(od.id, 'rejected', 'OD Request Rejected')}
+                                    onClick={() => handleProcessLeave(od.id, 'rejected', 'OD Request Rejected')}
                                   >
                                     Reject
                                   </Button>
                                 </div>
                               ) : (
-                                <span className="text-slate-400 text-[11px]">
-                                  {od.approverComment || 'Processed'}
+                                <span className="text-slate-500 font-medium text-[11px]">
+                                  {effComment || (effStatus === 'approved' ? 'Approved' : effStatus === 'rejected' ? 'Rejected' : 'Processed')}
                                 </span>
                               )}
                             </td>
@@ -1067,35 +1176,33 @@ function LeavesContent() {
                 className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
               >
                 {(() => {
-                  const getAvailBal = (t: string, defAlloc: number) => {
-                    const alloc = leaveAllocations.find((a) => a.leaveType === t);
-                    const usedReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
-                    const pendReq = visibleLeaves.filter((l) => l.leaveType === t && l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
-                    const allocated = alloc ? Number(alloc.totalAllocated || (alloc as any).allocatedDays || defAlloc) : defAlloc;
-                    const used = alloc ? Math.max(Number(alloc.used || (alloc as any).usedDays || 0), usedReq) : usedReq;
-                    const pending = alloc ? Math.max(Number(alloc.pending || (alloc as any).pendingDays || 0), pendReq) : pendReq;
-                    return Math.max(0, allocated - (used + pending));
-                  };
-
                   const targetEmp = currentEmployee || employees.find((e) =>
                     (currentUser?.employeeId && (e.id === currentUser.employeeId || e.employeeCode === currentUser.employeeId)) ||
                     (currentUser?.email && e.email?.toLowerCase() === currentUser.email.toLowerCase())
                   );
                   const empGender = ((targetEmp as any)?.gender || 'male').toLowerCase();
 
+                  const clStats = calcLeaveStats('casual');
+                  const slStats = calcLeaveStats('sick');
+                  const elStats = calcLeaveStats('earned');
+                  const matStats = calcLeaveStats('maternity');
+                  const patStats = calcLeaveStats('paternity');
+                  const compStats = calcLeaveStats('compensatory_off');
+                  const berStats = calcLeaveStats('bereavement');
+
                   return (
                     <>
-                      <option value="casual">Casual Leave (CL) - Balance: {getAvailBal('casual', 12)} Days</option>
-                      <option value="sick">Sick Leave (SL) - Balance: {getAvailBal('sick', 10)} Days</option>
-                      <option value="earned">Earned / Privilege Leave (EL) - Balance: {getAvailBal('earned', 15)} Days</option>
+                      <option value="casual">Casual Leave (CL) - Available Balance: {clStats.balance} Days</option>
+                      <option value="sick">Sick Leave (SL) - Available Balance: {slStats.balance} Days</option>
+                      <option value="earned">Earned / Privilege Leave (EL) - Available Balance: {elStats.balance} Days</option>
                       {empGender === 'female' && (
-                        <option value="maternity">Maternity Leave (Female Only) - Balance: {getAvailBal('maternity', 180)} Days</option>
+                        <option value="maternity">Maternity Leave (Female Only) - Available Balance: {matStats.balance} Days</option>
                       )}
                       {empGender === 'male' && (
-                        <option value="paternity">Paternity Leave (Male Only) - Balance: {getAvailBal('paternity', 15)} Days</option>
+                        <option value="paternity">Paternity Leave (Male Only) - Available Balance: {patStats.balance} Days</option>
                       )}
-                      <option value="compensatory_off">Compensatory Off - Balance: {getAvailBal('compensatory_off', 5)} Days</option>
-                      <option value="bereavement">Bereavement Leave - Balance: {getAvailBal('bereavement', 5)} Days</option>
+                      <option value="compensatory_off">Compensatory Off - Available Balance: {compStats.balance} Days</option>
+                      <option value="bereavement">Bereavement Leave - Available Balance: {berStats.balance} Days</option>
                       <option value="unpaid">Loss of Pay (LOP / Unpaid)</option>
                     </>
                   );
@@ -1109,8 +1216,17 @@ function LeavesContent() {
                 <input
                   type="date"
                   required
+                  min={todayStr}
                   value={form.fromDate}
-                  onChange={(e) => setForm({ ...form, fromDate: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      fromDate: val,
+                      toDate: prev.toDate < val ? val : prev.toDate,
+                    }));
+                    setDateError('');
+                  }}
                   className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
                 />
               </div>
@@ -1119,12 +1235,30 @@ function LeavesContent() {
                 <input
                   type="date"
                   required
+                  min={form.fromDate || todayStr}
                   value={form.toDate}
-                  onChange={(e) => setForm({ ...form, toDate: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm((prev) => ({ ...prev, toDate: val }));
+                    if (val < form.fromDate) {
+                      setDateError('The "To Date" must be greater than or equal to the "From Date".');
+                    } else {
+                      setDateError('');
+                    }
+                  }}
                   className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
                 />
               </div>
             </div>
+
+            {form.fromDate && form.toDate && form.toDate >= form.fromDate && (
+              <div className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 bg-indigo-50/60 dark:bg-indigo-950/40 px-3 py-2 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Selected: <strong>{formatDate(form.fromDate)}</strong> to <strong>{formatDate(form.toDate)}</strong> ({Math.ceil(Math.abs(new Date(`${form.toDate}T00:00:00`).getTime() - new Date(`${form.fromDate}T00:00:00`).getTime()) / (1000 * 60 * 60 * 24)) + 1} {form.fromDate === form.toDate ? 'Day' : 'Days'})
+                </span>
+              </div>
+            )}
 
             <div className="space-y-1">
               <label className="font-semibold text-slate-700 dark:text-slate-300">Reason</label>
@@ -1183,8 +1317,17 @@ function LeavesContent() {
                 <input
                   type="date"
                   required
+                  min={todayStr}
                   value={odForm.fromDate}
-                  onChange={(e) => setOdForm({ ...odForm, fromDate: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setOdForm((prev) => ({
+                      ...prev,
+                      fromDate: val,
+                      toDate: prev.toDate < val ? val : prev.toDate,
+                    }));
+                    setDateError('');
+                  }}
                   className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
                 />
               </div>
@@ -1193,12 +1336,30 @@ function LeavesContent() {
                 <input
                   type="date"
                   required
+                  min={odForm.fromDate || todayStr}
                   value={odForm.toDate}
-                  onChange={(e) => setOdForm({ ...odForm, toDate: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setOdForm((prev) => ({ ...prev, toDate: val }));
+                    if (val < odForm.fromDate) {
+                      setDateError('The "To Date" must be greater than or equal to the "From Date".');
+                    } else {
+                      setDateError('');
+                    }
+                  }}
                   className="w-full h-11 px-3 rounded-xl border bg-white dark:bg-slate-900 text-xs"
                 />
               </div>
             </div>
+
+            {odForm.fromDate && odForm.toDate && odForm.toDate >= odForm.fromDate && (
+              <div className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 flex items-center gap-1.5 bg-indigo-50/60 dark:bg-indigo-950/40 px-3 py-2 rounded-xl border border-indigo-100 dark:border-indigo-900/50">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  Selected: <strong>{formatDate(odForm.fromDate)}</strong> to <strong>{formatDate(odForm.toDate)}</strong> ({Math.ceil(Math.abs(new Date(`${odForm.toDate}T00:00:00`).getTime() - new Date(`${odForm.fromDate}T00:00:00`).getTime()) / (1000 * 60 * 60 * 24)) + 1} {odForm.fromDate === odForm.toDate ? 'Day' : 'Days'})
+                </span>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">

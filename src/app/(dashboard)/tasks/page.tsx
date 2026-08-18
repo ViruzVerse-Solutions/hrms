@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { useAuth } from '@/context/AuthContext';
 import { TaskAllocationItem, TaskPriority, TaskCategory, TaskStatus } from '@/types';
+import { apiClient } from '@/lib/api-client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -139,8 +140,7 @@ function TasksContent() {
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/tasks');
-      const json = await res.json();
+      const json = await apiClient.tasks.getAll(currentRole);
       if (json.success && json.data?.tasks) {
         setTasks(json.data.tasks);
       }
@@ -155,6 +155,20 @@ function TasksContent() {
     fetchTasks();
   }, [currentRole]);
 
+  // Reactive auto-sync when mutations happen anywhere
+  useEffect(() => {
+    const handleMutation = (e: any) => {
+      const tags = e.detail?.tags || [];
+      if (tags.length === 0 || tags.includes('tasks') || tags.includes('dashboard')) {
+        apiClient.tasks.getAll(currentRole).then((json) => {
+          if (json.success && json.data?.tasks) setTasks(json.data.tasks);
+        });
+      }
+    };
+    window.addEventListener('hrms_data_mutation', handleMutation);
+    return () => window.removeEventListener('hrms_data_mutation', handleMutation);
+  }, [currentRole]);
+
   // Check if caller is the assigned employee (Self)
   const isAssigneeSelf = (task: TaskAllocationItem) => {
     if (!currentUserIdOrCode) return false;
@@ -166,18 +180,18 @@ function TasksContent() {
     );
   };
 
-  // Quick Action: Employee starts working on task
+  // Quick Action: Employee starts working on task (Optimistic update + DB sync)
   const handleQuickStart = async (task: TaskAllocationItem) => {
+    // Instant optimistic update
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? { ...t, status: 'in_progress', progressPercent: 50 } : t))
+    );
+
     try {
-      const res = await fetch(`/api/tasks/${task.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: 'in_progress',
-          logMessage: 'Work initiated on deliverable.',
-        }),
-      });
-      const json = await res.json();
+      const json = await apiClient.tasks.update(task.id, {
+        status: 'in_progress',
+        logMessage: 'Work initiated on deliverable.',
+      }, currentRole);
       if (json.success) {
         fetchTasks();
       }
@@ -194,18 +208,13 @@ function TasksContent() {
     );
 
     try {
-      const res = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...createForm,
-          estimatedHours: Number(createForm.estimatedHours || 8),
-          assigneeName: assignedEmp ? `${assignedEmp.firstName} ${assignedEmp.lastName}` : 'Assigned Employee',
-          assigneeDepartment: assignedEmp?.departmentName || assignedEmp?.departmentId || 'Operations',
-          assigneeDesignation: assignedEmp?.designationTitle || assignedEmp?.designationId || 'Staff Member',
-        }),
-      });
-      const json = await res.json();
+      const json = await apiClient.tasks.create({
+        ...createForm,
+        estimatedHours: Number(createForm.estimatedHours || 8),
+        assigneeName: assignedEmp ? `${assignedEmp.firstName} ${assignedEmp.lastName}` : 'Assigned Employee',
+        assigneeDepartment: assignedEmp?.departmentName || assignedEmp?.departmentId || 'Operations',
+        assigneeDesignation: assignedEmp?.designationTitle || assignedEmp?.designationId || 'Staff Member',
+      }, currentRole);
       if (json.success) {
         setCreateModalOpen(false);
         setCreateForm({
@@ -229,16 +238,26 @@ function TasksContent() {
     e.preventDefault();
     if (!selectedTask) return;
 
+    // Instant optimistic update
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === selectedTask.id
+          ? {
+              ...t,
+              status: updateForm.status,
+              deliverableNotes: updateForm.deliverableNotes || t.deliverableNotes,
+              proofDocumentName: updateForm.proofDocumentName || t.proofDocumentName,
+              proofDocumentUrl: updateForm.proofDocumentUrl || t.proofDocumentUrl,
+            }
+          : t
+      )
+    );
+
     try {
-      const res = await fetch(`/api/tasks/${selectedTask.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...updateForm,
-          actualHours: Number(updateForm.actualHours || 0),
-        }),
-      });
-      const json = await res.json();
+      const json = await apiClient.tasks.update(selectedTask.id, {
+        ...updateForm,
+        actualHours: Number(updateForm.actualHours || 0),
+      }, currentRole);
       if (json.success) {
         setUpdateModalOpen(false);
         setSelectedTask(null);
@@ -254,16 +273,23 @@ function TasksContent() {
     e.preventDefault();
     if (!selectedTask) return;
 
+    // Instant optimistic update
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === selectedTask.id
+          ? {
+              ...t,
+              status: reviewForm.status as any,
+              rating: reviewForm.rating,
+              reviewComments: reviewForm.reviewComments,
+              progressPercent: reviewForm.status === 'completed' ? 100 : t.progressPercent,
+            }
+          : t
+      )
+    );
+
     try {
-      const res = await fetch(`/api/tasks/${selectedTask.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'review',
-          ...reviewForm,
-        }),
-      });
-      const json = await res.json();
+      const json = await apiClient.tasks.review(selectedTask.id, reviewForm, currentRole);
       if (json.success) {
         setReviewModalOpen(false);
         setSelectedTask(null);

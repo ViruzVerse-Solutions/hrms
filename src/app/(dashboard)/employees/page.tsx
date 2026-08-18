@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { apiClient } from '@/lib/api-client';
 import {
   Users,
   Search,
@@ -112,8 +113,7 @@ function EmployeesContent() {
   }, [currentRole, currentEmployee, currentUser, employees, router]);
 
   React.useEffect(() => {
-    fetch('/api/master')
-      .then((res) => res.json())
+    apiClient.master.getAll()
       .then((data) => {
         if (data?.data?.departments) {
           setDepartments(data.data.departments);
@@ -166,26 +166,18 @@ function EmployeesContent() {
 
     try {
       setIsSubmitting(true);
-      const res = await fetch('/api/employees', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': currentRole,
-        },
-        body: JSON.stringify({
-          ...form,
-          firstName: trimmedFirstName,
-          lastName: trimmedLastName,
-          email: trimmedEmail,
-          phone: trimmedPhone,
-          designationTitle: trimmedDesignation,
-          ctc: Number(form.ctc),
-          pan: form.pan ? form.pan.toUpperCase().trim() : undefined,
-          ifscCode: form.ifscCode ? form.ifscCode.toUpperCase().trim() : undefined,
-        }),
-      });
+      const data = await apiClient.employees.create({
+        ...form,
+        firstName: trimmedFirstName,
+        lastName: trimmedLastName,
+        email: trimmedEmail,
+        phone: trimmedPhone,
+        designationTitle: trimmedDesignation,
+        ctc: Number(form.ctc),
+        pan: form.pan ? form.pan.toUpperCase().trim() : undefined,
+        ifscCode: form.ifscCode ? form.ifscCode.toUpperCase().trim() : undefined,
+      }, currentRole);
 
-      const data = await res.json();
       if (data?.success && data?.data) {
         const createdEmployee = data.data;
         

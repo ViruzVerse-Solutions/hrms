@@ -199,6 +199,7 @@ export function canViewDisciplinaryCases(role: UserRole): boolean {
 
 export type ApprovalCategory =
   | 'leaves'
+  | 'outdoor_duty'
   | 'requisitions'
   | 'transfers'
   | 'payroll'
@@ -219,6 +220,12 @@ export const APPROVAL_CATEGORY_PERMISSIONS: Record<ApprovalCategory, ApprovalPer
     canApprove: ['managing_director', 'hr_head'],
     module: 'attendance_leave',
     label: 'Leave Requests',
+  },
+  outdoor_duty: {
+    canView: ['managing_director', 'hr_head', 'compliance_statutory'],
+    canApprove: ['managing_director', 'hr_head'],
+    module: 'attendance_leave',
+    label: 'Outdoor Duty (OD)',
   },
   requisitions: {
     canView: ['chairman', 'managing_director', 'hr_head'],

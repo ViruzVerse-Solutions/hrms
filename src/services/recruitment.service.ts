@@ -1,78 +1,64 @@
 import { prisma } from '@/lib/db/prisma';
+import { serverCache } from '@/lib/server-cache';
+
+let cachedOrgId: string | null = null;
+async function getOrgId(): Promise<string | null> {
+  if (cachedOrgId) return cachedOrgId;
+  if (!prisma) return null;
+  const org = await prisma.organization.findFirst({ select: { id: true } });
+  if (org) cachedOrgId = org.id;
+  return cachedOrgId;
+}
 
 export const recruitmentService = {
   async getRequisitionsAndCandidates() {
     if (!prisma) return { requisitions: [], candidates: [] };
 
-    // Clean up duplicate requisition records from PostgreSQL DB
-    const allReqs = await prisma.jobRequisition.findMany({ orderBy: { createdAt: 'desc' } });
-    const seenKeys = new Set<string>();
-    const duplicateIdsToDelete: string[] = [];
-    for (const req of allReqs) {
-      const key = `${req.title.trim().toLowerCase()}_${req.departmentId}`;
-      if (seenKeys.has(key)) {
-        duplicateIdsToDelete.push(req.id);
-      } else {
-        seenKeys.add(key);
-      }
-    }
-    if (duplicateIdsToDelete.length > 0) {
-      try {
-        await prisma.jobRequisition.deleteMany({
-          where: { id: { in: duplicateIdsToDelete } },
-        });
-      } catch (e) {
-        console.error('Failed to purge duplicate requisitions:', e);
-      }
-    }
-
-    const requisitions = await prisma.jobRequisition.findMany({
-      include: {
-        department: true,
-        designation: true,
-        candidates: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    const candidates = await prisma.candidate.findMany({
-      include: {
-        jobRequisition: {
-          select: { title: true, department: true },
+    // Parallel fetch for requisitions and candidates
+    const [requisitions, candidates] = await Promise.all([
+      prisma.jobRequisition.findMany({
+        include: {
+          department: { select: { id: true, name: true } },
+          designation: { select: { id: true, title: true } },
+          candidates: { select: { id: true } },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.candidate.findMany({
+        include: {
+          jobRequisition: {
+            select: { title: true, department: { select: { name: true } } },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
 
-    // Deduplicate any consecutive double-inserted requisitions
-    const uniqueReqs: any[] = [];
+    // Fast in-memory deduplication of duplicate titles if any
+    const seenMap = new Map<string, any>();
     for (const r of requisitions) {
-      const isDuplicate = uniqueReqs.some((existing) => {
-        const sameTitle = existing.title.toLowerCase() === r.title.toLowerCase();
-        const sameDept = existing.departmentId === r.departmentId;
-        const timeDiff = Math.abs(new Date(existing.createdAt).getTime() - new Date(r.createdAt).getTime());
-        return sameTitle && sameDept && timeDiff < 15000;
-      });
-      if (!isDuplicate) {
-        uniqueReqs.push(r);
+      const key = `${r.title.trim().toLowerCase()}_${r.departmentId}`;
+      if (!seenMap.has(key)) {
+        seenMap.set(key, r);
       }
     }
+    const uniqueReqs = Array.from(seenMap.values());
 
     return {
       requisitions: uniqueReqs.map((r: any) => ({
         id: r.id,
         title: r.title,
-        department: r.department.name,
+        department: r.department?.name || 'General',
         departmentId: r.departmentId,
-        designation: r.designation.title,
+        designation: r.designation?.title || 'Staff',
         headcount: r.headcount,
         status: r.status,
         experienceMin: r.experienceMin,
         experienceMax: r.experienceMax,
-        budgetMin: Number(r.budgetMin),
-        budgetMax: Number(r.budgetMax),
-        targetDate: r.createdAt.toISOString().split('T')[0],
-        candidateCount: r.candidates.length,
+        budgetMin: Number(r.budgetMin || 0),
+        budgetMax: Number(r.budgetMax || 0),
+        targetDate: r.createdAt ? r.createdAt.toISOString().split('T')[0] : '2026-08-01',
+        candidateCount: r.candidates?.length || 0,
       })),
       candidates: candidates.map((c: any) => ({
         id: c.id,
@@ -84,7 +70,7 @@ export const recruitmentService = {
         currentStage: c.stage,
         jobRequisitionId: c.jobRequisitionId,
         jobTitle: c.jobRequisition?.title,
-        experienceYears: Number(c.experienceYears),
+        experienceYears: Number(c.experienceYears || 0),
         currentCtc: c.currentCtc ? Number(c.currentCtc) : undefined,
         expectedCtc: c.expectedCtc ? Number(c.expectedCtc) : undefined,
         matchScore: c.matchScore,
@@ -96,31 +82,33 @@ export const recruitmentService = {
   async createRequisition(data: any) {
     if (!prisma) throw new Error('Database unavailable');
 
-    const org = await prisma.organization.findFirst();
-    if (!org) throw new Error('Organization not found');
+    const orgId = await getOrgId();
+    if (!orgId) throw new Error('Organization not found');
 
     let deptId = data.departmentId;
     if (!deptId) {
       const dept = await prisma.department.findFirst({
         where: data.departmentName ? { name: { contains: data.departmentName, mode: 'insensitive' } } : undefined,
+        select: { id: true },
       });
-      deptId = dept?.id || (await prisma.department.findFirst())?.id;
+      deptId = dept?.id || (await prisma.department.findFirst({ select: { id: true } }))?.id;
     }
 
     let desId = data.designationId;
     if (!desId) {
       const des = await prisma.designation.findFirst({
         where: data.positionTitle ? { title: { contains: data.positionTitle, mode: 'insensitive' } } : undefined,
+        select: { id: true },
       });
-      desId = des?.id || (await prisma.designation.findFirst())?.id;
+      desId = des?.id || (await prisma.designation.findFirst({ select: { id: true } }))?.id;
     }
 
     const title = (data.title || data.positionTitle || 'Open Position').trim();
 
-    // Robust duplicate guard: check if identical title requisition already exists in DB
+    // Check if identical active requisition exists
     const existingActive = await prisma.jobRequisition.findFirst({
       where: {
-        organizationId: org.id,
+        organizationId: orgId,
         departmentId: deptId,
         title: { equals: title, mode: 'insensitive' },
       },
@@ -129,16 +117,18 @@ export const recruitmentService = {
         designation: true,
       },
     });
+
     if (existingActive) {
+      serverCache.invalidateTags(['recruitment', 'dashboard']);
       return existingActive;
     }
 
-    return prisma.jobRequisition.create({
+    const newReq = await prisma.jobRequisition.create({
       data: {
-        organizationId: org.id,
+        organizationId: orgId,
         departmentId: deptId,
         designationId: desId,
-        title: data.title || data.positionTitle || 'Open Position',
+        title,
         headcount: data.headcount || data.openingsCount || 1,
         budgetMin: data.budgetMin || 500000,
         budgetMax: data.budgetMax || 1000000,
@@ -151,14 +141,24 @@ export const recruitmentService = {
         designation: true,
       },
     });
+
+    // Invalidate server cache tags
+    serverCache.invalidateTags(['recruitment', 'dashboard']);
+
+    return newReq;
   },
 
   async updateCandidateStage(candidateId: string, stage: string) {
     if (!prisma) throw new Error('Database unavailable');
 
-    return prisma.candidate.update({
+    const updated = await prisma.candidate.update({
       where: { id: candidateId },
       data: { stage: stage as any },
     });
+
+    // Invalidate server cache tags
+    serverCache.invalidateTags(['recruitment', 'dashboard']);
+
+    return updated;
   },
 };

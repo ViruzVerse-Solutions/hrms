@@ -3,6 +3,7 @@
 import React, { use, useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Employee } from '@/types';
+import { apiClient } from '@/lib/api-client';
 import {
   Building,
   MapPin,
@@ -129,15 +130,7 @@ function EmployeeDetailContent({
   useEffect(() => {
     let isMounted = true;
     // Fetch full 360 profile details from API
-    fetch(`/api/employees/${resolvedParams.id}`, {
-      headers: {
-        'x-user-role': currentRole,
-        'x-employee-id': currentUser?.employeeId || currentEmployee?.id || currentEmployee?.employeeCode || '',
-        'x-user-id': currentUser?.id || '',
-        'x-user-email': currentUser?.email || '',
-      },
-    })
-      .then((res) => res.json())
+    apiClient.employees.getById(resolvedParams.id, currentRole)
       .then((data) => {
         if (isMounted && data?.data?.employee) {
           const emp = data.data.employee;
@@ -259,24 +252,13 @@ function EmployeeDetailContent({
 
     try {
       setIsSaving(true);
-      const res = await fetch(`/api/employees/${employee.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': currentRole,
-          'x-employee-id': currentUser?.employeeId || currentEmployee?.id || currentEmployee?.employeeCode || '',
-          'x-user-id': currentUser?.id || '',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          ...editForm,
-          ctc: editForm.ctc ? Number(editForm.ctc) : undefined,
-          pan: editForm.pan ? editForm.pan.toUpperCase().trim() : undefined,
-          ifscCode: editForm.ifscCode ? editForm.ifscCode.toUpperCase().trim() : undefined,
-        }),
-      });
+      const data = await apiClient.employees.update(employee.id, {
+        ...editForm,
+        ctc: editForm.ctc ? Number(editForm.ctc) : undefined,
+        pan: editForm.pan ? editForm.pan.toUpperCase().trim() : undefined,
+        ifscCode: editForm.ifscCode ? editForm.ifscCode.toUpperCase().trim() : undefined,
+      }, currentRole);
 
-      const data = await res.json();
       if (data?.success) {
         const updatedEmployee = { ...employee, ...data.data?.employee, ...editForm, ctc: Number(editForm.ctc) || employee.ctc };
         

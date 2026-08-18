@@ -1,5 +1,15 @@
 import { prisma } from '@/lib/db/prisma';
 import { UserRole, TaskAllocationItem, TaskLogItem, TaskStatus, TaskPriority, TaskCategory } from '@/types';
+import { serverCache } from '@/lib/server-cache';
+
+let cachedOrgId: string | null = null;
+async function getOrgId(): Promise<string | null> {
+  if (cachedOrgId) return cachedOrgId;
+  if (!prisma) return null;
+  const org = await prisma.organization.findFirst({ select: { id: true } });
+  if (org) cachedOrgId = org.id;
+  return cachedOrgId;
+}
 
 // Helper to compute progress percent automatically based on state & hours
 export function computeAutoProgress(status: TaskStatus, actualHours?: number, estimatedHours?: number): number {
@@ -38,7 +48,7 @@ export const taskService = {
 
     const where: any = {};
 
-    // 1. Strict Role-scoping: Regular employees can only see tasks assigned to them
+    // 1. Strict Role-scoping
     if (params.role === 'employee') {
       const orConditions: any[] = [];
       if (params.employeeId) {
@@ -91,7 +101,30 @@ export const taskService = {
     try {
       const dbTasks = await (prisma as any).taskAllocation.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          organizationId: true,
+          title: true,
+          description: true,
+          category: true,
+          priority: true,
+          status: true,
+          assigneeId: true,
+          assignedById: true,
+          assignedByName: true,
+          assignedByRole: true,
+          dueDate: true,
+          estimatedHours: true,
+          actualHours: true,
+          progressPercent: true,
+          deliverableNotes: true,
+          proofDocumentName: true,
+          proofDocumentUrl: true,
+          reviewComments: true,
+          rating: true,
+          reviewedAt: true,
+          createdAt: true,
+          updatedAt: true,
           assignee: {
             select: {
               id: true,
@@ -104,6 +137,17 @@ export const taskService = {
             },
           },
           logs: {
+            select: {
+              id: true,
+              taskId: true,
+              authorId: true,
+              authorName: true,
+              authorRole: true,
+              message: true,
+              progressAt: true,
+              loggedHours: true,
+              createdAt: true,
+            },
             orderBy: { createdAt: 'asc' },
           },
         },
@@ -172,10 +216,9 @@ export const taskService = {
   }): Promise<TaskAllocationItem> {
     if (!prisma) throw new Error('Database unavailable');
 
-    const org = await prisma.organization.findFirst();
-    if (!org) throw new Error('Organization not found');
+    const orgId = await getOrgId();
+    if (!orgId) throw new Error('Organization not found');
 
-    // Find valid employee
     const employee = await prisma.employee.findFirst({
       where: {
         OR: [{ id: data.assigneeId }, { employeeCode: data.assigneeId }],
@@ -185,7 +228,6 @@ export const taskService = {
 
     if (!employee) throw new Error(`Employee with ID "${data.assigneeId}" not found in database.`);
 
-    // Strict Rule: Tasks can ONLY be assigned to operational employees, not management, HR, or compliance officers
     const deptName = (employee.department?.name || '').toLowerCase();
     const desTitle = (employee.designation?.title || '').toLowerCase();
     const isNonOperational =
@@ -212,7 +254,7 @@ export const taskService = {
 
     const created = await (prisma as any).taskAllocation.create({
       data: {
-        organizationId: org.id,
+        organizationId: orgId,
         title: data.title,
         description: data.description,
         category: data.category,
@@ -246,6 +288,8 @@ export const taskService = {
         logs: true,
       },
     });
+
+    serverCache.invalidateTags(['tasks', 'dashboard']);
 
     return {
       id: created.id,
@@ -305,7 +349,6 @@ export const taskService = {
 
     if (!existing) return null;
 
-    // Security Verification: Only the assigned employee or HR/MD can update progress
     if (data.authorRole === 'employee') {
       const isOwner =
         existing.assigneeId === data.authorId ||
@@ -353,6 +396,8 @@ export const taskService = {
         logs: { orderBy: { createdAt: 'asc' } },
       },
     });
+
+    serverCache.invalidateTags(['tasks', 'dashboard']);
 
     return {
       id: updated.id,
@@ -445,6 +490,8 @@ export const taskService = {
       },
     });
 
+    serverCache.invalidateTags(['tasks', 'dashboard']);
+
     return {
       id: updated.id,
       organizationId: updated.organizationId,
@@ -490,6 +537,7 @@ export const taskService = {
       await (prisma as any).taskAllocation.delete({
         where: { id: taskId },
       });
+      serverCache.invalidateTags(['tasks', 'dashboard']);
       return true;
     } catch {
       return false;

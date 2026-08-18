@@ -3,6 +3,7 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 import { getApiUserContext, requireModuleAccess, requireActionPermission } from '@/lib/auth/rbac-guard-api';
 import { complianceService } from '@/services/compliance.service';
 import { auditService } from '@/services/audit.service';
+import { serverCache } from '@/lib/server-cache';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,7 +11,12 @@ export async function GET(req: NextRequest) {
     const accessError = requireModuleAccess(userCtx, 'policy_compliance');
     if (accessError) return accessError;
 
-    const data = await complianceService.getPolicies();
+    const data = await serverCache.fetchWithCache(
+      'compliance_policies_all',
+      () => complianceService.getPolicies(),
+      5 * 60 * 1000,
+      ['compliance']
+    );
 
     return apiSuccess(data);
   } catch (error: any) {
@@ -51,6 +57,8 @@ export async function POST(req: NextRequest) {
       resourceId: newPolicy.id,
       payloadAfter: { title: newPolicy.title, version: newPolicy.version },
     });
+
+    serverCache.invalidateTags(['compliance', 'dashboard']);
 
     return apiSuccess({ policy: newPolicy }, 'Company policy published successfully', 201);
   } catch (error: any) {

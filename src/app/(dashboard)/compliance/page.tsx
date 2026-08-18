@@ -33,6 +33,7 @@ import { RBACGuard } from '@/components/layout/RBACGuard';
 import { PolicyDocument } from '@/types';
 import { useAuth } from '@/context/AuthContext';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { apiClient } from '@/lib/api-client';
 
 export default function CompliancePage() {
   return (
@@ -78,10 +79,7 @@ function ComplianceContent() {
   const fetchPolicies = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/compliance', {
-        headers: { 'x-user-role': currentRole },
-      });
-      const data = await res.json().catch(() => null);
+      const data = await apiClient.compliance.getPolicies(currentRole);
       if (data?.data?.policies) {
         setPolicies(data.data.policies);
       }
@@ -96,14 +94,28 @@ function ComplianceContent() {
     fetchPolicies();
   }, [currentRole]);
 
+  // Reactive listener for compliance mutations
+  useEffect(() => {
+    const handleMutation = (e: any) => {
+      const tags = e.detail?.tags || [];
+      if (tags.length === 0 || tags.includes('compliance') || tags.includes('dashboard')) {
+        apiClient.compliance.getPolicies(currentRole).then((data) => {
+          if (data?.data?.policies) setPolicies(data.data.policies);
+        });
+      }
+    };
+    window.addEventListener('hrms_data_mutation', handleMutation);
+    return () => window.removeEventListener('hrms_data_mutation', handleMutation);
+  }, [currentRole]);
+
   const handleOpenCreateModal = () => {
     setIsEditing(false);
     setEditingPolicyId(null);
     setUploadedFileName('');
     setFormData({
       title: '',
-      category: 'code_of_conduct',
-      version: 'v1.0',
+      category: 'General',
+      version: '1.0',
       effectiveDate: new Date().toISOString().split('T')[0],
       content: '',
       status: 'active',
@@ -112,18 +124,18 @@ function ComplianceContent() {
     setIsModalOpen(true);
   };
 
-  const handleOpenEditModal = (p: PolicyDocument) => {
+  const handleOpenEditModal = (policy: PolicyDocument) => {
     setIsEditing(true);
-    setEditingPolicyId(p.id);
-    setUploadedFileName((p as any).fileUrl ? 'attached_policy_document.pdf' : '');
+    setEditingPolicyId(policy.id);
+    setUploadedFileName(policy.fileUrl ? 'Existing Document Attached' : '');
     setFormData({
-      title: p.title,
-      category: p.category,
-      version: p.version,
-      effectiveDate: p.effectiveDate,
-      content: (p as any).content || '',
-      status: (p as any).status || 'active',
-      fileUrl: (p as any).fileUrl || '',
+      title: policy.title,
+      category: policy.category,
+      version: policy.version,
+      effectiveDate: policy.effectiveDate ? new Date(policy.effectiveDate).toISOString().split('T')[0] : '',
+      content: (policy as any).content || '',
+      status: (policy as any).status || 'active',
+      fileUrl: (policy as any).fileUrl || '',
     });
     setIsModalOpen(true);
   };
@@ -140,9 +152,9 @@ function ComplianceContent() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSavePolicy = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title) return;
+    if (!formData.title.trim()) return;
 
     try {
       setIsSubmitting(true);
@@ -154,14 +166,7 @@ function ComplianceContent() {
         setStatusMsg('Policy document updated successfully.');
         setTimeout(() => setStatusMsg(''), 4000);
 
-        fetch(`/api/compliance/${editingPolicyId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-role': currentRole,
-          },
-          body: JSON.stringify(formData),
-        }).catch(() => {});
+        apiClient.compliance.updatePolicy(editingPolicyId, formData, currentRole).catch(() => {});
       } else {
         const newPolicyItem: PolicyDocument = {
           id: `pol_${Date.now()}`,
@@ -180,14 +185,7 @@ function ComplianceContent() {
         setStatusMsg('New corporate policy published successfully.');
         setTimeout(() => setStatusMsg(''), 4000);
 
-        fetch('/api/compliance', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-user-role': currentRole,
-          },
-          body: JSON.stringify(formData),
-        }).catch(() => {});
+        apiClient.compliance.createPolicy(formData, currentRole).catch(() => {});
       }
     } catch (err) {
       console.error('Failed to save policy:', err);
@@ -202,10 +200,7 @@ function ComplianceContent() {
     setStatusMsg('Policy removed from repository.');
     setTimeout(() => setStatusMsg(''), 4000);
 
-    fetch(`/api/compliance/${id}`, {
-      method: 'DELETE',
-      headers: { 'x-user-role': currentRole },
-    }).catch(() => {});
+    apiClient.compliance.deletePolicy(id, currentRole).catch(() => {});
   };
 
   const filteredPolicies = policies.filter((p) => {
@@ -472,7 +467,7 @@ function ComplianceContent() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4 text-xs">
+            <form onSubmit={handleSavePolicy} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Policy Document Title</label>
                 <input

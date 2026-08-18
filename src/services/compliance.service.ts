@@ -1,5 +1,15 @@
 import { prisma } from '@/lib/db/prisma';
 import { UserRole } from '@/types';
+import { serverCache } from '@/lib/server-cache';
+
+let cachedOrgId: string | null = null;
+async function getOrgId(): Promise<string | null> {
+  if (cachedOrgId) return cachedOrgId;
+  if (!prisma) return null;
+  const org = await prisma.organization.findFirst({ select: { id: true } });
+  if (org) cachedOrgId = org.id;
+  return cachedOrgId;
+}
 
 export const complianceService = {
   async getPolicies() {
@@ -46,12 +56,12 @@ export const complianceService = {
   }) {
     if (!prisma) throw new Error('Database unavailable');
 
-    const org = await prisma.organization.findFirst();
-    if (!org) throw new Error('Organization not found');
+    const orgId = await getOrgId();
+    if (!orgId) throw new Error('Organization not found');
 
-    return prisma.companyPolicy.create({
+    const created = await prisma.companyPolicy.create({
       data: {
-        organizationId: org.id,
+        organizationId: orgId,
         title: data.title,
         category: data.category,
         version: data.version.startsWith('v') ? data.version : `v${data.version}`,
@@ -64,12 +74,16 @@ export const complianceService = {
         status: 'active',
       },
     });
+
+    serverCache.invalidateTags(['compliance', 'dashboard']);
+
+    return created;
   },
 
   async updatePolicy(id: string, data: any) {
     if (!prisma) throw new Error('Database unavailable');
 
-    return prisma.companyPolicy.update({
+    const updated = await prisma.companyPolicy.update({
       where: { id },
       data: {
         ...(data.title && { title: data.title }),
@@ -81,13 +95,21 @@ export const complianceService = {
         ...(data.fileUrl !== undefined && { fileUrl: data.fileUrl }),
       },
     });
+
+    serverCache.invalidateTags(['compliance', 'dashboard']);
+
+    return updated;
   },
 
   async deletePolicy(id: string) {
     if (!prisma) throw new Error('Database unavailable');
 
-    return prisma.companyPolicy.delete({
+    const deleted = await prisma.companyPolicy.delete({
       where: { id },
     });
+
+    serverCache.invalidateTags(['compliance', 'dashboard']);
+
+    return deleted;
   },
 };
