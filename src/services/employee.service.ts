@@ -1,6 +1,16 @@
 import { prisma } from '@/lib/db/prisma';
 import { UserRole } from '@/types';
 import { canViewSensitiveSalary } from '@/lib/rbac';
+import { serverCache } from '@/lib/server-cache';
+
+let cachedOrgId: string | null = null;
+async function getOrgId(): Promise<string | null> {
+  if (cachedOrgId) return cachedOrgId;
+  if (!prisma) return null;
+  const org = await prisma.organization.findFirst({ select: { id: true } });
+  if (org) cachedOrgId = org.id;
+  return cachedOrgId;
+}
 
 export interface EmployeeFilters {
   departmentId?: string;
@@ -32,10 +42,28 @@ export const employeeService = {
 
     const employees = await prisma.employee.findMany({
       where,
-      include: {
-        department: true,
-        designation: true,
-        branch: true,
+      select: {
+        id: true,
+        employeeCode: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        avatarUrl: true,
+        gender: true,
+        dob: true,
+        dateOfJoining: true,
+        departmentId: true,
+        designationId: true,
+        branchId: true,
+        employmentStatus: true,
+        currentLifecycleStage: true,
+        ctc: true,
+        accountNumber: true,
+        pan: true,
+        department: { select: { id: true, name: true, code: true } },
+        designation: { select: { id: true, title: true, code: true } },
+        branch: { select: { id: true, name: true, city: true } },
         reportingManager: {
           select: { id: true, firstName: true, lastName: true, employeeCode: true },
         },
@@ -47,7 +75,7 @@ export const employeeService = {
 
     return employees.map((emp: any) => ({
       ...emp,
-      ctc: canSeeSalary ? Number(emp.ctc) : undefined,
+      ctc: canSeeSalary ? Number(emp.ctc || 0) : undefined,
       accountNumber: canSeeSalary ? emp.accountNumber : undefined,
       pan: canSeeSalary ? emp.pan : undefined,
       salaryMasked: !canSeeSalary,
@@ -132,89 +160,53 @@ export const employeeService = {
   async create(data: any, createdByRole: UserRole) {
     if (!prisma) throw new Error('Database unavailable');
 
-    let org = await prisma.organization.findFirst();
-    if (!org) {
-      org = await prisma.organization.create({
-        data: {
-          name: 'Viruzverse Solutions',
-          code: 'VV-ORG',
-        },
-      });
-    }
+    const orgId = await getOrgId();
+    if (!orgId) throw new Error('Organization not found');
 
-    // 1. Resolve Department
-    let deptId = data.departmentId;
-    if (!deptId) {
-      const firstDept = await prisma.department.findFirst({ where: { organizationId: org.id } });
-      if (firstDept) {
-        deptId = firstDept.id;
-      } else {
-        const createdDept = await prisma.department.create({
-          data: {
-            organizationId: org.id,
-            name: 'Operations & Quality',
-            code: 'OPS-QUAL',
-          },
-        });
-        deptId = createdDept.id;
-      }
-    }
+    // Parallel resolution of department, designation, and branch
+    const [dept, branch] = await Promise.all([
+      data.departmentId
+        ? prisma.department.findUnique({ where: { id: data.departmentId } })
+        : prisma.department.findFirst({ where: { organizationId: orgId } }),
+      data.branchId
+        ? prisma.branch.findUnique({ where: { id: data.branchId } })
+        : prisma.branch.findFirst({ where: { organizationId: orgId } }),
+    ]);
 
-    // 2. Resolve Designation
+    const deptId = dept?.id || (await prisma.department.create({
+      data: { organizationId: orgId, name: 'Operations & Quality', code: 'OPS-QUAL' },
+    })).id;
+
+    const branchId = branch?.id || (await prisma.branch.create({
+      data: { organizationId: orgId, name: 'Corporate HQ & Plant 1', code: 'HQ-PLANT1', city: 'Chennai', state: 'Tamil Nadu', isHeadquarters: true },
+    })).id;
+
     let desigId = data.designationId;
     if (!desigId) {
       const title = data.designationTitle || 'Staff Member';
       let desig = await prisma.designation.findFirst({
-        where: {
-          organizationId: org.id,
-          title: { equals: title, mode: 'insensitive' },
-        },
+        where: { organizationId: orgId, title: { equals: title, mode: 'insensitive' } },
+        select: { id: true },
       });
-      if (!desig) {
-        desig = await prisma.designation.findFirst({
-          where: {
-            organizationId: org.id,
-            departmentId: deptId,
-          },
-        });
-      }
       if (!desig) {
         desig = await prisma.designation.create({
           data: {
-            organizationId: org.id,
+            organizationId: orgId,
             departmentId: deptId,
-            title: title,
+            title,
             code: (title.toUpperCase().replace(/\s+/g, '_').slice(0, 10) + '_' + Math.floor(100 + Math.random() * 900)),
           },
+          select: { id: true },
         });
       }
       desigId = desig.id;
-    }
-
-    // 3. Resolve Branch
-    let branchId = data.branchId;
-    if (!branchId) {
-      let branch = await prisma.branch.findFirst({ where: { organizationId: org.id } });
-      if (!branch) {
-        branch = await prisma.branch.create({
-          data: {
-            organizationId: org.id,
-            name: 'Corporate HQ & Plant 1',
-            code: 'HQ-PLANT1',
-            city: 'Chennai',
-            state: 'Tamil Nadu',
-            isHeadquarters: true,
-          },
-        });
-      }
-      branchId = branch.id;
     }
 
     const employeeCode = data.employeeCode || `VV-${Math.floor(1000 + Math.random() * 9000)}`;
 
     const newEmp = await prisma.employee.create({
       data: {
-        organization: { connect: { id: org.id } },
+        organization: { connect: { id: orgId } },
         department: { connect: { id: deptId } },
         designation: { connect: { id: desigId } },
         branch: { connect: { id: branchId } },
@@ -248,19 +240,8 @@ export const employeeService = {
       },
     });
 
-    if (data.accountNumber && data.pan && (prisma as any).bankDetails) {
-      await (prisma as any).bankDetails.create({
-        data: {
-          organizationId: org.id,
-          employeeId: newEmp.id,
-          accountNumber: data.accountNumber,
-          accountName: `${data.firstName} ${data.lastName}`,
-          bankName: data.bankName || 'HDFC Bank',
-          ifscCode: data.ifscCode || 'HDFC0001234',
-          pan: data.pan,
-        },
-      }).catch(() => {});
-    }
+    // Invalidate server cache tags
+    serverCache.invalidateTags(['employees', 'dashboard', 'reports']);
 
     return newEmp;
   },
@@ -270,10 +251,14 @@ export const employeeService = {
 
     let designationId = data.designationId;
     if (!designationId && data.designationTitle) {
-      const existing = await prisma.employee.findUnique({ where: { id }, select: { organizationId: true, departmentId: true } });
+      const existing = await prisma.employee.findUnique({
+        where: { id },
+        select: { organizationId: true, departmentId: true },
+      });
       if (existing) {
         let desig = await prisma.designation.findFirst({
           where: { organizationId: existing.organizationId, title: { equals: data.designationTitle, mode: 'insensitive' } },
+          select: { id: true },
         });
         if (!desig) {
           desig = await prisma.designation.create({
@@ -283,13 +268,14 @@ export const employeeService = {
               title: data.designationTitle,
               code: (data.designationTitle.toUpperCase().replace(/\s+/g, '_').slice(0, 10) + '_' + Math.floor(100 + Math.random() * 900)),
             },
+            select: { id: true },
           });
         }
         designationId = desig.id;
       }
     }
 
-    return prisma.employee.update({
+    const updated = await prisma.employee.update({
       where: { id },
       data: {
         ...(data.firstName && { firstName: data.firstName }),
@@ -323,14 +309,23 @@ export const employeeService = {
         branch: true,
       },
     });
+
+    // Invalidate server cache tags
+    serverCache.invalidateTags(['employees', 'dashboard', 'reports']);
+
+    return updated;
   },
 
   async softDelete(id: string) {
     if (!prisma) throw new Error('Database unavailable');
 
-    return prisma.employee.update({
+    const result = await prisma.employee.update({
       where: { id },
       data: { employmentStatus: 'terminated' },
     });
+
+    serverCache.invalidateTags(['employees', 'dashboard', 'reports']);
+
+    return result;
   },
 };

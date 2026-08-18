@@ -3,6 +3,7 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 import { getApiUserContext, requireModuleAccess, requireActionPermission } from '@/lib/auth/rbac-guard-api';
 import { payrollService } from '@/services/payroll.service';
 import { auditService } from '@/services/audit.service';
+import { serverCache } from '@/lib/server-cache';
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,46 +11,57 @@ export async function GET(req: NextRequest) {
     const accessError = requireModuleAccess(userCtx, 'payroll_benefits');
     if (accessError) return accessError;
 
-    const data = await payrollService.getRuns(userCtx.role, userCtx.employeeId);
+    const cacheKey = `payroll_runs_${userCtx.role}_${userCtx.employeeId || 'all'}`;
 
-    const formattedPayslips = data.payslips.map((ps: any) => ({
-      id: ps.id,
-      employeeId: ps.employeeId,
-      employeeCode: ps.employeeCode,
-      employeeName: ps.employeeName,
-      department: ps.department,
-      designation: ps.designation,
-      period: ps.period,
-      paidDays: 30,
-      lopDays: 0,
-      breakup: {
-        basic: ps.basicSalary,
-        hra: ps.hra,
-        specialAllowance: ps.specialAllowance,
-        conveyance: ps.conveyance,
-        medicalAllowance: ps.medical,
-        grossEarnings: ps.grossEarnings,
-        pfEmployee: ps.pfDeduction,
-        esiEmployee: ps.esiDeduction,
-        professionalTax: ps.professionalTax,
-        tds: ps.incomeTaxTds,
-        totalDeductions: ps.totalDeductions,
-        netPay: ps.netPay,
-        pfEmployer: 1800,
-        esiEmployer: 0,
-        ctcMonthly: ps.grossEarnings + 1800,
-        ctcAnnual: (ps.grossEarnings + 1800) * 12,
+    const data = await serverCache.fetchWithCache(
+      cacheKey,
+      async () => {
+        const raw = await payrollService.getRuns(userCtx.role, userCtx.employeeId);
+
+        const formattedPayslips = raw.payslips.map((ps: any) => ({
+          id: ps.id,
+          employeeId: ps.employeeId,
+          employeeCode: ps.employeeCode,
+          employeeName: ps.employeeName,
+          department: ps.department,
+          designation: ps.designation,
+          period: ps.period,
+          paidDays: 30,
+          lopDays: 0,
+          breakup: {
+            basic: ps.basicSalary,
+            hra: ps.hra,
+            specialAllowance: ps.specialAllowance,
+            conveyance: ps.conveyance,
+            medicalAllowance: ps.medical,
+            grossEarnings: ps.grossEarnings,
+            pfEmployee: ps.pfDeduction,
+            esiEmployee: ps.esiDeduction,
+            professionalTax: ps.professionalTax,
+            tds: ps.incomeTaxTds,
+            totalDeductions: ps.totalDeductions,
+            netPay: ps.netPay,
+            pfEmployer: 1800,
+            esiEmployer: 0,
+            ctcMonthly: ps.grossEarnings + 1800,
+            ctcAnnual: (ps.grossEarnings + 1800) * 12,
+          },
+          paymentMode: 'bank_transfer',
+          status: 'published',
+        }));
+
+        return {
+          payrollRuns: raw.payrollRuns,
+          payslips: formattedPayslips,
+          totalRuns: raw.payrollRuns.length,
+          userRole: userCtx.role,
+        };
       },
-      paymentMode: 'bank_transfer',
-      status: 'published',
-    }));
+      5 * 60 * 1000,
+      ['payroll']
+    );
 
-    return apiSuccess({
-      payrollRuns: data.payrollRuns,
-      payslips: formattedPayslips,
-      totalRuns: data.payrollRuns.length,
-      userRole: userCtx.role,
-    });
+    return apiSuccess(data);
   } catch (error: any) {
     return apiError(error?.message || 'Failed to fetch payroll data', 500);
   }
@@ -75,6 +87,8 @@ export async function POST(req: NextRequest) {
       resourceId: run.id,
       payloadAfter: { monthYear, totalGross: run.totalGross },
     });
+
+    serverCache.invalidateTags(['payroll', 'dashboard', 'reports', 'approvals']);
 
     return apiSuccess(
       { payrollRun: run },

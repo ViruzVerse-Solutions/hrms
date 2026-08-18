@@ -26,6 +26,8 @@ import {
   ROLE_LABELS,
 } from '@/lib/rbac/permissions';
 import { apiClient } from '@/lib/api-client';
+import { invalidateCacheTags } from '@/lib/cache';
+import { compareLeavesChronologically } from '@/lib/leave-utils';
 
 interface AuthContextType {
   currentUser: User;
@@ -64,6 +66,7 @@ interface AuthContextType {
   submitGrievance: (grv: Omit<GrievanceTicket, 'id' | 'ticketNumber' | 'createdAt' | 'status' | 'slaDeadline'>) => void;
   markNotificationRead: (id: string) => void;
   logAuditAction: (action: string, module: ModuleKey, entityId: string, details: string) => void;
+  reloadAllData: () => Promise<void>;
 }
 
 const VALID_ROLES: UserRole[] = [
@@ -142,37 +145,56 @@ export function AuthProvider({
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [notifications, setNotifications] = useState<SystemNotification[]>([]);
 
-  // Single-pass high-speed database hydration on mount & role switch (<30ms)
-  useEffect(() => {
-    setIsLoadingData(true);
-    Promise.all([
-      fetch('/api/dashboard/summary', {
-        headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
-      }).then((res) => res.json()).catch(() => null),
-      fetch('/api/notifications', {
-        headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
-      }).then((res) => res.json()).catch(() => null),
-    ])
-      .then(([summaryData, notifData]) => {
-        if (summaryData?.data) {
-          const d = summaryData.data;
-          if (d.employees) setEmployees(d.employees);
-          if (d.attendanceRecords) setAttendanceRecords(d.attendanceRecords);
-          if (d.leaveRequests) setLeaveRequests(d.leaveRequests);
-          if (d.payrollRuns) setPayrollRuns(d.payrollRuns);
-          if (d.payslips) setPayslips(d.payslips);
-          if (d.requisitions) setRequisitions(d.requisitions);
-          if (d.candidates) setCandidates(d.candidates);
-          if (d.auditLogs) setAuditLogs(d.auditLogs);
-        }
-        if (notifData?.data?.notifications) {
-          setNotifications(notifData.data.notifications);
-        }
-      })
-      .finally(() => {
-        setIsLoadingData(false);
-      });
+  // High-speed database hydration with instant reactive updates
+  const loadData = useCallback(async (showLoadingSpinner = true) => {
+    if (showLoadingSpinner) setIsLoadingData(true);
+    try {
+      const [summaryRes, notifRes] = await Promise.all([
+        apiClient.dashboard.getSummary(currentRole, currentUser.employeeId),
+        fetch('/api/notifications', {
+          headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
+        }).then((res) => res.json()).catch(() => null),
+      ]);
+
+      if (summaryRes?.data) {
+        const d = summaryRes.data;
+        if (d.employees) setEmployees(d.employees);
+        if (d.attendanceRecords) setAttendanceRecords(d.attendanceRecords);
+        if (d.leaveRequests) setLeaveRequests((prev) => mergeLeavesSafely(d.leaveRequests, prev));
+        if (d.payrollRuns) setPayrollRuns(d.payrollRuns);
+        if (d.payslips) setPayslips(d.payslips);
+        if (d.requisitions) setRequisitions(d.requisitions);
+        if (d.candidates) setCandidates(d.candidates);
+        if (d.auditLogs) setAuditLogs(d.auditLogs);
+      }
+      if (notifRes?.data?.notifications) {
+        setNotifications(notifRes.data.notifications);
+      }
+    } finally {
+      if (showLoadingSpinner) setIsLoadingData(false);
+    }
   }, [currentRole, currentUser.employeeId]);
+
+  // Initial load on mount and on role change
+  useEffect(() => {
+    loadData(true);
+  }, [loadData]);
+
+  // Instant reactive listener for DB mutations and cache invalidations
+  useEffect(() => {
+    const handleMutationOrInvalidation = () => {
+      // Re-hydrate silently in the background (0ms UI freeze)
+      loadData(false);
+    };
+
+    window.addEventListener('hrms_data_mutation', handleMutationOrInvalidation);
+    window.addEventListener('hrms_cache_invalidated', handleMutationOrInvalidation);
+
+    return () => {
+      window.removeEventListener('hrms_data_mutation', handleMutationOrInvalidation);
+      window.removeEventListener('hrms_cache_invalidated', handleMutationOrInvalidation);
+    };
+  }, [loadData]);
 
   const handleSetRole = (newRole: UserRole) => {
     setCurrentRole(newRole);
@@ -207,15 +229,12 @@ export function AuthProvider({
 
   const refreshEmployees = useCallback(async () => {
     try {
-      const res = await fetch('/api/employees', {
-        headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
-      });
-      const data = await res.json();
-      if (data?.data?.employees) {
-        setEmployees(data.data.employees);
+      const res = await apiClient.employees.getAll(currentRole);
+      if (res?.data?.employees) {
+        setEmployees(res.data.employees);
       }
     } catch {}
-  }, [currentRole, currentUser.employeeId]);
+  }, [currentRole]);
 
   const addEmployee = (newEmp: Employee) => {
     setEmployees((prev) => {
@@ -223,15 +242,34 @@ export function AuthProvider({
       if (exists) return prev.map((e) => (e.id === newEmp.id ? { ...e, ...newEmp } : e));
       return [newEmp, ...prev];
     });
+    invalidateCacheTags(['employees', 'dashboard', 'reports']);
+  };
+
+  const mergeLeavesSafely = (newLeaves: LeaveRequest[], currentLeaves: LeaveRequest[]): LeaveRequest[] => {
+    const optimisticItems = currentLeaves.filter((l) => l.id && l.id.startsWith('lr_'));
+    const serverIds = new Set(newLeaves.map((l) => l.id));
+    const activeOptimistic = optimisticItems.filter((opt) => !serverIds.has(opt.id));
+
+    const combined = [...activeOptimistic, ...newLeaves];
+
+    const uniqueMap = new Map<string, LeaveRequest>();
+    for (const item of combined) {
+      if (item && item.id && !uniqueMap.has(item.id)) {
+        uniqueMap.set(item.id, item);
+      }
+    }
+
+    return Array.from(uniqueMap.values()).sort(compareLeavesChronologically);
   };
 
   const refreshLeaves = useCallback(async () => {
     try {
-      const res = await apiClient.leaves.getAll(currentRole);
-      if (res?.data?.leaves) setLeaveRequests(res.data.leaves);
+      const empId = currentEmployee?.id || currentEmployee?.employeeCode || currentUser.employeeId || '';
+      const res = await apiClient.leaves.getAll(currentRole, empId);
+      if (res?.data?.leaves) setLeaveRequests((prev) => mergeLeavesSafely(res.data.leaves, prev));
       if (res?.data?.leaveAllocations) setLeaveAllocations(res.data.leaveAllocations);
     } catch {}
-  }, [currentRole]);
+  }, [currentRole, currentEmployee?.id, currentEmployee?.employeeCode, currentUser.employeeId]);
 
   const logAuditAction = (action: string, module: ModuleKey, entityId: string, details: string) => {
     const newLog: AuditLogItem = {
@@ -252,27 +290,48 @@ export function AuthProvider({
   // 1. Optimistic Leave Apply (0ms UI update + DB ID sync)
   const addLeaveRequest = async (req: Omit<LeaveRequest, 'id' | 'appliedAt' | 'status'>) => {
     const tempId = `lr_${Date.now()}`;
+    const nowIso = new Date().toISOString();
     const newLeave: LeaveRequest = {
       ...req,
       id: tempId,
-      appliedAt: new Date().toISOString(),
+      appliedAt: nowIso,
+      createdAt: nowIso,
       status: 'pending',
     };
-    setLeaveRequests((prev) => [newLeave, ...prev]);
+    setLeaveRequests((prev) => [newLeave, ...prev.filter((l) => l.id !== tempId)]);
     logAuditAction('APPLIED_LEAVE', 'attendance_leave', newLeave.id, `Applied for ${req.daysCount} days ${req.leaveType} leave`);
 
-    // Async background persistence with real DB ID synchronization
     try {
-      const res = await apiClient.leaves.apply(req, currentRole);
+      const empId = req.employeeId || currentEmployee?.id || currentEmployee?.employeeCode || currentUser.employeeId || '';
+      const res = await apiClient.leaves.apply(req, currentRole, empId);
       if (res?.data?.leaveRequest) {
-        const realId = res.data.leaveRequest.id;
+        const real = res.data.leaveRequest;
+        const normalizedReal: LeaveRequest = {
+          ...real,
+          id: real.id,
+          employeeId: real.employeeId || req.employeeId,
+          employeeName: real.employeeName || req.employeeName,
+          employeeCode: real.employeeCode || currentEmployee?.employeeCode || '',
+          leaveType: real.leaveType || req.leaveType,
+          fromDate: typeof real.fromDate === 'string' ? real.fromDate.split('T')[0] : req.fromDate,
+          toDate: typeof real.toDate === 'string' ? real.toDate.split('T')[0] : req.toDate,
+          daysCount: Number(real.daysCount || req.daysCount),
+          reason: real.reason || req.reason,
+          status: real.status || 'pending',
+          approverId: real.approverId || req.approverId,
+          approverName: real.approverName || req.approverName,
+          appliedAt: real.createdAt || nowIso,
+          createdAt: real.createdAt || nowIso,
+        };
         setLeaveRequests((prev) =>
-          prev.map((lr) => (lr.id === tempId ? { ...lr, id: realId } : lr))
+          prev.map((lr) => (lr.id === tempId ? normalizedReal : lr))
         );
       }
-    } catch {}
+      await refreshLeaves();
+    } catch (err) {
+      console.error('Failed to apply leave:', err);
+    }
 
-    // Notification
     const newNotif: SystemNotification = {
       id: `notif_${Date.now()}`,
       title: 'New Leave Application',
@@ -294,11 +353,8 @@ export function AuthProvider({
     logAuditAction(`LEAVE_${status.toUpperCase()}`, 'attendance_leave', id, `Leave marked as ${status}`);
 
     try {
-      await fetch(`/api/leaves/${id}/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-        body: JSON.stringify({ status, comment }),
-      });
+      await apiClient.leaves.action(id, status, comment, currentRole, currentUser.employeeId);
+      refreshLeaves();
     } catch {}
   };
 
@@ -310,15 +366,11 @@ export function AuthProvider({
     logAuditAction('PAYROLL_APPROVED', 'payroll_benefits', id, `Payroll cycle approved by ${currentUser.name}`);
 
     try {
-      await fetch(`/api/payroll/runs/${id}/action`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-user-role': currentRole },
-        body: JSON.stringify({ action: 'approve' }),
-      });
+      await apiClient.payroll.approve(id, currentRole);
     } catch {}
   };
 
-  // 5. Optimistic Candidate Stage Update (0ms UI update + DB Sync)
+  // 4. Optimistic Candidate Stage Update (0ms UI update + DB Sync)
   const updateCandidateStage = async (id: string, stage: Candidate['currentStage']) => {
     setCandidates((prev) =>
       prev.map((c) => (c.id === id ? { ...c, currentStage: stage } : c))
@@ -330,9 +382,8 @@ export function AuthProvider({
     } catch {}
   };
 
-  // 6. Optimistic Requisition Creation (0ms UI update + DB Sync)
+  // 5. Optimistic Requisition Creation (0ms UI update + DB Sync)
   const addRequisition = async (req: Omit<ManpowerRequisition, 'id' | 'createdAt' | 'status'>) => {
-    // Prevent state duplication if title already exists in active requisitions
     let isAlreadyInState = false;
     setRequisitions((prev) => {
       const exists = prev.some(
@@ -370,7 +421,7 @@ export function AuthProvider({
     } catch {}
   };
 
-  // 7. Optimistic Grievance Submission (0ms UI update + DB Sync)
+  // 6. Optimistic Grievance Submission (0ms UI update + DB Sync)
   const submitGrievance = async (grv: Omit<GrievanceTicket, 'id' | 'ticketNumber' | 'createdAt' | 'status' | 'slaDeadline'>) => {
     const tempId = `grv_${Date.now()}`;
     const newGrv: GrievanceTicket = {
@@ -448,6 +499,7 @@ export function AuthProvider({
         submitGrievance,
         markNotificationRead,
         logAuditAction,
+        reloadAllData: () => loadData(false),
         isHydrated,
       }}
     >

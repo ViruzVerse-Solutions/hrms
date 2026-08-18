@@ -717,9 +717,9 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {currentRole === 'employee' && (() => {
         const casualAlloc = leaveAllocations.find((a) => a.leaveType === 'casual');
-        const casualBal = casualAlloc ? (casualAlloc.balanceDays ?? casualAlloc.balance) : 12;
-        const casualUsed = casualAlloc ? (casualAlloc.usedDays ?? casualAlloc.used) : 0;
-        const casualPend = casualAlloc ? (casualAlloc.pendingDays ?? casualAlloc.pending) : 0;
+        const casualBal = casualAlloc ? (casualAlloc.balanceDays ?? casualAlloc.balance ?? 0) : 0;
+        const casualUsed = casualAlloc ? (casualAlloc.usedDays ?? casualAlloc.used ?? 0) : 0;
+        const casualPend = casualAlloc ? (casualAlloc.pendingDays ?? casualAlloc.pending ?? 0) : 0;
 
         const myEmpId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
         const latestPs = payslips.find((p) => p.employeeId === myEmpId || p.employeeCode === currentEmployee?.employeeCode) || payslips[0];

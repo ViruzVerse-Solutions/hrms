@@ -27,6 +27,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { useAuth } from '@/context/AuthContext';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { apiClient } from '@/lib/api-client';
 import {
   ApprovalCategory,
   canUserApproveCategory,
@@ -50,6 +51,7 @@ interface PendingItem {
 
 const CATEGORY_STYLES: Record<ApprovalCategory, { bg: string; text: string; border: string; icon: React.ElementType }> = {
   leaves: { bg: 'bg-emerald-50 text-emerald-700', text: 'text-emerald-700', border: 'border-emerald-200', icon: Clock },
+  outdoor_duty: { bg: 'bg-indigo-50 text-indigo-700', text: 'text-indigo-700', border: 'border-indigo-200', icon: Building },
   requisitions: { bg: 'bg-purple-50 text-purple-700', text: 'text-purple-700', border: 'border-purple-200', icon: GitPullRequest },
   transfers: { bg: 'bg-blue-50 text-blue-700', text: 'text-blue-700', border: 'border-blue-200', icon: Users },
   payroll: { bg: 'bg-teal-50 text-teal-700', text: 'text-teal-700', border: 'border-teal-200', icon: Wallet },
@@ -80,18 +82,9 @@ function ApprovalsContent() {
   const [activeTab, setActiveTab] = useState('all');
 
   const fetchApprovals = async (force = false) => {
-    if (!force && isCacheValid) return;
-
     try {
       if (items.length === 0) setIsLoading(true);
-      const res = await fetch('/api/approvals', {
-        headers: { 'x-user-role': currentRole },
-      });
-      if (!res.ok) {
-        console.error('Failed to fetch approval queue, status:', res.status);
-        return;
-      }
-      const data = await res.json().catch(() => null);
+      const data = await apiClient.approvals.getAll(currentRole);
       if (data?.data) {
         const newItems = data.data.items || [];
         const newCounts = data.data.counts || {};
@@ -110,11 +103,31 @@ function ApprovalsContent() {
     fetchApprovals(false);
   }, [currentRole]);
 
+  // Reactive auto-sync when any approval / mutation occurs
+  useEffect(() => {
+    const handleMutation = (e: any) => {
+      const tags = e.detail?.tags || [];
+      if (tags.length === 0 || tags.includes('approvals') || tags.includes('leaves') || tags.includes('dashboard')) {
+        apiClient.approvals.getAll(currentRole).then((data) => {
+          if (data?.data) {
+            setItems(data.data.items || []);
+            setCounts(data.data.counts || {});
+          }
+        });
+      }
+    };
+    window.addEventListener('hrms_data_mutation', handleMutation);
+    return () => window.removeEventListener('hrms_data_mutation', handleMutation);
+  }, [currentRole]);
+
   const isManagementRole = ['managing_director', 'chairman', 'hr_head', 'compliance_statutory', 'internal_audit_head'].includes(currentRole);
 
   const availableTabs: { key: string; label: string; count: number }[] = [
     { key: 'all', label: 'All Pending', count: counts.all || 0 },
-    ...(canUserViewApprovalCategory(currentRole, 'leaves') ? [{ key: 'leaves', label: 'Leaves', count: counts.leaves || 0 }] : []),
+    ...(canUserViewApprovalCategory(currentRole, 'leaves') ? [
+      { key: 'leaves', label: 'Leaves', count: items.filter((i) => i.category === 'leaves').length },
+      { key: 'outdoor_duty', label: 'Outdoor Duty (OD)', count: items.filter((i) => i.category === 'outdoor_duty').length },
+    ] : []),
     ...(canUserViewApprovalCategory(currentRole, 'requisitions') ? [{ key: 'requisitions', label: 'Requisitions', count: counts.requisitions || 0 }] : []),
     ...(canUserViewApprovalCategory(currentRole, 'transfers') ? [{ key: 'transfers', label: 'Transfers', count: counts.transfers || 0 }] : []),
     ...(canUserViewApprovalCategory(currentRole, 'payroll') ? [{ key: 'payroll', label: 'Payroll Runs', count: counts.payroll || 0 }] : []),
@@ -489,20 +502,16 @@ function ApprovalsContent() {
                                 className="h-8 px-3 text-xs font-semibold"
                                 onClick={async (e) => {
                                   e.stopPropagation();
+                                  // Optimistic removal
+                                  setItems((prev) => prev.filter((it) => it.id !== item.id));
+                                  setCounts((prev: any) => ({ ...prev, all: Math.max(0, (prev.all || 1) - 1) }));
                                   try {
-                                    const res = await fetch('/api/approvals', {
-                                      method: 'POST',
-                                      headers: {
-                                        'Content-Type': 'application/json',
-                                        'x-user-role': currentRole,
-                                      },
-                                      body: JSON.stringify({
-                                        category: item.category,
-                                        itemId: item.id,
-                                        action: 'approve',
-                                      }),
-                                    });
-                                    if (res.ok) fetchApprovals(true);
+                                    await apiClient.approvals.process({
+                                      category: item.category,
+                                      itemId: item.id,
+                                      action: 'approve',
+                                    }, currentRole);
+                                    fetchApprovals(true);
                                   } catch (err) {
                                     console.error(err);
                                   }
@@ -516,21 +525,17 @@ function ApprovalsContent() {
                                 className="h-8 px-3 text-xs font-semibold"
                                 onClick={async (e) => {
                                   e.stopPropagation();
+                                  // Optimistic removal
+                                  setItems((prev) => prev.filter((it) => it.id !== item.id));
+                                  setCounts((prev: any) => ({ ...prev, all: Math.max(0, (prev.all || 1) - 1) }));
                                   try {
-                                    const res = await fetch('/api/approvals', {
-                                      method: 'POST',
-                                      headers: {
-                                        'Content-Type': 'application/json',
-                                        'x-user-role': currentRole,
-                                      },
-                                      body: JSON.stringify({
-                                        category: item.category,
-                                        itemId: item.id,
-                                        action: 'reject',
-                                        rejectionReason: 'Rejected via Approvals Hub',
-                                      }),
-                                    });
-                                    if (res.ok) fetchApprovals(true);
+                                    await apiClient.approvals.process({
+                                      category: item.category,
+                                      itemId: item.id,
+                                      action: 'reject',
+                                      rejectionReason: 'Rejected via Approvals Hub',
+                                    }, currentRole);
+                                    fetchApprovals(true);
                                   } catch (err) {
                                     console.error(err);
                                   }

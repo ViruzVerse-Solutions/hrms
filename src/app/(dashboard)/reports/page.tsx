@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { RBACGuard } from '@/components/layout/RBACGuard';
+import { fetchApi } from '@/lib/api-client';
 import {
   Users,
   Wallet,
@@ -61,14 +62,17 @@ function MISReportsContent() {
 
   const fetchReports = async () => {
     try {
-      setLoading(true);
+      if (!reportData) setLoading(true);
       const params = new URLSearchParams();
       if (selectedBranch !== 'all') params.set('branch', selectedBranch);
       if (selectedDepartment !== 'all') params.set('department', selectedDepartment);
       if (searchTerm.trim()) params.set('search', searchTerm.trim());
 
-      const res = await fetch(`/api/reports?${params.toString()}`);
-      const json = await res.json();
+      const json = await fetchApi(`/api/reports?${params.toString()}`, {
+        headers: { 'x-user-role': currentRole },
+        useCache: true,
+        tags: ['reports'],
+      });
       if (json.success && json.data) {
         setReportData(json.data);
       }
@@ -82,6 +86,18 @@ function MISReportsContent() {
   useEffect(() => {
     fetchReports();
   }, [currentRole, selectedBranch, selectedDepartment]);
+
+  // Reactive listener for reports mutations
+  useEffect(() => {
+    const handleMutation = (e: any) => {
+      const tags = e.detail?.tags || [];
+      if (tags.length === 0 || tags.includes('reports') || tags.includes('employees') || tags.includes('attendance') || tags.includes('payroll')) {
+        fetchReports();
+      }
+    };
+    window.addEventListener('hrms_data_mutation', handleMutation);
+    return () => window.removeEventListener('hrms_data_mutation', handleMutation);
+  }, [currentRole, selectedBranch, selectedDepartment, searchTerm]);
 
   // Handle Search on Enter or debounce
   const handleSearchSubmit = (e: React.FormEvent) => {

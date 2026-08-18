@@ -27,6 +27,7 @@ export type ModuleKey =
 
 export type ApprovalCategory =
   | 'leaves'
+  | 'outdoor_duty'
   | 'requisitions'
   | 'transfers'
   | 'payroll'
@@ -178,6 +179,8 @@ export interface LeaveRequest {
   id: string;
   employeeId: string;
   employeeName: string;
+  employeeCode?: string;
+  department?: string;
   leaveType: LeaveType;
   fromDate: string;
   toDate: string;
@@ -187,6 +190,7 @@ export interface LeaveRequest {
   approverId: string;
   approverName: string;
   appliedAt: string;
+  createdAt?: string;
   approverComment?: string;
 }
 

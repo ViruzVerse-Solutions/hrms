@@ -4,6 +4,7 @@ import { getApiUserContext, requireModuleAccess } from '@/lib/auth/rbac-guard-ap
 import { attendanceService } from '@/services/attendance.service';
 import { auditService } from '@/services/audit.service';
 import { canPerformAction } from '@/lib/rbac/permissions';
+import { serverCache } from '@/lib/server-cache';
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,13 +16,23 @@ export async function GET(req: NextRequest) {
     const employeeId = searchParams.get('employeeId') || userCtx.employeeId;
     const date = searchParams.get('date') || undefined;
 
-    const records = await attendanceService.getRecords(userCtx.role, employeeId, date);
+    const cacheKey = `attendance_${userCtx.role}_${employeeId || 'all'}_${date || 'all'}`;
 
-    return apiSuccess({
-      count: records.length,
-      attendanceRecords: records,
-      userRole: userCtx.role,
-    });
+    const data = await serverCache.fetchWithCache(
+      cacheKey,
+      async () => {
+        const records = await attendanceService.getRecords(userCtx.role, employeeId, date);
+        return {
+          count: records.length,
+          attendanceRecords: records,
+          userRole: userCtx.role,
+        };
+      },
+      5 * 60 * 1000,
+      ['attendance']
+    );
+
+    return apiSuccess(data);
   } catch (error: any) {
     return apiError(error?.message || 'Failed to fetch attendance records', 500);
   }
@@ -63,14 +74,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const updatedRecords = await attendanceService.getRecords(userCtx.role);
+    serverCache.invalidateTags(['attendance', 'dashboard', 'reports']);
 
-    return apiSuccess({
-      ...syncResult,
-      attendanceRecords: updatedRecords,
-    });
+    return apiSuccess(syncResult, `Successfully synchronized ${syncResult.syncedCount} biometric records`, 200);
   } catch (error: any) {
-    return apiError(error?.message || 'Failed to sync biometric Excel data', 500);
+    return apiError(error?.message || 'Failed to process Excel attendance sync', 500);
   }
 }
-

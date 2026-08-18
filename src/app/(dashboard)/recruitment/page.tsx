@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { RBACGuard } from '@/components/layout/RBACGuard';
 import { useAuth } from '@/context/AuthContext';
 import { Candidate, ManpowerRequisition } from '@/types';
+import { apiClient } from '@/lib/api-client';
 import {
   Dialog,
   DialogContent,
@@ -81,8 +82,7 @@ function RecruitmentContent() {
   const [departmentsList, setDepartmentsList] = useState<Array<{ id: string; name: string }>>([]);
 
   React.useEffect(() => {
-    fetch('/api/master')
-      .then((res) => res.json())
+    apiClient.master.getAll()
       .then((data) => {
         if (data?.data?.departments) {
           setDepartmentsList(data.data.departments);
@@ -127,18 +127,7 @@ function RecruitmentContent() {
 
   const handleApproveRequisition = async (requisitionId: string) => {
     try {
-      const res = await fetch('/api/recruitment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': currentRole,
-        },
-        body: JSON.stringify({ action: 'approve_requisition', requisitionId }),
-      });
-      const data = await res.json();
-      if (data?.success) {
-        window.location.reload();
-      }
+      await apiClient.recruitment.createRequisition({ action: 'approve_requisition', requisitionId }, currentRole);
     } catch (err) {
       console.error('Failed to approve requisition:', err);
     }

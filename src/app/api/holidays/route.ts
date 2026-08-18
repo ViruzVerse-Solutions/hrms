@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db/prisma';
-import { authenticateApiRequest } from '@/lib/auth/rbac-guard-api';
+import { getApiUserContext, requireModuleAccess, authenticateApiRequest } from '@/lib/auth/rbac-guard-api';
+import { serverCache } from '@/lib/server-cache';
 
 export async function GET(req: NextRequest) {
   try {
-    const authResult = await authenticateApiRequest(req, 'attendance_leave', 'read');
-    if (!authResult.authorized) {
-      return NextResponse.json({ success: false, error: authResult.error }, { status: authResult.status });
-    }
+    const userCtx = getApiUserContext(req);
+    const accessError = requireModuleAccess(userCtx, 'attendance_leave');
+    if (accessError) return accessError;
 
     const org = await prisma.organization.findFirst();
     if (!org) {

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { apiClient } from '@/lib/api-client';
 import {
   CalendarCheck,
   Clock,
@@ -79,13 +80,7 @@ function AttendanceContent() {
 
   const syncBiometricData = () => {
     setIsSyncing(true);
-    fetch('/api/attendance', {
-      headers: {
-        'x-user-role': currentRole,
-        'x-employee-id': empId,
-      },
-    })
-      .then((res) => res.json())
+    apiClient.attendance.getRecords(currentRole, empId)
       .then((data) => {
         if (data?.data?.attendanceRecords) {
           setAttendanceRecords(data.data.attendanceRecords);
@@ -96,13 +91,18 @@ function AttendanceContent() {
       .finally(() => setIsSyncing(false));
   };
 
-  // Auto-sync from Biometric Gateway every 30 seconds
+  // Sync on mount and listen to instant DB mutation events
   React.useEffect(() => {
     syncBiometricData();
-    const timer = setInterval(() => {
-      syncBiometricData();
-    }, 30000);
-    return () => clearInterval(timer);
+
+    const handleMutation = (e: any) => {
+      const tags = e.detail?.tags || [];
+      if (tags.length === 0 || tags.includes('attendance') || tags.includes('dashboard')) {
+        syncBiometricData();
+      }
+    };
+    window.addEventListener('hrms_data_mutation', handleMutation);
+    return () => window.removeEventListener('hrms_data_mutation', handleMutation);
   }, [currentRole, empId]);
 
   // Handle Excel / CSV File Reading & Parsing
@@ -187,16 +187,8 @@ function AttendanceContent() {
       setSyncErrorMsg('');
       setSyncStatusMsg('Uploading and syncing punch records to PostgreSQL...');
 
-      const res = await fetch('/api/attendance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-role': currentRole,
-        },
-        body: JSON.stringify({ records: parsedRows }),
-      });
+      const data = await apiClient.attendance.syncExcel(parsedRows, currentRole);
 
-      const data = await res.json();
       if (data?.success) {
         if (data.data?.attendanceRecords) {
           setAttendanceRecords(data.data.attendanceRecords);
@@ -210,7 +202,7 @@ function AttendanceContent() {
           setSyncStatusMsg('');
         }, 1800);
       } else {
-        setSyncErrorMsg(data?.message || 'Failed to synchronize records.');
+        setSyncErrorMsg(data?.error || data?.message || 'Failed to synchronize records.');
       }
     } catch (err: any) {
       setSyncErrorMsg(`Server error during Excel sync: ${err?.message}`);

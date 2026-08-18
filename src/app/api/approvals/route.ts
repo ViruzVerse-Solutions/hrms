@@ -7,6 +7,9 @@ import {
   canUserViewApprovalCategory,
 } from '@/lib/rbac';
 import { auditService } from '@/services/audit.service';
+import { attendanceService } from '@/services/attendance.service';
+import { serverCache } from '@/lib/server-cache';
+import { getApprovalItemDetails } from '@/lib/leave-utils';
 
 export async function GET(req: NextRequest) {
   try {
@@ -93,20 +96,24 @@ export async function GET(req: NextRequest) {
         : Promise.resolve([]),
     ]);
 
-    const pendingLeaves = leaves.map((l: any) => ({
-      id: l.id,
-      category: 'leaves',
-      categoryTitle: 'Leave Request',
-      title: `${(l.leaveType || 'Leave').toUpperCase()} Leave (${Number(l.daysCount || 1)} Days)`,
-      applicantName: l.employee ? `${l.employee.firstName} ${l.employee.lastName}` : 'Employee',
-      applicantId: l.employee?.employeeCode || l.employeeId,
-      details: `From ${l.fromDate ? l.fromDate.toISOString().split('T')[0] : '—'} to ${l.toDate ? l.toDate.toISOString().split('T')[0] : '—'} • Reason: ${l.reason || 'Personal'}`,
-      date: l.createdAt ? l.createdAt.toISOString() : new Date().toISOString(),
-      targetUrl: '/leaves',
-      canApprove: canUserApproveCategory(role, 'leaves'),
-      meta: { leaveType: l.leaveType, daysCount: Number(l.daysCount || 1), reason: l.reason },
-      raw: l,
-    }));
+    const pendingLeaves = leaves.map((l: any) => {
+      const details = getApprovalItemDetails(l);
+      const isOd = details.isOd;
+      return {
+        id: l.id,
+        category: details.category,
+        categoryTitle: details.categoryTitle,
+        title: details.title,
+        applicantName: l.employee ? `${l.employee.firstName} ${l.employee.lastName}` : 'Employee',
+        applicantId: l.employee?.employeeCode || l.employeeId,
+        details: `From ${l.fromDate ? (l.fromDate instanceof Date ? l.fromDate.toISOString().split('T')[0] : String(l.fromDate).split('T')[0]) : '—'} to ${l.toDate ? (l.toDate instanceof Date ? l.toDate.toISOString().split('T')[0] : String(l.toDate).split('T')[0]) : '—'} • Reason: ${l.reason || 'Personal'}`,
+        date: l.createdAt ? (l.createdAt instanceof Date ? l.createdAt.toISOString() : String(l.createdAt)) : new Date().toISOString(),
+        targetUrl: isOd ? '/leaves?tab=od_requests' : '/leaves',
+        canApprove: canUserApproveCategory(role, 'leaves'),
+        meta: { leaveType: l.leaveType, daysCount: Number(l.daysCount || 1), reason: l.reason, isOd },
+        raw: l,
+      };
+    });
 
     const pendingRequisitions = reqs.map((r: any) => ({
       id: r.id,
@@ -270,21 +277,19 @@ export async function POST(req: NextRequest) {
     let actionDetail = '';
     let updatedRecord: any = null;
 
-    // 1. Process Leaves
-    if (category === 'leaves') {
+    // 1. Process Leaves and Outdoor Duty
+    if (category === 'leaves' || category === 'outdoor_duty') {
       const status = action === 'approve' ? 'approved' : 'rejected';
-      updatedRecord = await prisma.leaveRequest.update({
-        where: { id: itemId },
-        data: {
-          status,
-          approverId: userCtx.employeeId || undefined,
-          approverComment: action === 'approve' ? 'Approved' : `Rejected: ${rejectionReason}`,
-          processedAt: new Date(),
-        },
-      });
+      const comment = action === 'approve' ? 'Approved by Approvals Hub' : `Rejected: ${rejectionReason}`;
+      updatedRecord = await attendanceService.updateLeaveStatus(
+        itemId,
+        status,
+        userCtx.employeeId || userCtx.userId,
+        comment
+      );
       actionDetail = action === 'approve'
-        ? `Approved leave application for ${updatedRecord.leaveType}`
-        : `Rejected leave application: ${rejectionReason}`;
+        ? `Approved application for ${updatedRecord.leaveType}`
+        : `Rejected application: ${rejectionReason}`;
     }
     // 2. Process Requisitions
     else if (category === 'requisitions') {
@@ -382,6 +387,9 @@ export async function POST(req: NextRequest) {
         rejectionReason: action === 'reject' ? rejectionReason : undefined,
       },
     });
+
+    // Invalidate server cache tags for immediate DB consistency
+    serverCache.invalidateTags(['approvals', 'leaves', 'recruitment', 'payroll', 'dashboard', 'reports']);
 
     return NextResponse.json({
       success: true,
