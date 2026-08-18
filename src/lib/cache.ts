@@ -7,10 +7,30 @@
  * 4. Cross-Tab & Cross-Component Event Bus: Dispatches instant events on any DB mutation to refresh UI with 0 latency.
  */
 
-const CACHE_PREFIX = 'hrms_cache_';
+const CURRENT_CACHE_VERSION = 'v3_production_clean';
+const CACHE_VERSION_KEY = 'hrms_app_cache_version';
+const CACHE_PREFIX = 'hrms_v3_cache_';
 const DEV_BYPASS_KEY = 'hrms_dev_cache_bypassed';
-// In development, keep TTL short (3s) so direct DB edits reflect immediately; in production, keep 15 minutes.
-export const DEFAULT_TTL_MS = process.env.NODE_ENV === 'development' ? 3 * 1000 : 15 * 60 * 1000;
+// In development, keep TTL short (3s) so direct DB edits reflect immediately; in production, keep 5 minutes.
+export const DEFAULT_TTL_MS = process.env.NODE_ENV === 'development' ? 3 * 1000 : 5 * 60 * 1000;
+
+// Auto-purge any stale pre-update caches stored in user's browser localStorage
+if (typeof window !== 'undefined') {
+  try {
+    const storedVersion = localStorage.getItem(CACHE_VERSION_KEY);
+    if (storedVersion !== CURRENT_CACHE_VERSION) {
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('hrms_cache_') || key.startsWith('hrms_v') || (key.startsWith('api_') && key.includes('leaves')))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach((k) => localStorage.removeItem(k));
+      localStorage.setItem(CACHE_VERSION_KEY, CURRENT_CACHE_VERSION);
+    }
+  } catch {}
+}
 
 export interface CacheEntry<T = any> {
   data: T;
@@ -285,7 +305,7 @@ function localClearAll(broadcast = true): void {
     const keysToRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith(CACHE_PREFIX)) {
+      if (key && (key.startsWith(CACHE_PREFIX) || key.startsWith('hrms_cache_') || key.startsWith('hrms_v'))) {
         keysToRemove.push(key);
       }
     }
