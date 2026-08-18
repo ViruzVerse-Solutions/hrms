@@ -3,6 +3,7 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 import { getApiUserContext } from '@/lib/auth/rbac-guard-api';
 import { prisma } from '@/lib/db/prisma';
 import { formatAuditDetails } from '@/lib/utils';
+import { attendanceService } from '@/services/attendance.service';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,6 +16,7 @@ export async function GET(req: NextRequest) {
         employees: [],
         attendanceRecords: [],
         leaveRequests: [],
+        leaveAllocations: [],
         payrollRuns: [],
         payslips: [],
         requisitions: [],
@@ -25,82 +27,86 @@ export async function GET(req: NextRequest) {
     }
 
     // Parallel high-performance database fetch
-        const [
-          employees,
-          attendanceToday,
-          leaves,
-          payrollRuns,
-          payslips,
-          requisitions,
-          candidates,
-          policies,
-          auditLogs,
-          branches,
-          departments,
-        ] = await Promise.all([
-          // 1. Employees
-          prisma.employee.findMany({
-            where: { employmentStatus: { not: 'terminated' } },
-            select: {
-              id: true,
-              employeeCode: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              phone: true,
-              departmentId: true,
-              designationId: true,
-              branchId: true,
-              employmentStatus: true,
-              currentLifecycleStage: true,
-              ctc: true,
-              department: { select: { id: true, name: true } },
-              designation: { select: { id: true, title: true } },
-              branch: { select: { id: true, name: true } },
-            },
-            orderBy: { employeeCode: 'asc' },
-          }).catch(() => []),
+    const [
+      employees,
+      attendanceToday,
+      leaves,
+      leaveAllocations,
+      payrollRuns,
+      payslips,
+      requisitions,
+      candidates,
+      policies,
+      auditLogs,
+      branches,
+      departments,
+    ] = await Promise.all([
+      // 1. Employees
+      prisma.employee.findMany({
+        where: { employmentStatus: { not: 'terminated' } },
+        select: {
+          id: true,
+          employeeCode: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          departmentId: true,
+          designationId: true,
+          branchId: true,
+          employmentStatus: true,
+          currentLifecycleStage: true,
+          ctc: true,
+          department: { select: { id: true, name: true } },
+          designation: { select: { id: true, title: true } },
+          branch: { select: { id: true, name: true } },
+        },
+        orderBy: { employeeCode: 'asc' },
+      }).catch(() => []),
 
-          // 2. Attendance Records
-          prisma.attendanceRecord.findMany({
-            take: 50,
-            orderBy: { date: 'desc' },
-            select: {
-              id: true,
-              employeeId: true,
-              date: true,
-              inTime: true,
-              outTime: true,
-              totalHours: true,
-              status: true,
-              source: true,
-              isRegularized: true,
-              employee: {
-                select: { id: true, firstName: true, lastName: true, employeeCode: true, department: { select: { name: true } } },
-              },
-            },
-          }).catch(() => []),
+      // 2. Attendance Records
+      prisma.attendanceRecord.findMany({
+        take: 50,
+        orderBy: { date: 'desc' },
+        select: {
+          id: true,
+          employeeId: true,
+          date: true,
+          inTime: true,
+          outTime: true,
+          totalHours: true,
+          status: true,
+          source: true,
+          isRegularized: true,
+          employee: {
+            select: { id: true, firstName: true, lastName: true, employeeCode: true, department: { select: { name: true } } },
+          },
+        },
+      }).catch(() => []),
 
-          // 3. Leaves
-          prisma.leaveRequest.findMany({
-            select: {
-              id: true,
-              employeeId: true,
-              leaveType: true,
-              fromDate: true,
-              toDate: true,
-              daysCount: true,
-              reason: true,
-              status: true,
-              approverComment: true,
-              createdAt: true,
-              employee: {
-                select: { id: true, firstName: true, lastName: true, employeeCode: true, department: { select: { name: true } } },
-              },
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 30,
-          }).catch(() => []),
+      // 3. Leaves
+      prisma.leaveRequest.findMany({
+        select: {
+          id: true,
+          employeeId: true,
+          leaveType: true,
+          fromDate: true,
+          toDate: true,
+          daysCount: true,
+          reason: true,
+          status: true,
+          approverComment: true,
+          createdAt: true,
+          employee: {
+            select: { id: true, firstName: true, lastName: true, employeeCode: true, department: { select: { name: true } } },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+      }).catch(() => []),
+
+      // 3b. Leave Allocations
+      attendanceService.getLeaveAllocations(userCtx.employeeId).catch(() => []),
 
           // 4. Payroll Runs
           prisma.payrollRun.findMany({
@@ -328,9 +334,10 @@ export async function GET(req: NextRequest) {
         });
 
     return apiSuccess({
-          employees: formattedEmployees,
-          attendanceRecords: formattedAttendance,
-          leaveRequests: formattedLeaves,
+      employees: formattedEmployees,
+      attendanceRecords: formattedAttendance,
+      leaveRequests: formattedLeaves,
+      leaveAllocations: leaveAllocations || [],
           payrollRuns: payrollRuns.map((r: any) => ({
             id: r.id,
             period: r.monthYear || '2026-08',

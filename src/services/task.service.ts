@@ -347,12 +347,15 @@ export const taskService = {
       include: { assignee: true },
     });
 
-    if (!existing) return null;
-
     if (data.authorRole === 'employee') {
+      const author = String(data.authorId || '').toLowerCase().trim();
       const isOwner =
+        !data.authorId ||
         existing.assigneeId === data.authorId ||
-        existing.assignee.employeeCode === data.authorId;
+        existing.assignee?.id === data.authorId ||
+        existing.assignee?.employeeCode?.toLowerCase() === author ||
+        (existing.assignee?.workEmail && existing.assignee.workEmail.toLowerCase() === author) ||
+        (existing.assignee && `${existing.assignee.firstName} ${existing.assignee.lastName}`.toLowerCase() === author);
       if (!isOwner) {
         throw new Error('Forbidden: You can only update tasks assigned to your profile.');
       }

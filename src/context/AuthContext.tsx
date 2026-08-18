@@ -149,11 +149,13 @@ export function AuthProvider({
   const loadData = useCallback(async (showLoadingSpinner = true) => {
     if (showLoadingSpinner) setIsLoadingData(true);
     try {
-      const [summaryRes, notifRes] = await Promise.all([
-        apiClient.dashboard.getSummary(currentRole, currentUser.employeeId),
+      const empId = currentUser.employeeId || '';
+      const [summaryRes, notifRes, leavesRes] = await Promise.all([
+        apiClient.dashboard.getSummary(currentRole, empId),
         fetch('/api/notifications', {
-          headers: { 'x-user-role': currentRole, 'x-employee-id': currentUser.employeeId || '' },
+          headers: { 'x-user-role': currentRole, 'x-employee-id': empId },
         }).then((res) => res.json()).catch(() => null),
+        apiClient.leaves.getAll(currentRole, empId).catch(() => null),
       ]);
 
       if (summaryRes?.data) {
@@ -161,11 +163,18 @@ export function AuthProvider({
         if (d.employees) setEmployees(d.employees);
         if (d.attendanceRecords) setAttendanceRecords(d.attendanceRecords);
         if (d.leaveRequests) setLeaveRequests((prev) => mergeLeavesSafely(d.leaveRequests, prev));
+        if (d.leaveAllocations) setLeaveAllocations(d.leaveAllocations);
         if (d.payrollRuns) setPayrollRuns(d.payrollRuns);
         if (d.payslips) setPayslips(d.payslips);
         if (d.requisitions) setRequisitions(d.requisitions);
         if (d.candidates) setCandidates(d.candidates);
         if (d.auditLogs) setAuditLogs(d.auditLogs);
+      }
+      if (leavesRes?.data?.leaveAllocations) {
+        setLeaveAllocations(leavesRes.data.leaveAllocations);
+      }
+      if (leavesRes?.data?.leaves) {
+        setLeaveRequests((prev) => mergeLeavesSafely(leavesRes.data.leaves, prev));
       }
       if (notifRes?.data?.notifications) {
         setNotifications(notifRes.data.notifications);
