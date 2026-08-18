@@ -717,11 +717,23 @@ export default function DashboardPage() {
       {/* ========================================================================= */}
       {currentRole === 'employee' && (() => {
         const casualAlloc = leaveAllocations.find((a) => a.leaveType === 'casual');
-        const casualBal = casualAlloc ? (casualAlloc.balanceDays ?? casualAlloc.balance ?? 0) : 0;
-        const casualUsed = casualAlloc ? (casualAlloc.usedDays ?? casualAlloc.used ?? 0) : 0;
-        const casualPend = casualAlloc ? (casualAlloc.pendingDays ?? casualAlloc.pending ?? 0) : 0;
-
+        const myEmpCode = currentEmployee?.employeeCode || '';
         const myEmpId = currentEmployee?.id || currentUser?.employeeId || (employees[0]?.id ?? '');
+
+        const myLeaves = leaveRequests.filter(
+          (l) =>
+            l.leaveType === 'casual' &&
+            !l.reason?.startsWith('[ON DUTY') &&
+            !l.reason?.includes('[OD]') &&
+            (!myEmpId || l.employeeId === myEmpId || l.employeeId === myEmpCode || (l as any).employeeCode === myEmpCode)
+        );
+        const approvedCasual = myLeaves.filter((l) => l.status === 'approved').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+        const pendingCasual = myLeaves.filter((l) => l.status === 'pending').reduce((acc, l) => acc + Number(l.daysCount || 0), 0);
+        const allocatedTotal = casualAlloc?.allocatedDays !== undefined ? Number(casualAlloc.allocatedDays) : 12;
+        const casualBal = Math.max(0, allocatedTotal - approvedCasual);
+        const casualUsed = approvedCasual;
+        const casualPend = pendingCasual;
+
         const latestPs = payslips.find((p) => p.employeeId === myEmpId || p.employeeCode === currentEmployee?.employeeCode) || payslips[0];
         const payslipNet = latestPs?.breakup?.netPay || (latestPs as any)?.netPay || (currentEmployee?.ctc ? Math.round(Number(currentEmployee.ctc) / 12 * 0.85) : 85000);
         const payslipPeriod = latestPs?.period || payrollRuns[0]?.period || 'Current Period';
@@ -731,9 +743,21 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <Card>
               <CardContent className="p-6">
-                <span className="text-xs font-semibold text-slate-500">Casual Leave Balance</span>
-                <div className="text-3xl font-extrabold mt-2 text-indigo-600">{casualBal} Days</div>
-                <div className="text-xs text-slate-400 mt-1">{casualUsed} used • {casualPend} pending approval</div>
+                <div className="flex items-center justify-between text-slate-500">
+                  <span className="text-xs font-semibold uppercase tracking-wider">Casual Leave Balance</span>
+                  <Calendar className="h-4 w-4 text-indigo-600" />
+                </div>
+                {isLoadingData && leaveAllocations.length === 0 ? (
+                  <div className="space-y-2 mt-3">
+                    <FieldLoader className="h-8 w-24" />
+                    <FieldLoader className="h-3 w-36" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="text-3xl font-extrabold mt-2 text-indigo-600 font-mono">{casualBal} Days</div>
+                    <div className="text-xs text-slate-400 mt-1">{casualUsed} used • {casualPend} pending approval</div>
+                  </>
+                )}
               </CardContent>
             </Card>
 

@@ -646,6 +646,18 @@ function TasksContent() {
               });
               setUpdateModalOpen(true);
             }}
+            onSubmitForReview={(task) => {
+              setSelectedTask(task);
+              setUpdateForm({
+                actualHours: '',
+                deliverableNotes: task.deliverableNotes || '',
+                proofDocumentName: task.proofDocumentName || '',
+                proofDocumentUrl: task.proofDocumentUrl || '',
+                logMessage: '',
+                status: 'under_review',
+              });
+              setUpdateModalOpen(true);
+            }}
             onOpenReview={(task) => {
               setSelectedTask(task);
               setReviewForm({
@@ -679,7 +691,19 @@ function TasksContent() {
                 proofDocumentName: task.proofDocumentName || '',
                 proofDocumentUrl: task.proofDocumentUrl || '',
                 logMessage: '',
-                status: task.status,
+                status: 'in_progress',
+              });
+              setUpdateModalOpen(true);
+            }}
+            onSubmitForReview={(task) => {
+              setSelectedTask(task);
+              setUpdateForm({
+                actualHours: '',
+                deliverableNotes: task.deliverableNotes || '',
+                proofDocumentName: task.proofDocumentName || '',
+                proofDocumentUrl: task.proofDocumentUrl || '',
+                logMessage: '',
+                status: 'under_review',
               });
               setUpdateModalOpen(true);
             }}
@@ -716,7 +740,19 @@ function TasksContent() {
                 proofDocumentName: task.proofDocumentName || '',
                 proofDocumentUrl: task.proofDocumentUrl || '',
                 logMessage: '',
-                status: task.status,
+                status: 'under_review',
+              });
+              setUpdateModalOpen(true);
+            }}
+            onSubmitForReview={(task) => {
+              setSelectedTask(task);
+              setUpdateForm({
+                actualHours: '',
+                deliverableNotes: task.deliverableNotes || '',
+                proofDocumentName: task.proofDocumentName || '',
+                proofDocumentUrl: task.proofDocumentUrl || '',
+                logMessage: '',
+                status: 'under_review',
               });
               setUpdateModalOpen(true);
             }}
@@ -746,6 +782,10 @@ function TasksContent() {
             isEmployee={isEmployee}
             onQuickStart={handleQuickStart}
             onOpenUpdate={(task) => {
+              setSelectedTask(task);
+              setUpdateModalOpen(true);
+            }}
+            onSubmitForReview={(task) => {
               setSelectedTask(task);
               setUpdateModalOpen(true);
             }}
@@ -843,31 +883,79 @@ function TasksContent() {
                         </td>
                         <td className="p-4 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            {isSelf && task.status !== 'completed' && (
+                            {isSelf && task.status === 'pending' && (
                               <Button
                                 size="sm"
-                                className="h-8 px-3 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
-                                onClick={() => {
-                                  setSelectedTask(task);
-                                  setUpdateForm({
-                                    actualHours: '',
-                                    deliverableNotes: task.deliverableNotes || '',
-                                    proofDocumentName: task.proofDocumentName || '',
-                                    proofDocumentUrl: task.proofDocumentUrl || '',
-                                    logMessage: '',
-                                    status: task.status === 'pending' ? 'in_progress' : task.status,
-                                  });
-                                  setUpdateModalOpen(true);
-                                }}
+                                className="h-8 px-3 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5"
+                                onClick={() => handleQuickStart(task)}
                               >
-                                {task.status === 'pending' ? 'Start Work' : 'Update & Attach Proof'}
+                                <Play className="h-3 w-3" />
+                                <span>Start Work</span>
                               </Button>
+                            )}
+
+                            {isSelf && task.status === 'in_progress' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 px-2.5 text-xs font-bold border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1"
+                                  onClick={() => {
+                                    setSelectedTask(task);
+                                    setUpdateForm({
+                                      actualHours: '',
+                                      deliverableNotes: task.deliverableNotes || '',
+                                      proofDocumentName: task.proofDocumentName || '',
+                                      proofDocumentUrl: task.proofDocumentUrl || '',
+                                      logMessage: '',
+                                      status: 'in_progress',
+                                    });
+                                    setUpdateModalOpen(true);
+                                  }}
+                                >
+                                  <FileText className="h-3 w-3 text-slate-500" />
+                                  <span>Log Progress</span>
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="h-8 px-2.5 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs flex items-center gap-1"
+                                  onClick={() => {
+                                    setSelectedTask(task);
+                                    setUpdateForm({
+                                      actualHours: '',
+                                      deliverableNotes: task.deliverableNotes || '',
+                                      proofDocumentName: task.proofDocumentName || '',
+                                      proofDocumentUrl: task.proofDocumentUrl || '',
+                                      logMessage: '',
+                                      status: 'under_review',
+                                    });
+                                    setUpdateModalOpen(true);
+                                  }}
+                                >
+                                  <Send className="h-3 w-3" />
+                                  <span>Submit for Review</span>
+                                </Button>
+                              </>
+                            )}
+
+                            {isSelf && task.status === 'under_review' && (
+                              <div className="flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-md border border-amber-200 dark:border-amber-900/50">
+                                <Clock className="h-3 w-3" />
+                                <span>Awaiting Review</span>
+                              </div>
+                            )}
+
+                            {isSelf && task.status === 'completed' && (
+                              <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-900/50">
+                                <CheckCircle2 className="h-3 w-3" />
+                                <span>Completed ({task.rating || 5}/5)</span>
+                              </div>
                             )}
 
                             {isHigherProfile && (
                               <Button
                                 size="sm"
-                                className={`h-8 px-3 text-xs font-bold text-white ${
+                                className={`h-8 px-3 text-xs font-bold text-white flex items-center gap-1.5 ${
                                   task.status === 'under_review'
                                     ? 'bg-emerald-600 hover:bg-emerald-700 shadow-xs'
                                     : 'bg-slate-700 hover:bg-slate-800'
@@ -886,7 +974,17 @@ function TasksContent() {
                                   }
                                 }}
                               >
-                                {task.status === 'under_review' ? 'Verify & Review' : 'View Scope'}
+                                {task.status === 'under_review' ? (
+                                  <>
+                                    <Star className="h-3 w-3 fill-white" />
+                                    <span>Verify & Review</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye className="h-3 w-3" />
+                                    <span>View Scope</span>
+                                  </>
+                                )}
                               </Button>
                             )}
                           </div>
@@ -1049,10 +1147,15 @@ function TasksContent() {
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 sticky top-0 bg-white dark:bg-slate-900 z-10">
               <div>
-                <h3 className="font-bold text-base text-slate-900 dark:text-white truncate max-w-sm">
-                  {selectedTask.title}
+                <h3 className="font-bold text-base text-slate-900 dark:text-white truncate max-w-sm flex items-center gap-2">
+                  {updateForm.status === 'under_review' ? (
+                    <Send className="h-4 w-4 text-amber-600" />
+                  ) : (
+                    <FileText className="h-4 w-4 text-indigo-600" />
+                  )}
+                  <span>{updateForm.status === 'under_review' ? 'Submit Deliverable for Review' : 'Deliverable Progress & Proof'}</span>
                 </h3>
-                <div className="text-xs text-slate-500 mt-0.5">Deliverable Progress & Verification Evidence</div>
+                <div className="text-xs text-slate-500 mt-0.5">{selectedTask.title}</div>
               </div>
               <button onClick={() => setUpdateModalOpen(false)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
@@ -1160,8 +1263,23 @@ function TasksContent() {
                 <Button type="button" variant="outline" className="h-10 px-4 text-xs font-bold" onClick={() => setUpdateModalOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="h-10 px-5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-md">
-                  Save Deliverable & Proof
+                <Button
+                  type="submit"
+                  className={`h-10 px-5 text-xs font-bold text-white shadow-md flex items-center gap-1.5 ${
+                    updateForm.status === 'under_review' ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
+                >
+                  {updateForm.status === 'under_review' ? (
+                    <>
+                      <Send className="h-4 w-4" />
+                      <span>Submit for Executive Review</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileCheck className="h-4 w-4" />
+                      <span>Save Progress & Evidence</span>
+                    </>
+                  )}
                 </Button>
               </div>
             </form>
@@ -1369,6 +1487,7 @@ function KanbanColumn({
   isEmployee,
   onQuickStart,
   onOpenUpdate,
+  onSubmitForReview,
   onOpenReview,
   onOpenViewDetails,
 }: {
@@ -1381,6 +1500,7 @@ function KanbanColumn({
   isEmployee: boolean;
   onQuickStart: (t: TaskAllocationItem) => void;
   onOpenUpdate: (t: TaskAllocationItem) => void;
+  onSubmitForReview: (t: TaskAllocationItem) => void;
   onOpenReview: (t: TaskAllocationItem) => void;
   onOpenViewDetails: (t: TaskAllocationItem) => void;
 }) {
@@ -1486,17 +1606,19 @@ function KanbanColumn({
                           <Button
                             size="default"
                             variant="outline"
-                            className="h-9 text-xs font-bold border-indigo-200 text-indigo-600 hover:bg-indigo-50"
+                            className="h-9 text-xs font-bold border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 gap-1.5"
                             onClick={() => onOpenUpdate(task)}
                           >
-                            <span>Attach Proof</span>
+                            <FileText className="h-3.5 w-3.5 text-slate-500" />
+                            <span>Log Progress</span>
                           </Button>
                           <Button
                             size="default"
-                            className="h-9 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
-                            onClick={() => onOpenUpdate(task)}
+                            className="h-9 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs gap-1.5"
+                            onClick={() => onSubmitForReview(task)}
                           >
-                            <span>Submit</span>
+                            <Send className="h-3.5 w-3.5" />
+                            <span>Submit for Review</span>
                           </Button>
                         </div>
                       )}

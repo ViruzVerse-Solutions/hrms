@@ -458,10 +458,16 @@ export const attendanceService = {
       }),
     ]);
 
+    const defaultQuotas: Record<string, number> = {
+      casual: 12,
+      sick: 12,
+      earned: 15,
+    };
+
     const leaveTypes = ['casual', 'sick', 'earned'];
     return leaveTypes.map((type) => {
       const alloc = dbAllocations.find((a: any) => a.leaveType === type);
-      const allocatedDays = alloc ? Number(alloc.allocatedDays) : 0;
+      const allocatedDays = alloc ? Number(alloc.allocatedDays) : (defaultQuotas[type] || 12);
 
       const typeRequests = requests.filter((r: any) => r.leaveType === type && !r.reason?.startsWith('[ON DUTY') && !r.reason?.includes('[OD]'));
       const usedDays = typeRequests
@@ -473,11 +479,14 @@ export const attendanceService = {
       const balanceDays = Math.max(0, allocatedDays - usedDays);
 
       return {
+        id: alloc?.id || `alloc_${type}_${targetEmpId}`,
+        employeeId: targetEmpId,
         leaveType: type,
         allocatedDays,
         usedDays,
         pendingDays,
         balanceDays,
+        year: new Date().getFullYear(),
       };
     });
   },
