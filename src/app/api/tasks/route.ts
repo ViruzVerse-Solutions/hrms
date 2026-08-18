@@ -4,6 +4,9 @@ import { getApiUserContext, requireModuleAccess } from '@/lib/auth/rbac-guard-ap
 import { taskService } from '@/services/task.service';
 import { serverCache } from '@/lib/server-cache';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   try {
     const userCtx = getApiUserContext(req);
@@ -16,33 +19,22 @@ export async function GET(req: NextRequest) {
     const priority = searchParams.get('priority') || undefined;
     const search = searchParams.get('search') || undefined;
 
-    const cacheKey = `tasks_${userCtx.role}_${userCtx.employeeId || 'all'}_${department || 'all'}_${status || 'all'}_${priority || 'all'}_${search || 'all'}`;
+    const tasks = await taskService.getTasks({
+      role: userCtx.role,
+      employeeId: userCtx.employeeId,
+      email: userCtx.email,
+      employeeName: userCtx.employeeName || userCtx.email,
+      department,
+      status,
+      priority,
+      search,
+    });
 
-    const data = await serverCache.fetchWithCache(
-      cacheKey,
-      async () => {
-        const tasks = await taskService.getTasks({
-          role: userCtx.role,
-          employeeId: userCtx.employeeId,
-          email: userCtx.email,
-          employeeName: userCtx.employeeName || userCtx.email,
-          department,
-          status,
-          priority,
-          search,
-        });
-
-        return {
-          count: tasks.length,
-          tasks,
-          userRole: userCtx.role,
-        };
-      },
-      5 * 60 * 1000,
-      ['tasks']
-    );
-
-    return apiSuccess(data);
+    return apiSuccess({
+      count: tasks.length,
+      tasks,
+      userRole: userCtx.role,
+    });
   } catch (error: any) {
     return apiError(error?.message || 'Failed to fetch tasks', 500);
   }

@@ -3,6 +3,9 @@ import { apiSuccess, apiError } from '@/lib/api-response';
 import { getApiUserContext, requireModuleAccess } from '@/lib/auth/rbac-guard-api';
 import { taskService } from '@/services/task.service';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

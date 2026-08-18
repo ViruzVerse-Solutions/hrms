@@ -5,6 +5,9 @@ import { attendanceService } from '@/services/attendance.service';
 import { auditService } from '@/services/audit.service';
 import { serverCache } from '@/lib/server-cache';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(req: NextRequest) {
   try {
     const userCtx = getApiUserContext(req);

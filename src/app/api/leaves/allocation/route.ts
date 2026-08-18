@@ -3,6 +3,9 @@ import { apiSuccess, apiError, apiForbidden } from '@/lib/api-response';
 import { getApiUserContext } from '@/lib/auth/rbac-guard-api';
 import { prisma } from '@/lib/db/prisma';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function POST(req: NextRequest) {
   try {
     const userCtx = getApiUserContext(req);

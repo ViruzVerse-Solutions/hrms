@@ -3,6 +3,9 @@ import { prisma } from '@/lib/db/prisma';
 import { getApiUserContext, requireModuleAccess, authenticateApiRequest } from '@/lib/auth/rbac-guard-api';
 import { serverCache } from '@/lib/server-cache';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(req: NextRequest) {
   try {
     const userCtx = getApiUserContext(req);
