@@ -515,6 +515,8 @@ export const taskService = {
       actualHours: Number(updated.actualHours),
       progressPercent: updated.progressPercent,
       deliverableNotes: updated.deliverableNotes || undefined,
+      proofDocumentName: updated.proofDocumentName || undefined,
+      proofDocumentUrl: updated.proofDocumentUrl || undefined,
       reviewComments: updated.reviewComments || undefined,
       rating: updated.rating !== null ? Number(updated.rating) : undefined,
       reviewedAt: updated.reviewedAt ? updated.reviewedAt.toISOString() : undefined,

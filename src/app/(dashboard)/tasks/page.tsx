@@ -171,10 +171,21 @@ function TasksContent() {
             setTasks((current) => {
               const serverTasks: TaskAllocationItem[] = json.data.tasks;
               const serverIds = new Set(serverTasks.map((t) => t.id));
+              const currentMap = new Map(current.map((t) => [t.id, t]));
+
               const pendingOptimistic = current.filter(
                 (t) => t.id.startsWith('temp_task_') && !serverIds.has(t.id)
               );
-              return [...pendingOptimistic, ...serverTasks];
+
+              const mergedServerTasks = serverTasks.map((st) => {
+                const ct = currentMap.get(st.id);
+                if (ct && ct.status === 'completed' && st.status !== 'completed') {
+                  return ct;
+                }
+                return st;
+              });
+
+              return [...pendingOptimistic, ...mergedServerTasks];
             });
           }
         });
